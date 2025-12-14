@@ -166,18 +166,20 @@ elif menu == "👥 Gestione Pazienti":
     df_original = get_data("Pazienti")
     
     if not df_original.empty:
-        # Gestione colonna Disdetto
+        # 1. Gestione Disdetto
         if 'Disdetto' not in df_original.columns:
             df_original['Disdetto'] = False
         df_original['Disdetto'] = df_original['Disdetto'].fillna(False).infer_objects(copy=False)
 
-        # --- GESTIONE COLORI (Clean Area) ---
-        # Per far apparire i colori, dobbiamo assicurarci che 'Area' sia una stringa pulita
-        # Se Airtable manda una lista ['Colonna'], noi prendiamo solo 'Colonna'
+        # 2. Pulizia Area (da lista a stringa)
         if 'Area' in df_original.columns:
              df_original['Area'] = df_original['Area'].apply(
                  lambda x: x[0] if isinstance(x, list) and len(x) > 0 else (x if isinstance(x, str) else "")
              )
+        
+        # 3. TRUCCO PER I COLORI: Convertiamo la colonna in 'Category'
+        # Questo dice a Streamlit di colorare le pillole!
+        df_original['Area'] = df_original['Area'].astype("category")
 
         # Ricerca
         search_query = st.text_input("🔍 Cerca Paziente per Cognome", placeholder="Es. Rossi...")
@@ -201,17 +203,14 @@ elif menu == "👥 Gestione Pazienti":
                     help="Spunta se il paziente ha disdetto",
                     default=False,
                 ),
-                # CONFIGURAZIONE PER I COLORI (Pills)
                 "Area": st.column_config.SelectboxColumn(
                     "Area",
                     width="medium",
-                    # Passiamo la lista delle aree: questo dice a Streamlit di trattarle come Categorie colorate
                     options=lista_aree, 
                     required=False,
                 ),
                 "id": None, 
             },
-            # Disabilitiamo la modifica dell'Area, ma manteniamo lo stile colorato
             disabled=["Nome", "Cognome", "Area"], 
             hide_index=True,
             use_container_width=True,
@@ -295,3 +294,4 @@ elif menu == "📝 Scadenze Ufficio":
         st.dataframe(df_scad, use_container_width=True)
     else:
         st.info("Nessuna scadenza trovata.")
+        
