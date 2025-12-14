@@ -9,13 +9,16 @@ try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except FileNotFoundError:
-    API_KEY = "tua_chiave"
+    # Se stai testando in locale senza secrets.toml, metti qui le chiavi reali
+    API_KEY = "tua_chiave" 
     BASE_ID = "tuo_base_id"
 
 api = Api(API_KEY)
 
 # --- 2. FUNZIONI ---
 
+# AGGIUNTO IL TTL=60 PER AGGIORNARE I DATI OGNI MINUTO
+@st.cache_data(ttl=60)
 def get_data(table_name):
     """Scarica i dati da Airtable"""
     try:
@@ -29,6 +32,8 @@ def get_data(table_name):
         df = pd.DataFrame(data)
         return df
     except Exception as e:
+        # Utile per il debug: stampa l'errore nella console se qualcosa non va
+        print(f"Errore caricamento {table_name}: {e}") 
         return pd.DataFrame()
 
 def save_paziente(nome, cognome, area, disdetto):
@@ -45,7 +50,6 @@ def save_paziente(nome, cognome, area, disdetto):
 def update_paziente(record_id, nuovo_stato):
     """Aggiorna lo stato su Airtable"""
     table = api.table(BASE_ID, "Pazienti")
-    # typecast=True aiuta a convertire il valore nel formato che Airtable preferisce
     table.update(record_id, {"Disdetto": nuovo_stato}, typecast=True)
 
 # --- 3. INTERFACCIA GRAFICA ---
@@ -75,14 +79,13 @@ if menu == "📊 Dashboard & Allarmi":
     df = get_data("Pazienti")
     
     if not df.empty:
-        # Se la colonna non esiste, la creiamo falsa
         if 'Disdetto' not in df.columns:
             df['Disdetto'] = False
         else:
             df['Disdetto'] = df['Disdetto'].fillna(False)
 
         totali = len(df)
-        # Contiamo i disdetti
+        # Contiamo i disdetti (supporta sia booleani che check di airtable)
         disdetti_count = len(df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ])
         attivi = totali - disdetti_count
         
@@ -230,7 +233,6 @@ elif menu == "👥 Gestione Pazienti":
                 record_id = row['id']
                 nuovo_stato = row['Disdetto']
                 
-                # --- QUI ERA L'ERRORE (df -> df_original) ---
                 original_row = df_original[df_original['id'] == record_id]
                 
                 if not original_row.empty:
@@ -256,21 +258,56 @@ elif menu == "👥 Gestione Pazienti":
         st.info("Database vuoto.")
 
 # =========================================================
-# SEZIONE 3: PREVENTIVI
+# SEZIONE 3: PREVENTIVI (MODIFICATA)
 # =========================================================
 elif menu == "💰 Calcolo Preventivo":
     st.title("Generatore Preventivi")
-    listino = {
-        "Valutazione Iniziale": 50, 
-        "Seduta Tecar": 35, 
-        "Laser Terapia": 30,
-        "Rieducazione Motoria": 45, 
-        "Massaggio Decontratturante": 50, 
-        "Onde d'Urto": 40
-    }
+    
+    # --- MODIFICA: Caricamento dinamico da Airtable ---
+    # Cambia "Listino" se la tua tabella ha un altro nome
+    df_listino = get_data("Listino") 
+    
+    listino = {}
+    
+    if not df_listino.empty:
+        # Cerchiamo di costruire il dizionario { "Nome": Prezzo }
+        # Assicurati che su Airtable le colonne si chiamino "Nome" e "Prezzo"
+        col_nome = None
+        col_prezzo = None
+        
+        # Cerchiamo colonne simili se non sono esatte
+        for c in df_listino.columns:
+            if "nome" in c.lower() or "trattamento" in c.lower():
+                col_nome = c
+            if "prezzo" in c.lower() or "costo" in c.lower() or "tariffa" in c.lower():
+                col_prezzo = c
+                
+        if col_nome and col_prezzo:
+            for index, row in df_listino.iterrows():
+                nome_tratt = row[col_nome]
+                prezzo_tratt = row[col_prezzo]
+                
+                # Piccola pulizia dati
+                if nome_tratt:
+                    # Se il prezzo è vuoto, mettiamo 0
+                    if pd.isna(prezzo_tratt):
+                        prezzo_tratt = 0
+                    listino[str(nome_tratt)] = float(prezzo_tratt)
+        else:
+            st.error(f"⚠️ Non trovo le colonne 'Nome' e 'Prezzo' nella tabella Listino. Colonne trovate: {list(df_listino.columns)}")
+    else:
+        st.warning("⚠️ Tabella 'Listino' vuota o non trovata su Airtable. Uso i dati di default.")
+        # Fallback se airtable fallisce
+        listino = {
+            "Valutazione Iniziale (Default)": 50, 
+            "Seduta Tecar (Default)": 35
+        }
+
+    # --- FINE MODIFICA ---
     
     c1, c2 = st.columns([2, 1])
-    with c1: scelte = st.multiselect("Scegli Trattamenti", list(listino.keys()))
+    with c1: 
+        scelte = st.multiselect("Scegli Trattamenti", list(listino.keys()))
         
     totale = 0
     if scelte:
