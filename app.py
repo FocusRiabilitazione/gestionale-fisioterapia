@@ -9,6 +9,7 @@ try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except FileNotFoundError:
+    # Inserisci qui le tue chiavi se non usi secrets.toml per i test locali
     API_KEY = "tua_chiave"
     BASE_ID = "tuo_base_id"
 
@@ -17,7 +18,7 @@ api = Api(API_KEY)
 # --- 2. FUNZIONI ---
 
 def get_data(table_name):
-    """Scarica i dati da Airtable e gestisce i nomi delle colonne"""
+    """Scarica i dati da Airtable"""
     try:
         table = api.table(BASE_ID, table_name)
         records = table.all()
@@ -28,11 +29,8 @@ def get_data(table_name):
         data = [{'id': r['id'], **r['fields']} for r in records]
         df = pd.DataFrame(data)
         
-        # --- CORREZIONE NOME COLONNA ---
-        # Se Airtable ci manda "Appuntamento_Disdetto", noi lo usiamo come "Disdetto" nell'App
-        if 'Appuntamento_Disdetto' in df.columns:
-            df = df.rename(columns={'Appuntamento_Disdetto': 'Disdetto'})
-        
+        # Pulizia opzionale: se per caso in futuro cambiassi nome, gestiamo l'errore qui
+        # Ma basandoci sul tuo screenshot, la colonna arriva già come "Disdetto"
         return df
     except Exception as e:
         return pd.DataFrame()
@@ -44,15 +42,15 @@ def save_paziente(nome, cognome, area, disdetto):
         "Nome": nome,
         "Cognome": cognome,
         "Area": area,
-        "Disdetto": disdetto  # <--- CORRETTO: Usa il nome reale di Airtable
+        "Disdetto": disdetto  # <--- CORRETTO: Ora punta alla colonna "Disdetto"
     }
     table.create(record, typecast=True)
 
 def update_paziente(record_id, nuovo_stato):
     """Aggiorna lo stato usando il nome corretto della colonna"""
     table = api.table(BASE_ID, "Pazienti")
-    # <--- CORRETTO: Usa il nome reale di Airtable
-    table.update(record_id, {"Appuntamento_Disdetto": nuovo_stato})
+    # <--- CORRETTO: Chiave modificata in "Disdetto" e aggiunto typecast=True per sicurezza
+    table.update(record_id, {"Disdetto": nuovo_stato}, typecast=True)
 
 # --- 3. INTERFACCIA GRAFICA ---
 
@@ -76,7 +74,7 @@ if menu == "📊 Dashboard & Allarmi":
         st.image("logo.png", width=300) 
     except FileNotFoundError:
         st.title("Buongiorno! ☕")
-        st.warning("ℹ️ Carica 'logo.png' nella cartella per vedere il logo qui.")
+        # st.warning("ℹ️ Carica 'logo.png' nella cartella per vedere il logo qui.")
 
     st.write("Panoramica dello studio.")
     
@@ -90,7 +88,8 @@ if menu == "📊 Dashboard & Allarmi":
             df['Disdetto'] = df['Disdetto'].fillna(False)
 
         totali = len(df)
-        disdetti_count = len(df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ])
+        # Contiamo i disdetti gestendo sia booleani che stringhe o interi
+        disdetti_count = len(df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) | (df['Disdetto'] == "Checked") ])
         attivi = totali - disdetti_count
         
         col1, col2, col3 = st.columns(3)
@@ -131,7 +130,7 @@ if menu == "📊 Dashboard & Allarmi":
                 st.altair_chart(chart, use_container_width=True)
                 
     else:
-        st.info("Nessun dato pazienti trovato.")
+        st.info("Nessun dato pazienti trovato o errore di connessione.")
 
 # =========================================================
 # SEZIONE 2: GESTIONE PAZIENTI
@@ -159,15 +158,15 @@ elif menu == "👥 Gestione Pazienti":
             if submit:
                 if nome and cognome:
                     try:
-                        area_stringa = ", ".join(aree_scelte)
+                        area_stringa = aree_scelte # Airtable accetta liste per i Multiselect
                         # Qui inviamo False alla colonna corretta
                         save_paziente(nome, cognome, area_stringa, False)
                         st.success(f"✅ {nome} {cognome} salvato!")
                         st.rerun()
                     except HTTPError as e:
-                        st.error("❌ Errore Airtable.")
+                        st.error(f"❌ Errore Airtable: {e}")
                     except Exception as e:
-                        st.error(f"❌ Errore: {e}")
+                        st.error(f"❌ Errore generico: {e}")
                 else:
                     st.warning("⚠️ Nome e Cognome obbligatori.")
 
@@ -230,9 +229,9 @@ elif menu == "👥 Gestione Pazienti":
                 if not original_row.empty:
                     vecchio_stato = original_row.iloc[0]['Disdetto']
                     
-                    # Normalizzazione a True/False
-                    is_vecchio_true = True if vecchio_stato in [True, 1, "True"] else False
-                    is_nuovo_true = True if nuovo_stato in [True, 1, "True"] else False
+                    # Normalizzazione a True/False per il confronto
+                    is_vecchio_true = True if vecchio_stato in [True, 1, "True", "Checked"] else False
+                    is_nuovo_true = True if nuovo_stato in [True, 1, "True", "Checked"] else False
 
                     if is_vecchio_true != is_nuovo_true:
                         try:
@@ -248,7 +247,7 @@ elif menu == "👥 Gestione Pazienti":
                 st.warning("⚠️ Nessuna modifica rilevata.")
 
     else:
-        st.info("Database vuoto.")
+        st.info("Database vuoto o errore nel recupero dati.")
 
 # =========================================================
 # SEZIONE 3: PREVENTIVI
@@ -293,4 +292,3 @@ elif menu == "📝 Scadenze Ufficio":
         st.dataframe(df_scad, use_container_width=True)
     else:
         st.info("Nessuna scadenza trovata.")
-        
