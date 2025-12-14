@@ -2,7 +2,7 @@ import streamlit as st
 from pyairtable import Api
 import pandas as pd
 from requests.exceptions import HTTPError
-import altair as alt  # <--- AGGIUNTO PER I COLORI
+import altair as alt
 
 # --- 1. CONFIGURAZIONE CONNESSIONE ---
 try:
@@ -53,17 +53,17 @@ st.sidebar.divider()
 st.sidebar.info("App collegata ad Airtable.")
 
 # =========================================================
-# SEZIONE 1: DASHBOARD (CON LOGO E GRAFICO COLORATO)
+# SEZIONE 1: DASHBOARD (COLORI PERSONALIZZATI)
 # =========================================================
 if menu == "📊 Dashboard & Allarmi":
     
-    # --- SEZIONE LOGO ---
+    # --- LOGO ---
     try:
         st.image("logo.png", width=300) 
     except FileNotFoundError:
         st.title("Buongiorno! ☕")
-        st.warning("ℹ️ Per sostituire questa scritta con il logo, carica un file chiamato 'logo.png' nella cartella dell'app.")
-    # --------------------
+        st.warning("ℹ️ Carica 'logo.png' nella cartella per vedere il logo qui.")
+    # ------------
 
     st.write("Panoramica dello studio.")
     
@@ -94,16 +94,15 @@ if menu == "📊 Dashboard & Allarmi":
                 all_areas.extend(parts)
             
             if all_areas:
-                # Creiamo il dataset per il grafico
                 counts = pd.Series(all_areas).value_counts().reset_index()
                 counts.columns = ['Area', 'Pazienti']
                 
                 # --- DEFINIZIONE COLORI ---
                 domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
-                # Azzurro, Giallo, Verde, Lilla, Rosso, Grigio Scuro
+                # Colori: Azzurro, Giallo, Verde, Lilla, Rosso, Grigio Scuro
                 range_ = ["#33A1C9", "#F1C40F", "#2ECC71", "#9B59B6", "#E74C3C", "#7F8C8D"]
 
-                # --- GRAFICO ALTAIR ---
+                # --- GRAFICO CON COLORI SPECIFICI ---
                 chart = alt.Chart(counts).mark_bar().encode(
                     x=alt.X('Area', sort='-y', title="Area Trattata"),
                     y=alt.Y('Pazienti', title="Numero Pazienti"),
@@ -175,10 +174,47 @@ elif menu == "👥 Gestione Pazienti":
         st.info("Database vuoto.")
 
 # =========================================================
-# SEZIONE 3: PREVENTIVI
+# SEZIONE 3: PREVENTIVI (CORRETTO ERRORE FORMATTAZIONE)
 # =========================================================
 elif menu == "💰 Calcolo Preventivo":
     st.title("Generatore Preventivi")
+    
+    # Qui c'era l'errore: ora è formattato riga per riga per sicurezza
     listino = {
-        "Valutazione Iniziale": 50, "Seduta Tecar": 35, "Laser Terapia": 30,
-        "Rieducazione Motoria": 45, "Massaggio Decontr
+        "Valutazione Iniziale": 50, 
+        "Seduta Tecar": 35, 
+        "Laser Terapia": 30,
+        "Rieducazione Motoria": 45, 
+        "Massaggio Decontratturante": 50, 
+        "Onde d'Urto": 40
+    }
+    
+    c1, c2 = st.columns([2, 1])
+    with c1: scelte = st.multiselect("Scegli Trattamenti", list(listino.keys()))
+        
+    totale = 0
+    if scelte:
+        st.write("---")
+        for t in scelte:
+            qty = st.number_input(f"Sedute di {t}", 1, 20, 5, key=t)
+            costo = listino[t] * qty
+            st.write(f"▫️ {t}: {listino[t]}€ x {qty} = **{costo} €**")
+            totale += costo
+        st.write("---")
+        st.subheader(f"TOTALE: {totale} €")
+        
+        if totale > 300: 
+            st.success(f"SCONTO PACCHETTO: **{int(totale*0.9)} €**")
+
+# =========================================================
+# SEZIONE 4: SCADENZE
+# =========================================================
+elif menu == "📝 Scadenze Ufficio":
+    st.title("Checklist Pagamenti")
+    df_scad = get_data("Scadenze")
+    if not df_scad.empty:
+        if 'Data_Scadenza' in df_scad.columns:
+            df_scad = df_scad.sort_values("Data_Scadenza")
+        st.dataframe(df_scad, use_container_width=True)
+    else:
+        st.info("Nessuna scadenza trovata.")
