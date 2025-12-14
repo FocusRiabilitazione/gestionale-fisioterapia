@@ -17,15 +17,18 @@ api = Api(API_KEY)
 # --- 2. FUNZIONI ---
 
 def get_data(table_name):
-    """Scarica i dati da Airtable, incluso l'ID nascosto per poter fare modifiche"""
+    """Scarica i dati da Airtable, pulendo i valori nulli"""
     try:
         table = api.table(BASE_ID, table_name)
         records = table.all()
         if not records:
             return pd.DataFrame()
-        # Qui prendiamo anche l'id del record ('id') oltre ai campi ('fields')
+        
+        # Recuperiamo ID e Campi
         data = [{'id': r['id'], **r['fields']} for r in records]
-        return pd.DataFrame(data)
+        df = pd.DataFrame(data)
+        
+        return df
     except Exception as e:
         return pd.DataFrame()
 
@@ -41,8 +44,9 @@ def save_paziente(nome, cognome, area, disdetto):
     table.create(record, typecast=True)
 
 def update_paziente(record_id, nuovo_stato):
-    """Aggiorna lo stato Disdetto di un paziente esistente"""
+    """Aggiorna lo stato Disdetto"""
     table = api.table(BASE_ID, "Pazienti")
+    # Airtable vuole True/False o None. Inviamo True o False.
     table.update(record_id, {"Disdetto": nuovo_stato})
 
 # --- 3. INTERFACCIA GRAFICA ---
@@ -74,11 +78,15 @@ if menu == "📊 Dashboard & Allarmi":
     df = get_data("Pazienti")
     
     if not df.empty:
+        # PULIZIA DATI FONDAMENTALE
         if 'Disdetto' not in df.columns:
-            df['Disdetto'] = False 
+            df['Disdetto'] = False
+        else:
+            # Riempie i vuoti con False (importante per il conteggio)
+            df['Disdetto'] = df['Disdetto'].fillna(False)
 
         totali = len(df)
-        # Conta disdetti
+        # Conta disdetti (True o 1)
         disdetti_count = len(df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ])
         attivi = totali - disdetti_count
         
@@ -123,7 +131,7 @@ if menu == "📊 Dashboard & Allarmi":
         st.info("Nessun dato pazienti trovato.")
 
 # =========================================================
-# SEZIONE 2: GESTIONE PAZIENTI (MODIFICABILE + CERCA)
+# SEZIONE 2: GESTIONE PAZIENTI (FIX SALVATAGGIO)
 # =========================================================
 elif menu == "👥 Gestione Pazienti":
     st.title("📂 Anagrafica Pazienti")
@@ -151,7 +159,7 @@ elif menu == "👥 Gestione Pazienti":
                         area_stringa = ", ".join(aree_scelte)
                         save_paziente(nome, cognome, area_stringa, False)
                         st.success(f"✅ {nome} {cognome} salvato!")
-                        st.rerun() # Ricarica la pagina per vedere il nuovo dato
+                        st.rerun()
                     except HTTPError as e:
                         st.error("❌ Errore Airtable.")
                     except Exception as e:
@@ -168,26 +176,27 @@ elif menu == "👥 Gestione Pazienti":
     df_original = get_data("Pazienti")
     
     if not df_original.empty:
+        # --- FIX IMPORTANTE: Normalizzazione dati ---
+        # Se la colonna non esiste la creiamo
         if 'Disdetto' not in df_original.columns:
             df_original['Disdetto'] = False
+        
+        # Riempiamo i "NaN" (vuoti) con False in modo che il checkbox funzioni bene
+        df_original['Disdetto'] = df_original['Disdetto'].fillna(False).infer_objects(copy=False)
+        # ---------------------------------------------
 
         # 2. BARRA DI RICERCA
         search_query = st.text_input("🔍 Cerca Paziente per Cognome", placeholder="Es. Rossi...")
         
-        # Filtriamo il dataframe se c'è una ricerca
         if search_query:
-            # Filtra dove il cognome contiene il testo cercato (case insensitive)
             df_filtered = df_original[df_original['Cognome'].astype(str).str.contains(search_query, case=False, na=False)]
         else:
             df_filtered = df_original
 
-        # 3. PREPARIAMO LA TABELLA EDITABILE
-        # Selezioniamo le colonne da mostrare (incluso l'ID nascosto che ci serve)
+        # 3. PREPARIAMO LA TABELLA
         cols_to_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'id']
-        # Mettiamo 'id' per ultimo o comunque ci assicuriamo che esista
         available_cols = [c for c in cols_to_show if c in df_filtered.columns]
         
-        # TABELLA MODIFICABILE
         st.info("💡 Spunta la casella 'Disdetto' per cambiare stato. Poi clicca 'Salva Modifiche' in basso.")
         
         edited_df = st.data_editor(
@@ -198,9 +207,9 @@ elif menu == "👥 Gestione Pazienti":
                     help="Spunta se il paziente ha disdetto",
                     default=False,
                 ),
-                "id": None, # Nasconde la colonna ID ma mantiene i dati
+                "id": None, # Nasconde ID
             },
-            disabled=["Nome", "Cognome", "Area"], # Blocca la modifica di nome/cognome/area
+            disabled=["Nome", "Cognome", "Area"], 
             hide_index=True,
             use_container_width=True,
             key="editor_pazienti"
@@ -210,34 +219,33 @@ elif menu == "👥 Gestione Pazienti":
         if st.button("💾 Salva Modifiche su Airtable"):
             changes_count = 0
             
-            # Confrontiamo i dati modificati con quelli originali per trovare le differenze
-            # Iteriamo su edited_df
             for index, row in edited_df.iterrows():
                 record_id = row['id']
                 nuovo_stato = row['Disdetto']
                 
-                # Cerchiamo lo stato originale di questo ID nel dataframe originale
+                # Cerchiamo lo stato originale
                 original_row = df_original[df_original['id'] == record_id]
                 
                 if not original_row.empty:
+                    # Recuperiamo il valore e ci assicuriamo sia booleano (True/False)
                     vecchio_stato = original_row.iloc[0]['Disdetto']
-                    # Airtable a volte restituisce None o 0, normalizziamo a booleano
-                    vecchio_stato = bool(vecchio_stato)
-                    nuovo_stato = bool(nuovo_stato)
+                    
+                    # Normalizziamo tutto a True/False puro per evitare errori
+                    is_vecchio_true = True if vecchio_stato in [True, 1, "True"] else False
+                    is_nuovo_true = True if nuovo_stato in [True, 1, "True"] else False
 
-                    if vecchio_stato != nuovo_stato:
-                        # C'è stato un cambiamento! Aggiorniamo Airtable
+                    if is_vecchio_true != is_nuovo_true:
                         try:
-                            update_paziente(record_id, nuovo_stato)
+                            update_paziente(record_id, is_nuovo_true)
                             changes_count += 1
                         except Exception as e:
                             st.error(f"Errore aggiornamento ID {record_id}: {e}")
             
             if changes_count > 0:
                 st.success(f"✅ Aggiornati {changes_count} pazienti!")
-                st.rerun() # Ricarica per aggiornare i dati originali
+                st.rerun() 
             else:
-                st.info("Nessuna modifica rilevata.")
+                st.warning("⚠️ Nessuna modifica rilevata. Assicurati di aver cambiato una spunta.")
 
     else:
         st.info("Database vuoto.")
@@ -277,11 +285,4 @@ elif menu == "💰 Calcolo Preventivo":
 # SEZIONE 4: SCADENZE
 # =========================================================
 elif menu == "📝 Scadenze Ufficio":
-    st.title("Checklist Pagamenti")
-    df_scad = get_data("Scadenze")
-    if not df_scad.empty:
-        if 'Data_Scadenza' in df_scad.columns:
-            df_scad = df_scad.sort_values("Data_Scadenza")
-        st.dataframe(df_scad, use_container_width=True)
-    else:
-        st.info("Nessuna scadenza trovata.")
+    st.title("Check
