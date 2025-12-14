@@ -45,6 +45,7 @@ def save_paziente(nome, cognome, area, disdetto):
 def update_paziente(record_id, nuovo_stato):
     """Aggiorna lo stato su Airtable"""
     table = api.table(BASE_ID, "Pazienti")
+    # typecast=True aiuta a convertire il valore nel formato che Airtable preferisce
     table.update(record_id, {"Disdetto": nuovo_stato}, typecast=True)
 
 # --- 3. INTERFACCIA GRAFICA ---
@@ -74,12 +75,14 @@ if menu == "📊 Dashboard & Allarmi":
     df = get_data("Pazienti")
     
     if not df.empty:
+        # Se la colonna non esiste, la creiamo falsa
         if 'Disdetto' not in df.columns:
             df['Disdetto'] = False
         else:
             df['Disdetto'] = df['Disdetto'].fillna(False)
 
         totali = len(df)
+        # Contiamo i disdetti
         disdetti_count = len(df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ])
         attivi = totali - disdetti_count
         
@@ -171,14 +174,14 @@ elif menu == "👥 Gestione Pazienti":
             df_original['Disdetto'] = False
         df_original['Disdetto'] = df_original['Disdetto'].fillna(False).infer_objects(copy=False)
 
-        # 2. Pulizia Area (da lista a stringa)
+        # 2. Pulizia Area e FORZATURA STRIGA (Fondamentale per i colori)
         if 'Area' in df_original.columns:
+             # Trasformiamo liste in stringhe e puliamo gli spazi extra che rompono i colori
              df_original['Area'] = df_original['Area'].apply(
-                 lambda x: x[0] if isinstance(x, list) and len(x) > 0 else (x if isinstance(x, str) else "")
-             )
-        
-        # 3. TRUCCO PER I COLORI: Convertiamo la colonna in 'Category'
-        # Questo dice a Streamlit di colorare le pillole!
+                 lambda x: x[0] if isinstance(x, list) and len(x) > 0 else (str(x) if x else "")
+             ).str.strip() 
+
+        # 3. Definiamo la colonna come 'category' per aiutare Streamlit
         df_original['Area'] = df_original['Area'].astype("category")
 
         # Ricerca
@@ -194,7 +197,6 @@ elif menu == "👥 Gestione Pazienti":
         
         st.info("💡 Spunta la casella 'Disdetto' per cambiare stato. Poi clicca 'Salva Modifiche' in basso.")
         
-        # CONFIGURAZIONE TABELLA
         edited_df = st.data_editor(
             df_filtered[available_cols],
             column_config={
@@ -203,14 +205,17 @@ elif menu == "👥 Gestione Pazienti":
                     help="Spunta se il paziente ha disdetto",
                     default=False,
                 ),
+                # 4. CONFIGURAZIONE COLORI (SelectboxColumn)
                 "Area": st.column_config.SelectboxColumn(
                     "Area",
                     width="medium",
+                    # Le opzioni devono essere identiche a quelle nel DB per colorarsi
                     options=lista_aree, 
                     required=False,
                 ),
                 "id": None, 
             },
+            # Disabilitiamo la modifica dell'Area, i colori rimarranno
             disabled=["Nome", "Cognome", "Area"], 
             hide_index=True,
             use_container_width=True,
@@ -225,8 +230,7 @@ elif menu == "👥 Gestione Pazienti":
                 record_id = row['id']
                 nuovo_stato = row['Disdetto']
                 
-                # --- CORREZIONE ERRORE NAME ERROR ---
-                # Usiamo df_original invece di df
+                # --- QUI ERA L'ERRORE (df -> df_original) ---
                 original_row = df_original[df_original['id'] == record_id]
                 
                 if not original_row.empty:
