@@ -17,7 +17,7 @@ api = Api(API_KEY)
 # --- 2. FUNZIONI ---
 
 def get_data(table_name):
-    """Scarica i dati da Airtable e gestisce i nomi delle colonne"""
+    """Scarica i dati da Airtable"""
     try:
         table = api.table(BASE_ID, table_name)
         records = table.all()
@@ -28,11 +28,7 @@ def get_data(table_name):
         data = [{'id': r['id'], **r['fields']} for r in records]
         df = pd.DataFrame(data)
         
-        # --- CORREZIONE NOME COLONNA ---
-        # Se Airtable ci manda "Appuntamento_Disdetto", noi lo usiamo come "Disdetto" nell'App
-        if 'Appuntamento_Disdetto' in df.columns:
-            df = df.rename(columns={'Appuntamento_Disdetto': 'Disdetto'})
-        
+        # La colonna arriva da Airtable già come "Disdetto", quindi non serve rinominarla.
         return df
     except Exception as e:
         return pd.DataFrame()
@@ -44,15 +40,15 @@ def save_paziente(nome, cognome, area, disdetto):
         "Nome": nome,
         "Cognome": cognome,
         "Area": area,
-        "Appuntamento_Disdetto": disdetto  # <--- CORRETTO: Usa il nome reale di Airtable
+        "Disdetto": disdetto  # <--- CORRETTO: Modificato in "Disdetto"
     }
     table.create(record, typecast=True)
 
 def update_paziente(record_id, nuovo_stato):
     """Aggiorna lo stato usando il nome corretto della colonna"""
     table = api.table(BASE_ID, "Pazienti")
-    # <--- CORRETTO: Usa il nome reale di Airtable
-    table.update(record_id, {"Appuntamento_Disdetto": nuovo_stato})
+    # <--- CORRETTO: Modificato in "Disdetto" e aggiunto typecast=True per sicurezza
+    table.update(record_id, {"Disdetto": nuovo_stato}, typecast=True)
 
 # --- 3. INTERFACCIA GRAFICA ---
 
@@ -225,72 +221,5 @@ elif menu == "👥 Gestione Pazienti":
                 nuovo_stato = row['Disdetto']
                 
                 # Confronto
-                original_row = df_original[df_original['id'] == record_id]
+                original_row = df
                 
-                if not original_row.empty:
-                    vecchio_stato = original_row.iloc[0]['Disdetto']
-                    
-                    # Normalizzazione a True/False
-                    is_vecchio_true = True if vecchio_stato in [True, 1, "True"] else False
-                    is_nuovo_true = True if nuovo_stato in [True, 1, "True"] else False
-
-                    if is_vecchio_true != is_nuovo_true:
-                        try:
-                            update_paziente(record_id, is_nuovo_true)
-                            changes_count += 1
-                        except Exception as e:
-                            st.error(f"Errore aggiornamento ID {record_id}: {e}")
-            
-            if changes_count > 0:
-                st.success(f"✅ Aggiornati {changes_count} pazienti!")
-                st.rerun() 
-            else:
-                st.warning("⚠️ Nessuna modifica rilevata.")
-
-    else:
-        st.info("Database vuoto.")
-
-# =========================================================
-# SEZIONE 3: PREVENTIVI
-# =========================================================
-elif menu == "💰 Calcolo Preventivo":
-    st.title("Generatore Preventivi")
-    listino = {
-        "Valutazione Iniziale": 50, 
-        "Seduta Tecar": 35, 
-        "Laser Terapia": 30,
-        "Rieducazione Motoria": 45, 
-        "Massaggio Decontratturante": 50, 
-        "Onde d'Urto": 40
-    }
-    
-    c1, c2 = st.columns([2, 1])
-    with c1: scelte = st.multiselect("Scegli Trattamenti", list(listino.keys()))
-        
-    totale = 0
-    if scelte:
-        st.write("---")
-        for t in scelte:
-            qty = st.number_input(f"Sedute di {t}", 1, 20, 5, key=t)
-            costo = listino[t] * qty
-            st.write(f"▫️ {t}: {listino[t]}€ x {qty} = **{costo} €**")
-            totale += costo
-        st.write("---")
-        st.subheader(f"TOTALE: {totale} €")
-        
-        if totale > 300: 
-            st.success(f"SCONTO PACCHETTO: **{int(totale*0.9)} €**")
-
-# =========================================================
-# SEZIONE 4: SCADENZE
-# =========================================================
-elif menu == "📝 Scadenze Ufficio":
-    st.title("Checklist Pagamenti")
-    df_scad = get_data("Scadenze")
-    if not df_scad.empty:
-        if 'Data_Scadenza' in df_scad.columns:
-            df_scad = df_scad.sort_values("Data_Scadenza")
-        st.dataframe(df_scad, use_container_width=True)
-    else:
-        st.info("Nessuna scadenza trovata.")
-        
