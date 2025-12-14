@@ -8,7 +8,6 @@ try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except FileNotFoundError:
-    # Chiavi di fallback per test locale
     API_KEY = "tua_chiave"
     BASE_ID = "tuo_base_id"
 
@@ -17,7 +16,7 @@ api = Api(API_KEY)
 # --- 2. FUNZIONI ---
 
 def get_data(table_name):
-    """Scarica i dati da Airtable e crea un DataFrame"""
+    """Scarica i dati da Airtable"""
     try:
         table = api.table(BASE_ID, table_name)
         records = table.all()
@@ -26,20 +25,17 @@ def get_data(table_name):
         data = [r['fields'] for r in records]
         return pd.DataFrame(data)
     except Exception as e:
-        # Se la tabella Scadenze non esiste ancora, non blocchiamo l'app
         return pd.DataFrame()
 
 def save_paziente(nome, cognome, area, disdetto):
-    """Salva i 4 dati specifici richiesti"""
+    """Salva i dati. 'disdetto' viene inviato come True/False ad Airtable"""
     table = api.table(BASE_ID, "Pazienti")
-    
     record = {
         "Nome": nome,
         "Cognome": cognome,
         "Area": area,
-        "Disdetto": disdetto  # Checkbox (True/False)
+        "Disdetto": disdetto 
     }
-    
     table.create(record, typecast=True)
 
 # --- 3. INTERFACCIA GRAFICA ---
@@ -56,7 +52,7 @@ st.sidebar.divider()
 st.sidebar.info("App collegata ad Airtable.")
 
 # =========================================================
-# SEZIONE 1: DASHBOARD (Adattata ai nuovi dati)
+# SEZIONE 1: DASHBOARD
 # =========================================================
 if menu == "📊 Dashboard & Allarmi":
     st.title("Buongiorno! ☕")
@@ -65,18 +61,14 @@ if menu == "📊 Dashboard & Allarmi":
     df = get_data("Pazienti")
     
     if not df.empty:
-        # Assicuriamoci che la colonna Disdetto esista
         if 'Disdetto' not in df.columns:
             df['Disdetto'] = False 
 
-        # Calcoli
         totali = len(df)
-        # Contiamo i disdetti (quelli con la spunta True)
-        # Nota: Airtable a volte salva True, a volte 1, quindi gestiamo entrambi
+        # Conta quanti hanno la spunta True
         disdetti_count = len(df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ])
         attivi = totali - disdetti_count
         
-        # Metriche
         col1, col2, col3 = st.columns(3)
         col1.metric("Totale Anagrafica", totali)
         col2.metric("Pazienti Attivi", attivi)
@@ -84,33 +76,29 @@ if menu == "📊 Dashboard & Allarmi":
         
         st.divider()
         
-        # Grafico semplice per Area (se c'è la colonna Area)
         if 'Area' in df.columns:
             st.subheader("📍 Distribuzione per Area Trattata")
-            conteggio_aree = df['Area'].value_counts()
-            st.bar_chart(conteggio_aree)
-            
+            st.bar_chart(df['Area'].value_counts())
     else:
         st.info("Nessun dato pazienti trovato.")
 
 # =========================================================
-# SEZIONE 2: GESTIONE PAZIENTI (La versione semplificata)
+# SEZIONE 2: GESTIONE PAZIENTI (MODIFICATA)
 # =========================================================
 elif menu == "👥 Gestione Pazienti":
     st.title("📂 Anagrafica Pazienti")
     
-    # --- MODULO INSERIMENTO ---
+    # --- FORM INSERIMENTO ---
     with st.container(border=True):
         st.subheader("Nuovo Inserimento")
-        with st.form("form_paziente_semplice", clear_on_submit=True):
+        with st.form("form_paziente", clear_on_submit=True):
             c1, c2 = st.columns(2)
-            
             with c1:
                 nome = st.text_input("Nome")
                 area = st.text_input("Area (es. Spalla, Ginocchio)")
-            
             with c2:
                 cognome = st.text_input("Cognome")
+                # Qui usiamo la spunta perché è più comoda per inserire
                 disdetto = st.checkbox("Paziente Disdetto (Spunta se ha abbandonato)")
                 
             submit = st.form_submit_button("Salva nel Database")
@@ -119,63 +107,54 @@ elif menu == "👥 Gestione Pazienti":
                 if nome and cognome:
                     try:
                         save_paziente(nome, cognome, area, disdetto)
-                        st.success(f"✅ {nome} {cognome} salvato correttamente!")
+                        st.success(f"✅ {nome} {cognome} salvato!")
                     except HTTPError as e:
                         st.error("❌ Errore Airtable.")
                         st.code(e.response.text)
                     except Exception as e:
-                        st.error(f"❌ Errore generico: {e}")
+                        st.error(f"❌ Errore: {e}")
                 else:
-                    st.warning("⚠️ Nome e Cognome sono obbligatori.")
+                    st.warning("⚠️ Nome e Cognome obbligatori.")
 
-    # --- TABELLA ---
+    # --- TABELLA PULITA ---
     st.divider()
     st.subheader("Elenco Completo")
     
     df = get_data("Pazienti")
     
     if not df.empty:
-        # Filtro visivo
-        filtro = st.toggle("Mostra solo i Disdetti")
-        
+        # 1. Normalizziamo la colonna Disdetto (se manca la creiamo vuota)
         if 'Disdetto' not in df.columns:
             df['Disdetto'] = False
             
-        if filtro:
-            # Filtra dove disdetto è True (o 1)
-            df_show = df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ]
-        else:
-            df_show = df
-            
-        # Mostra tabella con la checkbox visualizzata bene
-        st.dataframe(
-            df_show,
-            column_config={
-                "Disdetto": st.column_config.CheckboxColumn("Disdetto", default=False)
-            },
-            use_container_width=True
-        )
+        # 2. Convertiamo VERO/FALSO in "SI"/"NO" per la tabella
+        # Usiamo una funzione lambda: se è vero mette "SI", altrimenti "NO"
+        df['Stato Disdetto'] = df['Disdetto'].apply(lambda x: "SI" if x is True or x == 1 else "NO")
+
+        # 3. Selezioniamo SOLO le colonne che vogliamo vedere, nell'ordine giusto
+        colonne_da_mostrare = ['Nome', 'Cognome', 'Area', 'Stato Disdetto']
+        
+        # Filtriamo per sicurezza solo quelle che esistono davvero (per evitare errori se manca 'Area')
+        colonne_finali = [c for c in colonne_da_mostrare if c in df.columns]
+        
+        # Mostriamo la tabella pulita
+        st.dataframe(df[colonne_finali], use_container_width=True)
+        
     else:
         st.info("Database vuoto.")
 
 # =========================================================
-# SEZIONE 3: PREVENTIVI (Come prima)
+# SEZIONE 3: PREVENTIVI
 # =========================================================
 elif menu == "💰 Calcolo Preventivo":
     st.title("Generatore Preventivi")
-    
     listino = {
-        "Valutazione Iniziale": 50,
-        "Seduta Tecar": 35,
-        "Laser Terapia": 30,
-        "Rieducazione Motoria": 45,
-        "Massaggio Decontratturante": 50,
-        "Onde d'Urto": 40
+        "Valutazione Iniziale": 50, "Seduta Tecar": 35, "Laser Terapia": 30,
+        "Rieducazione Motoria": 45, "Massaggio Decontratturante": 50, "Onde d'Urto": 40
     }
     
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        scelte = st.multiselect("Scegli Trattamenti", list(listino.keys()))
+    c1, c2 = st.columns([2, 1])
+    with c1: scelte = st.multiselect("Scegli Trattamenti", list(listino.keys()))
         
     totale = 0
     if scelte:
@@ -185,25 +164,19 @@ elif menu == "💰 Calcolo Preventivo":
             costo = listino[t] * qty
             st.write(f"▫️ {t}: {listino[t]}€ x {qty} = **{costo} €**")
             totale += costo
-            
         st.write("---")
         st.subheader(f"TOTALE: {totale} €")
-        if totale > 300:
-            st.success(f"💡 SCONTO PACCHETTO: **{int(totale*0.9)} €**")
+        if totale > 300: st.success(f"SCONTO PACCHETTO: **{int(totale*0.9)} €**")
 
 # =========================================================
-# SEZIONE 4: SCADENZE (Come prima)
+# SEZIONE 4: SCADENZE
 # =========================================================
 elif menu == "📝 Scadenze Ufficio":
     st.title("Checklist Pagamenti")
-    
-    # Nota: Assicurati di avere una tabella "Scadenze" su Airtable
-    # con colonne "Descrizione" e "Data_Scadenza"
     df_scad = get_data("Scadenze")
-    
     if not df_scad.empty:
         if 'Data_Scadenza' in df_scad.columns:
             df_scad = df_scad.sort_values("Data_Scadenza")
         st.dataframe(df_scad, use_container_width=True)
     else:
-        st.info("Nessuna scadenza trovata (O tabella 'Scadenze' mancante).")
+        st.info("Nessuna scadenza trovata.")
