@@ -44,7 +44,7 @@ def save_paziente(nome, cognome, area, disdetto):
         "Nome": nome,
         "Cognome": cognome,
         "Area": area,
-        "Appuntamento_Disdetto": disdetto  # <--- CORRETTO: Usa il nome reale di Airtable
+        "Disdetto": disdetto  # <--- CORRETTO: Usa il nome reale di Airtable
     }
     table.create(record, typecast=True)
 
