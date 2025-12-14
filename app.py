@@ -45,7 +45,6 @@ def save_paziente(nome, cognome, area, disdetto):
 def update_paziente(record_id, nuovo_stato):
     """Aggiorna lo stato su Airtable"""
     table = api.table(BASE_ID, "Pazienti")
-    # typecast=True aiuta a convertire il valore nel formato che Airtable preferisce
     table.update(record_id, {"Disdetto": nuovo_stato}, typecast=True)
 
 # --- 3. INTERFACCIA GRAFICA ---
@@ -75,14 +74,12 @@ if menu == "📊 Dashboard & Allarmi":
     df = get_data("Pazienti")
     
     if not df.empty:
-        # Se la colonna non esiste, la creiamo falsa
         if 'Disdetto' not in df.columns:
             df['Disdetto'] = False
         else:
             df['Disdetto'] = df['Disdetto'].fillna(False)
 
         totali = len(df)
-        # Contiamo i disdetti
         disdetti_count = len(df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ])
         attivi = totali - disdetti_count
         
@@ -151,7 +148,6 @@ elif menu == "👥 Gestione Pazienti":
                 if nome and cognome:
                     try:
                         area_stringa = ", ".join(aree_scelte)
-                        # Salvataggio con la colonna corretta "Disdetto"
                         save_paziente(nome, cognome, area_stringa, False)
                         st.success(f"✅ {nome} {cognome} salvato!")
                         st.rerun()
@@ -170,12 +166,18 @@ elif menu == "👥 Gestione Pazienti":
     df_original = get_data("Pazienti")
     
     if not df_original.empty:
-        # Se la colonna non c'è, la creiamo vuota
+        # Gestione colonna Disdetto
         if 'Disdetto' not in df_original.columns:
             df_original['Disdetto'] = False
-        
-        # Pulizia dati per evitare errori col checkbox
         df_original['Disdetto'] = df_original['Disdetto'].fillna(False).infer_objects(copy=False)
+
+        # --- GESTIONE COLORI (Clean Area) ---
+        # Per far apparire i colori, dobbiamo assicurarci che 'Area' sia una stringa pulita
+        # Se Airtable manda una lista ['Colonna'], noi prendiamo solo 'Colonna'
+        if 'Area' in df_original.columns:
+             df_original['Area'] = df_original['Area'].apply(
+                 lambda x: x[0] if isinstance(x, list) and len(x) > 0 else (x if isinstance(x, str) else "")
+             )
 
         # Ricerca
         search_query = st.text_input("🔍 Cerca Paziente per Cognome", placeholder="Es. Rossi...")
@@ -185,12 +187,12 @@ elif menu == "👥 Gestione Pazienti":
         else:
             df_filtered = df_original
 
-        # Mostriamo le colonne
         cols_to_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'id']
         available_cols = [c for c in cols_to_show if c in df_filtered.columns]
         
         st.info("💡 Spunta la casella 'Disdetto' per cambiare stato. Poi clicca 'Salva Modifiche' in basso.")
         
+        # CONFIGURAZIONE TABELLA
         edited_df = st.data_editor(
             df_filtered[available_cols],
             column_config={
@@ -199,8 +201,17 @@ elif menu == "👥 Gestione Pazienti":
                     help="Spunta se il paziente ha disdetto",
                     default=False,
                 ),
+                # CONFIGURAZIONE PER I COLORI (Pills)
+                "Area": st.column_config.SelectboxColumn(
+                    "Area",
+                    width="medium",
+                    # Passiamo la lista delle aree: questo dice a Streamlit di trattarle come Categorie colorate
+                    options=lista_aree, 
+                    required=False,
+                ),
                 "id": None, 
             },
+            # Disabilitiamo la modifica dell'Area, ma manteniamo lo stile colorato
             disabled=["Nome", "Cognome", "Area"], 
             hide_index=True,
             use_container_width=True,
@@ -215,20 +226,18 @@ elif menu == "👥 Gestione Pazienti":
                 record_id = row['id']
                 nuovo_stato = row['Disdetto']
                 
-                # --- CORREZIONE QUI ---
-                # Usiamo df_original invece di df per evitare il NameError
+                # --- CORREZIONE ERRORE NAME ERROR ---
+                # Usiamo df_original invece di df
                 original_row = df_original[df_original['id'] == record_id]
                 
                 if not original_row.empty:
                     vecchio_stato = original_row.iloc[0]['Disdetto']
                     
-                    # Normalizzazione a True/False
                     is_vecchio_true = True if vecchio_stato in [True, 1, "True", "Checked"] else False
                     is_nuovo_true = True if nuovo_stato in [True, 1, "True", "Checked"] else False
 
                     if is_vecchio_true != is_nuovo_true:
                         try:
-                            # Aggiornamento con la colonna corretta "Disdetto"
                             update_paziente(record_id, is_nuovo_true)
                             changes_count += 1
                         except Exception as e:
@@ -286,4 +295,3 @@ elif menu == "📝 Scadenze Ufficio":
         st.dataframe(df_scad, use_container_width=True)
     else:
         st.info("Nessuna scadenza trovata.")
-        
