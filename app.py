@@ -53,7 +53,7 @@ st.sidebar.divider()
 st.sidebar.info("App collegata ad Airtable.")
 
 # =========================================================
-# SEZIONE 1: DASHBOARD (COLORI PERSONALIZZATI)
+# SEZIONE 1: DASHBOARD (GRAFICO FIXATO)
 # =========================================================
 if menu == "📊 Dashboard & Allarmi":
     
@@ -87,11 +87,18 @@ if menu == "📊 Dashboard & Allarmi":
         if 'Area' in df.columns:
             st.subheader("📍 Distribuzione per Area Trattata")
             
-            # Preparazione dati
+            # --- FIX: PULIZIA DATI PER IL GRAFICO ---
             all_areas = []
             for item in df['Area'].dropna():
-                parts = [p.strip() for p in str(item).split(',')]
-                all_areas.extend(parts)
+                # Airtable restituisce una lista ['Valore'], noi prendiamo il contenuto pulito
+                if isinstance(item, list):
+                    all_areas.extend(item)
+                elif isinstance(item, str):
+                    # Se per caso è una stringa, la puliamo dalle virgole
+                    all_areas.extend([p.strip() for p in item.split(',')])
+                else:
+                    all_areas.append(str(item))
+            # ----------------------------------------
             
             if all_areas:
                 counts = pd.Series(all_areas).value_counts().reset_index()
@@ -99,10 +106,9 @@ if menu == "📊 Dashboard & Allarmi":
                 
                 # --- DEFINIZIONE COLORI ---
                 domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
-                # Colori: Azzurro, Giallo, Verde, Lilla, Rosso, Grigio Scuro
                 range_ = ["#33A1C9", "#F1C40F", "#2ECC71", "#9B59B6", "#E74C3C", "#7F8C8D"]
 
-                # --- GRAFICO CON COLORI SPECIFICI ---
+                # --- GRAFICO ---
                 chart = alt.Chart(counts).mark_bar().encode(
                     x=alt.X('Area', sort='-y', title="Area Trattata"),
                     y=alt.Y('Pazienti', title="Numero Pazienti"),
@@ -174,12 +180,11 @@ elif menu == "👥 Gestione Pazienti":
         st.info("Database vuoto.")
 
 # =========================================================
-# SEZIONE 3: PREVENTIVI (CORRETTO ERRORE FORMATTAZIONE)
+# SEZIONE 3: PREVENTIVI
 # =========================================================
 elif menu == "💰 Calcolo Preventivo":
     st.title("Generatore Preventivi")
     
-    # Qui c'era l'errore: ora è formattato riga per riga per sicurezza
     listino = {
         "Valutazione Iniziale": 50, 
         "Seduta Tecar": 35, 
