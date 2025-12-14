@@ -8,6 +8,7 @@ try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except FileNotFoundError:
+    # Se non trova i secrets (es. in locale), usa queste vuote o metti le tue per test
     API_KEY = "tua_chiave"
     BASE_ID = "tuo_base_id"
 
@@ -28,7 +29,7 @@ def get_data(table_name):
         return pd.DataFrame()
 
 def save_paziente(nome, cognome, area, disdetto):
-    """Salva i dati. 'disdetto' viene inviato come True/False ad Airtable"""
+    """Salva i dati. 'area' viene salvata come stringa unica (es. 'Colonna, ATM')"""
     table = api.table(BASE_ID, "Pazienti")
     record = {
         "Nome": nome,
@@ -61,11 +62,12 @@ if menu == "📊 Dashboard & Allarmi":
     df = get_data("Pazienti")
     
     if not df.empty:
+        # Se manca la colonna Disdetto, la creiamo fittizia
         if 'Disdetto' not in df.columns:
             df['Disdetto'] = False 
 
         totali = len(df)
-        # Conta quanti hanno la spunta True
+        # Conta quanti sono disdetti (True o 1)
         disdetti_count = len(df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ])
         attivi = totali - disdetti_count
         
@@ -78,15 +80,34 @@ if menu == "📊 Dashboard & Allarmi":
         
         if 'Area' in df.columns:
             st.subheader("📍 Distribuzione per Area Trattata")
-            st.bar_chart(df['Area'].value_counts())
+            # Separiamo le aree multiple per fare il grafico corretto
+            all_areas = []
+            for item in df['Area'].dropna():
+                # Divide dove c'è la virgola (es "Mano, Polso" diventa due voci)
+                parts = [p.strip() for p in str(item).split(',')]
+                all_areas.extend(parts)
+            
+            if all_areas:
+                counts = pd.Series(all_areas).value_counts()
+                st.bar_chart(counts)
     else:
         st.info("Nessun dato pazienti trovato.")
 
 # =========================================================
-# SEZIONE 2: GESTIONE PAZIENTI (MODIFICATA)
+# SEZIONE 2: GESTIONE PAZIENTI (LISTA CORRETTA)
 # =========================================================
 elif menu == "👥 Gestione Pazienti":
     st.title("📂 Anagrafica Pazienti")
+    
+    # --- LA TUA LISTA SPECIFICA ---
+    lista_aree = [
+        "Mano-Polso", 
+        "Colonna", 
+        "ATM", 
+        "Muscolo-Scheletrico", 
+        "Gruppi", 
+        "Ortopedico"
+    ]
     
     # --- FORM INSERIMENTO ---
     with st.container(border=True):
@@ -95,10 +116,10 @@ elif menu == "👥 Gestione Pazienti":
             c1, c2 = st.columns(2)
             with c1:
                 nome = st.text_input("Nome")
-                area = st.text_input("Area (es. Spalla, Ginocchio)")
+                # Menu a scelta multipla con la tua lista
+                aree_scelte = st.multiselect("Area Trattata", options=lista_aree)
             with c2:
                 cognome = st.text_input("Cognome")
-                # Qui usiamo la spunta perché è più comoda per inserire
                 disdetto = st.checkbox("Paziente Disdetto (Spunta se ha abbandonato)")
                 
             submit = st.form_submit_button("Salva nel Database")
@@ -106,7 +127,10 @@ elif menu == "👥 Gestione Pazienti":
             if submit:
                 if nome and cognome:
                     try:
-                        save_paziente(nome, cognome, area, disdetto)
+                        # Unisce le scelte in un testo unico separato da virgola
+                        area_stringa = ", ".join(aree_scelte)
+                        
+                        save_paziente(nome, cognome, area_stringa, disdetto)
                         st.success(f"✅ {nome} {cognome} salvato!")
                     except HTTPError as e:
                         st.error("❌ Errore Airtable.")
@@ -116,28 +140,22 @@ elif menu == "👥 Gestione Pazienti":
                 else:
                     st.warning("⚠️ Nome e Cognome obbligatori.")
 
-    # --- TABELLA PULITA ---
+    # --- TABELLA ---
     st.divider()
     st.subheader("Elenco Completo")
     
     df = get_data("Pazienti")
     
     if not df.empty:
-        # 1. Normalizziamo la colonna Disdetto (se manca la creiamo vuota)
         if 'Disdetto' not in df.columns:
             df['Disdetto'] = False
             
-        # 2. Convertiamo VERO/FALSO in "SI"/"NO" per la tabella
-        # Usiamo una funzione lambda: se è vero mette "SI", altrimenti "NO"
+        # Converte True/False in SI/NO per la visualizzazione
         df['Stato Disdetto'] = df['Disdetto'].apply(lambda x: "SI" if x is True or x == 1 else "NO")
 
-        # 3. Selezioniamo SOLO le colonne che vogliamo vedere, nell'ordine giusto
         colonne_da_mostrare = ['Nome', 'Cognome', 'Area', 'Stato Disdetto']
-        
-        # Filtriamo per sicurezza solo quelle che esistono davvero (per evitare errori se manca 'Area')
         colonne_finali = [c for c in colonne_da_mostrare if c in df.columns]
         
-        # Mostriamo la tabella pulita
         st.dataframe(df[colonne_finali], use_container_width=True)
         
     else:
@@ -148,6 +166,7 @@ elif menu == "👥 Gestione Pazienti":
 # =========================================================
 elif menu == "💰 Calcolo Preventivo":
     st.title("Generatore Preventivi")
+    # Puoi personalizzare anche questo listino se vuoi
     listino = {
         "Valutazione Iniziale": 50, "Seduta Tecar": 35, "Laser Terapia": 30,
         "Rieducazione Motoria": 45, "Massaggio Decontratturante": 50, "Onde d'Urto": 40
