@@ -189,3 +189,10 @@ elif menu == "📝 Scadenze Ufficio":
     
     if not df_scadenze.empty:
         # Ordiniamo per data se possibile
+        if 'Data_Scadenza' in df_scadenze.columns:
+            df_scadenze = df_scadenze.sort_values(by="Data_Scadenza")  # <--- QUESTA RIGA DEVE AVERE SPAZIO DAVANTI
+            
+        st.dataframe(df_scadenze, use_container_width=True)
+    else:
+        st.info("Nessuna scadenza inserita nella tabella 'Scadenze' di Airtable.")
+        # Ordiniamo per data se possibile
