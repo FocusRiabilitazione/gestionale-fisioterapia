@@ -2,6 +2,7 @@ import streamlit as st
 from pyairtable import Api
 import pandas as pd
 from requests.exceptions import HTTPError
+import altair as alt
 
 # --- 1. CONFIGURAZIONE CONNESSIONE ---
 try:
@@ -52,20 +53,17 @@ st.sidebar.divider()
 st.sidebar.info("App collegata ad Airtable.")
 
 # =========================================================
-# SEZIONE 1: DASHBOARD (CON LOGO)
+# SEZIONE 1: DASHBOARD (COLORI PERSONALIZZATI)
 # =========================================================
 if menu == "📊 Dashboard & Allarmi":
     
-    # --- SEZIONE LOGO MODIFICATA ---
+    # --- LOGO ---
     try:
-        # Cerca un file chiamato "logo.png" nella stessa cartella di app.py
-        # Puoi cambiare width=300 per ingrandirlo o rimpicciolirlo
         st.image("logo.png", width=300) 
     except FileNotFoundError:
-        # Se non trova l'immagine, mostra il testo di riserva e un avviso
         st.title("Buongiorno! ☕")
-        st.warning("ℹ️ Per sostituire questa scritta con il logo, carica un file chiamato 'logo.png' nella cartella dell'app.")
-    # -------------------------------
+        st.warning("ℹ️ Carica 'logo.png' nella cartella per vedere il logo qui.")
+    # ------------
 
     st.write("Panoramica dello studio.")
     
@@ -88,14 +86,35 @@ if menu == "📊 Dashboard & Allarmi":
         
         if 'Area' in df.columns:
             st.subheader("📍 Distribuzione per Area Trattata")
+            
+            # Preparazione dati
             all_areas = []
             for item in df['Area'].dropna():
                 parts = [p.strip() for p in str(item).split(',')]
                 all_areas.extend(parts)
             
             if all_areas:
-                counts = pd.Series(all_areas).value_counts()
-                st.bar_chart(counts)
+                counts = pd.Series(all_areas).value_counts().reset_index()
+                counts.columns = ['Area', 'Pazienti']
+                
+                # --- DEFINIZIONE COLORI ---
+                # Qui associamo i nomi esatti ai colori
+                domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
+                range_ = ["#33A1C9", "#F1C40F", "#2ECC71", "#9B59B6", "#E74C3C", "#7F8C8D"]
+                # (Azzurro, Giallo, Verde, Lilla, Rosso, Grigio Scuro)
+
+                # --- GRAFICO CON COLORI SPECIFICI ---
+                chart = alt.Chart(counts).mark_bar().encode(
+                    x=alt.X('Area', sort='-y', title="Area Trattata"),
+                    y=alt.Y('Pazienti', title="Numero Pazienti"),
+                    color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None),
+                    tooltip=['Area', 'Pazienti']
+                ).properties(
+                    height=400
+                )
+                
+                st.altair_chart(chart, use_container_width=True)
+                
     else:
         st.info("Nessun dato pazienti trovato.")
 
@@ -105,6 +124,7 @@ if menu == "📊 Dashboard & Allarmi":
 elif menu == "👥 Gestione Pazienti":
     st.title("📂 Anagrafica Pazienti")
     
+    # Nota: Assicurati che questi nomi siano identici a quelli nella lista colori sopra!
     lista_aree = [
         "Mano-Polso", "Colonna", "ATM", 
         "Muscolo-Scheletrico", "Gruppi", "Ortopedico"
@@ -178,17 +198,4 @@ elif menu == "💰 Calcolo Preventivo":
             totale += costo
         st.write("---")
         st.subheader(f"TOTALE: {totale} €")
-        if totale > 300: st.success(f"SCONTO PACCHETTO: **{int(totale*0.9)} €**")
-
-# =========================================================
-# SEZIONE 4: SCADENZE
-# =========================================================
-elif menu == "📝 Scadenze Ufficio":
-    st.title("Checklist Pagamenti")
-    df_scad = get_data("Scadenze")
-    if not df_scad.empty:
-        if 'Data_Scadenza' in df_scad.columns:
-            df_scad = df_scad.sort_values("Data_Scadenza")
-        st.dataframe(df_scad, use_container_width=True)
-    else:
-        st.info("Nessuna scadenza trovata.")
+        if totale > 3
