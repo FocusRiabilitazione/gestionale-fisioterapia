@@ -39,9 +39,9 @@ def save_paziente(nome, cognome, telefono, diagnosi):
         "Cognome": cognome,
         "Telefono": telefono,
         "Diagnosi_Attuale": diagnosi,
-        "Piano_Cura_Attivo": "SI", # Di default è attivo
-        "Data_Ultima_Visita": datetime.now().strftime("%Y-%m-%d") # Mettiamo oggi come data iniziale
-    })
+        "Piano_Cura_Attivo": "SI",
+        "Data_Ultima_Visita": datetime.now().strftime("%Y-%m-%d")
+    }, typecast=True)
 
 # --- 3. INTERFACCIA GRAFICA (Quello che vede la segretaria) ---
 
