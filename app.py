@@ -27,34 +27,31 @@ def get_data(table_name):
         # Recuperiamo ID e Campi
         data = [{'id': r['id'], **r['fields']} for r in records]
         df = pd.DataFrame(data)
-        
-        # La colonna arriva da Airtable già come "Disdetto", quindi non serve rinominarla.
         return df
     except Exception as e:
         return pd.DataFrame()
 
 def save_paziente(nome, cognome, area, disdetto):
-    """Salva un nuovo paziente usando il nome corretto della colonna"""
+    """Salva un nuovo paziente"""
     table = api.table(BASE_ID, "Pazienti")
     record = {
         "Nome": nome,
         "Cognome": cognome,
         "Area": area,
-        "Disdetto": disdetto  # <--- CORRETTO: Modificato in "Disdetto"
+        "Disdetto": disdetto 
     }
     table.create(record, typecast=True)
 
 def update_paziente(record_id, nuovo_stato):
-    """Aggiorna lo stato usando il nome corretto della colonna"""
+    """Aggiorna lo stato su Airtable"""
     table = api.table(BASE_ID, "Pazienti")
-    # <--- CORRETTO: Modificato in "Disdetto" e aggiunto typecast=True per sicurezza
+    # typecast=True aiuta a convertire il valore nel formato che Airtable preferisce
     table.update(record_id, {"Disdetto": nuovo_stato}, typecast=True)
 
 # --- 3. INTERFACCIA GRAFICA ---
 
 st.set_page_config(page_title="Gestionale Fisio", page_icon="🏥", layout="wide")
 
-# Menu Laterale
 st.sidebar.title("Navigazione")
 menu = st.sidebar.radio(
     "Vai a:", 
@@ -72,20 +69,20 @@ if menu == "📊 Dashboard & Allarmi":
         st.image("logo.png", width=300) 
     except FileNotFoundError:
         st.title("Buongiorno! ☕")
-        st.warning("ℹ️ Carica 'logo.png' nella cartella per vedere il logo qui.")
 
     st.write("Panoramica dello studio.")
     
     df = get_data("Pazienti")
     
     if not df.empty:
-        # Se la colonna non esiste (perché nessuno è ancora disdetto), la creiamo falsa
+        # Se la colonna non esiste, la creiamo falsa
         if 'Disdetto' not in df.columns:
             df['Disdetto'] = False
         else:
             df['Disdetto'] = df['Disdetto'].fillna(False)
 
         totali = len(df)
+        # Contiamo i disdetti
         disdetti_count = len(df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ])
         attivi = totali - disdetti_count
         
@@ -120,9 +117,7 @@ if menu == "📊 Dashboard & Allarmi":
                     y=alt.Y('Pazienti', title="Numero Pazienti"),
                     color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None),
                     tooltip=['Area', 'Pazienti']
-                ).properties(
-                    height=400
-                )
+                ).properties(height=400)
                 
                 st.altair_chart(chart, use_container_width=True)
                 
@@ -156,7 +151,7 @@ elif menu == "👥 Gestione Pazienti":
                 if nome and cognome:
                     try:
                         area_stringa = ", ".join(aree_scelte)
-                        # Qui inviamo False alla colonna corretta
+                        # Salvataggio con la colonna corretta "Disdetto"
                         save_paziente(nome, cognome, area_stringa, False)
                         st.success(f"✅ {nome} {cognome} salvato!")
                         st.rerun()
@@ -220,6 +215,75 @@ elif menu == "👥 Gestione Pazienti":
                 record_id = row['id']
                 nuovo_stato = row['Disdetto']
                 
-                # Confronto
-                original_row = df
+                # --- CORREZIONE QUI ---
+                # Usiamo df_original invece di df per evitare il NameError
+                original_row = df_original[df_original['id'] == record_id]
                 
+                if not original_row.empty:
+                    vecchio_stato = original_row.iloc[0]['Disdetto']
+                    
+                    # Normalizzazione a True/False
+                    is_vecchio_true = True if vecchio_stato in [True, 1, "True", "Checked"] else False
+                    is_nuovo_true = True if nuovo_stato in [True, 1, "True", "Checked"] else False
+
+                    if is_vecchio_true != is_nuovo_true:
+                        try:
+                            # Aggiornamento con la colonna corretta "Disdetto"
+                            update_paziente(record_id, is_nuovo_true)
+                            changes_count += 1
+                        except Exception as e:
+                            st.error(f"Errore aggiornamento ID {record_id}: {e}")
+            
+            if changes_count > 0:
+                st.success(f"✅ Aggiornati {changes_count} pazienti!")
+                st.rerun() 
+            else:
+                st.warning("⚠️ Nessuna modifica rilevata.")
+
+    else:
+        st.info("Database vuoto.")
+
+# =========================================================
+# SEZIONE 3: PREVENTIVI
+# =========================================================
+elif menu == "💰 Calcolo Preventivo":
+    st.title("Generatore Preventivi")
+    listino = {
+        "Valutazione Iniziale": 50, 
+        "Seduta Tecar": 35, 
+        "Laser Terapia": 30,
+        "Rieducazione Motoria": 45, 
+        "Massaggio Decontratturante": 50, 
+        "Onde d'Urto": 40
+    }
+    
+    c1, c2 = st.columns([2, 1])
+    with c1: scelte = st.multiselect("Scegli Trattamenti", list(listino.keys()))
+        
+    totale = 0
+    if scelte:
+        st.write("---")
+        for t in scelte:
+            qty = st.number_input(f"Sedute di {t}", 1, 20, 5, key=t)
+            costo = listino[t] * qty
+            st.write(f"▫️ {t}: {listino[t]}€ x {qty} = **{costo} €**")
+            totale += costo
+        st.write("---")
+        st.subheader(f"TOTALE: {totale} €")
+        
+        if totale > 300: 
+            st.success(f"SCONTO PACCHETTO: **{int(totale*0.9)} €**")
+
+# =========================================================
+# SEZIONE 4: SCADENZE
+# =========================================================
+elif menu == "📝 Scadenze Ufficio":
+    st.title("Checklist Pagamenti")
+    df_scad = get_data("Scadenze")
+    if not df_scad.empty:
+        if 'Data_Scadenza' in df_scad.columns:
+            df_scad = df_scad.sort_values("Data_Scadenza")
+        st.dataframe(df_scad, use_container_width=True)
+    else:
+        st.info("Nessuna scadenza trovata.")
+        
