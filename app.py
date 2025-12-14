@@ -125,12 +125,15 @@ elif menu == "👥 Gestione Pazienti":
             
             if submit:
                 if nome and cognome:
-                    save_paziente(nome, cognome, telefono, diagnosi)
-                    st.success(f"Paziente {nome} {cognome} salvato con successo!")
-                    st.rerun() # Ricarica la pagina per vedere il nuovo dato
-                else:
-                    st.error("Inserisci almeno Nome e Cognome.")
-
+                    try:
+    save_paziente(nome, cognome, telefono, diagnosi)
+    st.success("Paziente salvato correttamente!")
+except HTTPError as e:
+    st.error("C'è stato un problema con Airtable.")
+    # Questo stamperà il messaggio esatto di Airtable (es. "Unknown field name: 'Nome'")
+    st.write(e.response.text) 
+except Exception as e:
+    st.error(f"Errore generico: {e}")
     # Tabella completa
     st.write("### Elenco Completo")
     df = get_data("Pazienti")
