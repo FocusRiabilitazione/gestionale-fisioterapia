@@ -8,7 +8,6 @@ try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except FileNotFoundError:
-    # Se non trova i secrets (es. in locale), usa queste vuote o metti le tue per test
     API_KEY = "tua_chiave"
     BASE_ID = "tuo_base_id"
 
@@ -29,7 +28,7 @@ def get_data(table_name):
         return pd.DataFrame()
 
 def save_paziente(nome, cognome, area, disdetto):
-    """Salva i dati. 'area' viene salvata come stringa unica (es. 'Colonna, ATM')"""
+    """Salva i dati. 'disdetto' sarà sempre False per i nuovi inserimenti"""
     table = api.table(BASE_ID, "Pazienti")
     record = {
         "Nome": nome,
@@ -62,7 +61,6 @@ if menu == "📊 Dashboard & Allarmi":
     df = get_data("Pazienti")
     
     if not df.empty:
-        # Se manca la colonna Disdetto, la creiamo fittizia
         if 'Disdetto' not in df.columns:
             df['Disdetto'] = False 
 
@@ -80,10 +78,8 @@ if menu == "📊 Dashboard & Allarmi":
         
         if 'Area' in df.columns:
             st.subheader("📍 Distribuzione per Area Trattata")
-            # Separiamo le aree multiple per fare il grafico corretto
             all_areas = []
             for item in df['Area'].dropna():
-                # Divide dove c'è la virgola (es "Mano, Polso" diventa due voci)
                 parts = [p.strip() for p in str(item).split(',')]
                 all_areas.extend(parts)
             
@@ -94,19 +90,14 @@ if menu == "📊 Dashboard & Allarmi":
         st.info("Nessun dato pazienti trovato.")
 
 # =========================================================
-# SEZIONE 2: GESTIONE PAZIENTI (LISTA CORRETTA)
+# SEZIONE 2: GESTIONE PAZIENTI (SENZA SPUNTA DISDETTO)
 # =========================================================
 elif menu == "👥 Gestione Pazienti":
     st.title("📂 Anagrafica Pazienti")
     
-    # --- LA TUA LISTA SPECIFICA ---
     lista_aree = [
-        "Mano-Polso", 
-        "Colonna", 
-        "ATM", 
-        "Muscolo-Scheletrico", 
-        "Gruppi", 
-        "Ortopedico"
+        "Mano-Polso", "Colonna", "ATM", 
+        "Muscolo-Scheletrico", "Gruppi", "Ortopedico"
     ]
     
     # --- FORM INSERIMENTO ---
@@ -116,21 +107,21 @@ elif menu == "👥 Gestione Pazienti":
             c1, c2 = st.columns(2)
             with c1:
                 nome = st.text_input("Nome")
-                # Menu a scelta multipla con la tua lista
                 aree_scelte = st.multiselect("Area Trattata", options=lista_aree)
             with c2:
                 cognome = st.text_input("Cognome")
-                disdetto = st.checkbox("Paziente Disdetto (Spunta se ha abbandonato)")
+                # LA CASELLA DISDETTO È STATA RIMOSSA DA QUI
                 
             submit = st.form_submit_button("Salva nel Database")
             
             if submit:
                 if nome and cognome:
                     try:
-                        # Unisce le scelte in un testo unico separato da virgola
                         area_stringa = ", ".join(aree_scelte)
                         
-                        save_paziente(nome, cognome, area_stringa, disdetto)
+                        # Passiamo "False" fisso perché un nuovo paziente NON è disdetto
+                        save_paziente(nome, cognome, area_stringa, False)
+                        
                         st.success(f"✅ {nome} {cognome} salvato!")
                     except HTTPError as e:
                         st.error("❌ Errore Airtable.")
@@ -150,7 +141,6 @@ elif menu == "👥 Gestione Pazienti":
         if 'Disdetto' not in df.columns:
             df['Disdetto'] = False
             
-        # Converte True/False in SI/NO per la visualizzazione
         df['Stato Disdetto'] = df['Disdetto'].apply(lambda x: "SI" if x is True or x == 1 else "NO")
 
         colonne_da_mostrare = ['Nome', 'Cognome', 'Area', 'Stato Disdetto']
@@ -166,7 +156,6 @@ elif menu == "👥 Gestione Pazienti":
 # =========================================================
 elif menu == "💰 Calcolo Preventivo":
     st.title("Generatore Preventivi")
-    # Puoi personalizzare anche questo listino se vuoi
     listino = {
         "Valutazione Iniziale": 50, "Seduta Tecar": 35, "Laser Terapia": 30,
         "Rieducazione Motoria": 45, "Massaggio Decontratturante": 50, "Onde d'Urto": 40
