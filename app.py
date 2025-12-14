@@ -17,19 +17,20 @@ api = Api(API_KEY)
 # --- 2. FUNZIONI ---
 
 def get_data(table_name):
-    """Scarica i dati da Airtable"""
+    """Scarica i dati da Airtable, incluso l'ID nascosto per poter fare modifiche"""
     try:
         table = api.table(BASE_ID, table_name)
         records = table.all()
         if not records:
             return pd.DataFrame()
-        data = [r['fields'] for r in records]
+        # Qui prendiamo anche l'id del record ('id') oltre ai campi ('fields')
+        data = [{'id': r['id'], **r['fields']} for r in records]
         return pd.DataFrame(data)
     except Exception as e:
         return pd.DataFrame()
 
 def save_paziente(nome, cognome, area, disdetto):
-    """Salva i dati. 'disdetto' sarà sempre False per i nuovi inserimenti"""
+    """Salva un nuovo paziente"""
     table = api.table(BASE_ID, "Pazienti")
     record = {
         "Nome": nome,
@@ -38,6 +39,11 @@ def save_paziente(nome, cognome, area, disdetto):
         "Disdetto": disdetto 
     }
     table.create(record, typecast=True)
+
+def update_paziente(record_id, nuovo_stato):
+    """Aggiorna lo stato Disdetto di un paziente esistente"""
+    table = api.table(BASE_ID, "Pazienti")
+    table.update(record_id, {"Disdetto": nuovo_stato})
 
 # --- 3. INTERFACCIA GRAFICA ---
 
@@ -53,17 +59,15 @@ st.sidebar.divider()
 st.sidebar.info("App collegata ad Airtable.")
 
 # =========================================================
-# SEZIONE 1: DASHBOARD (GRAFICO FIXATO)
+# SEZIONE 1: DASHBOARD
 # =========================================================
 if menu == "📊 Dashboard & Allarmi":
     
-    # --- LOGO ---
     try:
         st.image("logo.png", width=300) 
     except FileNotFoundError:
         st.title("Buongiorno! ☕")
         st.warning("ℹ️ Carica 'logo.png' nella cartella per vedere il logo qui.")
-    # ------------
 
     st.write("Panoramica dello studio.")
     
@@ -74,6 +78,7 @@ if menu == "📊 Dashboard & Allarmi":
             df['Disdetto'] = False 
 
         totali = len(df)
+        # Conta disdetti
         disdetti_count = len(df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ])
         attivi = totali - disdetti_count
         
@@ -87,28 +92,22 @@ if menu == "📊 Dashboard & Allarmi":
         if 'Area' in df.columns:
             st.subheader("📍 Distribuzione per Area Trattata")
             
-            # --- FIX: PULIZIA DATI PER IL GRAFICO ---
             all_areas = []
             for item in df['Area'].dropna():
-                # Airtable restituisce una lista ['Valore'], noi prendiamo il contenuto pulito
                 if isinstance(item, list):
                     all_areas.extend(item)
                 elif isinstance(item, str):
-                    # Se per caso è una stringa, la puliamo dalle virgole
                     all_areas.extend([p.strip() for p in item.split(',')])
                 else:
                     all_areas.append(str(item))
-            # ----------------------------------------
             
             if all_areas:
                 counts = pd.Series(all_areas).value_counts().reset_index()
                 counts.columns = ['Area', 'Pazienti']
                 
-                # --- DEFINIZIONE COLORI ---
                 domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
                 range_ = ["#33A1C9", "#F1C40F", "#2ECC71", "#9B59B6", "#E74C3C", "#7F8C8D"]
 
-                # --- GRAFICO ---
                 chart = alt.Chart(counts).mark_bar().encode(
                     x=alt.X('Area', sort='-y', title="Area Trattata"),
                     y=alt.Y('Pazienti', title="Numero Pazienti"),
@@ -124,7 +123,7 @@ if menu == "📊 Dashboard & Allarmi":
         st.info("Nessun dato pazienti trovato.")
 
 # =========================================================
-# SEZIONE 2: GESTIONE PAZIENTI
+# SEZIONE 2: GESTIONE PAZIENTI (MODIFICABILE + CERCA)
 # =========================================================
 elif menu == "👥 Gestione Pazienti":
     st.title("📂 Anagrafica Pazienti")
@@ -134,8 +133,8 @@ elif menu == "👥 Gestione Pazienti":
         "Muscolo-Scheletrico", "Gruppi", "Ortopedico"
     ]
     
-    with st.container(border=True):
-        st.subheader("Nuovo Inserimento")
+    # --- FORM INSERIMENTO ---
+    with st.expander("➕ Nuovo Inserimento (Clicca per aprire)", expanded=False):
         with st.form("form_paziente", clear_on_submit=True):
             c1, c2 = st.columns(2)
             with c1:
@@ -152,30 +151,94 @@ elif menu == "👥 Gestione Pazienti":
                         area_stringa = ", ".join(aree_scelte)
                         save_paziente(nome, cognome, area_stringa, False)
                         st.success(f"✅ {nome} {cognome} salvato!")
+                        st.rerun() # Ricarica la pagina per vedere il nuovo dato
                     except HTTPError as e:
                         st.error("❌ Errore Airtable.")
-                        st.code(e.response.text)
                     except Exception as e:
                         st.error(f"❌ Errore: {e}")
                 else:
                     st.warning("⚠️ Nome e Cognome obbligatori.")
 
     st.divider()
-    st.subheader("Elenco Completo")
     
-    df = get_data("Pazienti")
+    # --- TABELLA INTERATTIVA ---
+    st.subheader("Elenco e Modifica Rapida")
     
-    if not df.empty:
-        if 'Disdetto' not in df.columns:
-            df['Disdetto'] = False
-            
-        df['Stato Disdetto'] = df['Disdetto'].apply(lambda x: "SI" if x is True or x == 1 else "NO")
+    # 1. Carichiamo i dati
+    df_original = get_data("Pazienti")
+    
+    if not df_original.empty:
+        if 'Disdetto' not in df_original.columns:
+            df_original['Disdetto'] = False
 
-        colonne_da_mostrare = ['Nome', 'Cognome', 'Area', 'Stato Disdetto']
-        colonne_finali = [c for c in colonne_da_mostrare if c in df.columns]
+        # 2. BARRA DI RICERCA
+        search_query = st.text_input("🔍 Cerca Paziente per Cognome", placeholder="Es. Rossi...")
         
-        st.dataframe(df[colonne_finali], use_container_width=True)
+        # Filtriamo il dataframe se c'è una ricerca
+        if search_query:
+            # Filtra dove il cognome contiene il testo cercato (case insensitive)
+            df_filtered = df_original[df_original['Cognome'].astype(str).str.contains(search_query, case=False, na=False)]
+        else:
+            df_filtered = df_original
+
+        # 3. PREPARIAMO LA TABELLA EDITABILE
+        # Selezioniamo le colonne da mostrare (incluso l'ID nascosto che ci serve)
+        cols_to_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'id']
+        # Mettiamo 'id' per ultimo o comunque ci assicuriamo che esista
+        available_cols = [c for c in cols_to_show if c in df_filtered.columns]
         
+        # TABELLA MODIFICABILE
+        st.info("💡 Spunta la casella 'Disdetto' per cambiare stato. Poi clicca 'Salva Modifiche' in basso.")
+        
+        edited_df = st.data_editor(
+            df_filtered[available_cols],
+            column_config={
+                "Disdetto": st.column_config.CheckboxColumn(
+                    "Disdetto",
+                    help="Spunta se il paziente ha disdetto",
+                    default=False,
+                ),
+                "id": None, # Nasconde la colonna ID ma mantiene i dati
+            },
+            disabled=["Nome", "Cognome", "Area"], # Blocca la modifica di nome/cognome/area
+            hide_index=True,
+            use_container_width=True,
+            key="editor_pazienti"
+        )
+
+        # 4. BOTTONE DI SALVATAGGIO
+        if st.button("💾 Salva Modifiche su Airtable"):
+            changes_count = 0
+            
+            # Confrontiamo i dati modificati con quelli originali per trovare le differenze
+            # Iteriamo su edited_df
+            for index, row in edited_df.iterrows():
+                record_id = row['id']
+                nuovo_stato = row['Disdetto']
+                
+                # Cerchiamo lo stato originale di questo ID nel dataframe originale
+                original_row = df_original[df_original['id'] == record_id]
+                
+                if not original_row.empty:
+                    vecchio_stato = original_row.iloc[0]['Disdetto']
+                    # Airtable a volte restituisce None o 0, normalizziamo a booleano
+                    vecchio_stato = bool(vecchio_stato)
+                    nuovo_stato = bool(nuovo_stato)
+
+                    if vecchio_stato != nuovo_stato:
+                        # C'è stato un cambiamento! Aggiorniamo Airtable
+                        try:
+                            update_paziente(record_id, nuovo_stato)
+                            changes_count += 1
+                        except Exception as e:
+                            st.error(f"Errore aggiornamento ID {record_id}: {e}")
+            
+            if changes_count > 0:
+                st.success(f"✅ Aggiornati {changes_count} pazienti!")
+                st.rerun() # Ricarica per aggiornare i dati originali
+            else:
+                st.info("Nessuna modifica rilevata.")
+
     else:
         st.info("Database vuoto.")
 
@@ -184,7 +247,6 @@ elif menu == "👥 Gestione Pazienti":
 # =========================================================
 elif menu == "💰 Calcolo Preventivo":
     st.title("Generatore Preventivi")
-    
     listino = {
         "Valutazione Iniziale": 50, 
         "Seduta Tecar": 35, 
