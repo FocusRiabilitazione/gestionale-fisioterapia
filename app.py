@@ -2,7 +2,7 @@ import streamlit as st
 from pyairtable import Api
 import pandas as pd
 from requests.exceptions import HTTPError
-import altair as alt
+import altair as alt  # <--- AGGIUNTO PER I COLORI
 
 # --- 1. CONFIGURAZIONE CONNESSIONE ---
 try:
@@ -53,17 +53,17 @@ st.sidebar.divider()
 st.sidebar.info("App collegata ad Airtable.")
 
 # =========================================================
-# SEZIONE 1: DASHBOARD (COLORI PERSONALIZZATI)
+# SEZIONE 1: DASHBOARD (CON LOGO E GRAFICO COLORATO)
 # =========================================================
 if menu == "📊 Dashboard & Allarmi":
     
-    # --- LOGO ---
+    # --- SEZIONE LOGO ---
     try:
         st.image("logo.png", width=300) 
     except FileNotFoundError:
         st.title("Buongiorno! ☕")
-        st.warning("ℹ️ Carica 'logo.png' nella cartella per vedere il logo qui.")
-    # ------------
+        st.warning("ℹ️ Per sostituire questa scritta con il logo, carica un file chiamato 'logo.png' nella cartella dell'app.")
+    # --------------------
 
     st.write("Panoramica dello studio.")
     
@@ -94,14 +94,16 @@ if menu == "📊 Dashboard & Allarmi":
                 all_areas.extend(parts)
             
             if all_areas:
+                # Creiamo il dataset per il grafico
                 counts = pd.Series(all_areas).value_counts().reset_index()
                 counts.columns = ['Area', 'Pazienti']
                 
                 # --- DEFINIZIONE COLORI ---
                 domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
+                # Azzurro, Giallo, Verde, Lilla, Rosso, Grigio Scuro
                 range_ = ["#33A1C9", "#F1C40F", "#2ECC71", "#9B59B6", "#E74C3C", "#7F8C8D"]
 
-                # --- GRAFICO CON COLORI SPECIFICI ---
+                # --- GRAFICO ALTAIR ---
                 chart = alt.Chart(counts).mark_bar().encode(
                     x=alt.X('Area', sort='-y', title="Area Trattata"),
                     y=alt.Y('Pazienti', title="Numero Pazienti"),
@@ -162,4 +164,21 @@ elif menu == "👥 Gestione Pazienti":
         if 'Disdetto' not in df.columns:
             df['Disdetto'] = False
             
-        df['Stato Disdetto'] =
+        df['Stato Disdetto'] = df['Disdetto'].apply(lambda x: "SI" if x is True or x == 1 else "NO")
+
+        colonne_da_mostrare = ['Nome', 'Cognome', 'Area', 'Stato Disdetto']
+        colonne_finali = [c for c in colonne_da_mostrare if c in df.columns]
+        
+        st.dataframe(df[colonne_finali], use_container_width=True)
+        
+    else:
+        st.info("Database vuoto.")
+
+# =========================================================
+# SEZIONE 3: PREVENTIVI
+# =========================================================
+elif menu == "💰 Calcolo Preventivo":
+    st.title("Generatore Preventivi")
+    listino = {
+        "Valutazione Iniziale": 50, "Seduta Tecar": 35, "Laser Terapia": 30,
+        "Rieducazione Motoria": 45, "Massaggio Decontr
