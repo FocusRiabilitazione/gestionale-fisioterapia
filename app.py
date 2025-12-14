@@ -98,10 +98,8 @@ if menu == "📊 Dashboard & Allarmi":
                 counts.columns = ['Area', 'Pazienti']
                 
                 # --- DEFINIZIONE COLORI ---
-                # Qui associamo i nomi esatti ai colori
                 domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
                 range_ = ["#33A1C9", "#F1C40F", "#2ECC71", "#9B59B6", "#E74C3C", "#7F8C8D"]
-                # (Azzurro, Giallo, Verde, Lilla, Rosso, Grigio Scuro)
 
                 # --- GRAFICO CON COLORI SPECIFICI ---
                 chart = alt.Chart(counts).mark_bar().encode(
@@ -124,7 +122,6 @@ if menu == "📊 Dashboard & Allarmi":
 elif menu == "👥 Gestione Pazienti":
     st.title("📂 Anagrafica Pazienti")
     
-    # Nota: Assicurati che questi nomi siano identici a quelli nella lista colori sopra!
     lista_aree = [
         "Mano-Polso", "Colonna", "ATM", 
         "Muscolo-Scheletrico", "Gruppi", "Ortopedico"
@@ -165,37 +162,4 @@ elif menu == "👥 Gestione Pazienti":
         if 'Disdetto' not in df.columns:
             df['Disdetto'] = False
             
-        df['Stato Disdetto'] = df['Disdetto'].apply(lambda x: "SI" if x is True or x == 1 else "NO")
-
-        colonne_da_mostrare = ['Nome', 'Cognome', 'Area', 'Stato Disdetto']
-        colonne_finali = [c for c in colonne_da_mostrare if c in df.columns]
-        
-        st.dataframe(df[colonne_finali], use_container_width=True)
-        
-    else:
-        st.info("Database vuoto.")
-
-# =========================================================
-# SEZIONE 3: PREVENTIVI
-# =========================================================
-elif menu == "💰 Calcolo Preventivo":
-    st.title("Generatore Preventivi")
-    listino = {
-        "Valutazione Iniziale": 50, "Seduta Tecar": 35, "Laser Terapia": 30,
-        "Rieducazione Motoria": 45, "Massaggio Decontratturante": 50, "Onde d'Urto": 40
-    }
-    
-    c1, c2 = st.columns([2, 1])
-    with c1: scelte = st.multiselect("Scegli Trattamenti", list(listino.keys()))
-        
-    totale = 0
-    if scelte:
-        st.write("---")
-        for t in scelte:
-            qty = st.number_input(f"Sedute di {t}", 1, 20, 5, key=t)
-            costo = listino[t] * qty
-            st.write(f"▫️ {t}: {listino[t]}€ x {qty} = **{costo} €**")
-            totale += costo
-        st.write("---")
-        st.subheader(f"TOTALE: {totale} €")
-        if totale > 3
+        df['Stato Disdetto'] =
