@@ -52,10 +52,21 @@ st.sidebar.divider()
 st.sidebar.info("App collegata ad Airtable.")
 
 # =========================================================
-# SEZIONE 1: DASHBOARD
+# SEZIONE 1: DASHBOARD (CON LOGO)
 # =========================================================
 if menu == "📊 Dashboard & Allarmi":
-    st.title("Buongiorno! ☕")
+    
+    # --- SEZIONE LOGO MODIFICATA ---
+    try:
+        # Cerca un file chiamato "logo.png" nella stessa cartella di app.py
+        # Puoi cambiare width=300 per ingrandirlo o rimpicciolirlo
+        st.image("logo.png", width=300) 
+    except FileNotFoundError:
+        # Se non trova l'immagine, mostra il testo di riserva e un avviso
+        st.title("Buongiorno! ☕")
+        st.warning("ℹ️ Per sostituire questa scritta con il logo, carica un file chiamato 'logo.png' nella cartella dell'app.")
+    # -------------------------------
+
     st.write("Panoramica dello studio.")
     
     df = get_data("Pazienti")
@@ -65,7 +76,6 @@ if menu == "📊 Dashboard & Allarmi":
             df['Disdetto'] = False 
 
         totali = len(df)
-        # Conta quanti sono disdetti (True o 1)
         disdetti_count = len(df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ])
         attivi = totali - disdetti_count
         
@@ -90,7 +100,7 @@ if menu == "📊 Dashboard & Allarmi":
         st.info("Nessun dato pazienti trovato.")
 
 # =========================================================
-# SEZIONE 2: GESTIONE PAZIENTI (SENZA SPUNTA DISDETTO)
+# SEZIONE 2: GESTIONE PAZIENTI
 # =========================================================
 elif menu == "👥 Gestione Pazienti":
     st.title("📂 Anagrafica Pazienti")
@@ -100,7 +110,6 @@ elif menu == "👥 Gestione Pazienti":
         "Muscolo-Scheletrico", "Gruppi", "Ortopedico"
     ]
     
-    # --- FORM INSERIMENTO ---
     with st.container(border=True):
         st.subheader("Nuovo Inserimento")
         with st.form("form_paziente", clear_on_submit=True):
@@ -110,7 +119,6 @@ elif menu == "👥 Gestione Pazienti":
                 aree_scelte = st.multiselect("Area Trattata", options=lista_aree)
             with c2:
                 cognome = st.text_input("Cognome")
-                # LA CASELLA DISDETTO È STATA RIMOSSA DA QUI
                 
             submit = st.form_submit_button("Salva nel Database")
             
@@ -118,10 +126,7 @@ elif menu == "👥 Gestione Pazienti":
                 if nome and cognome:
                     try:
                         area_stringa = ", ".join(aree_scelte)
-                        
-                        # Passiamo "False" fisso perché un nuovo paziente NON è disdetto
                         save_paziente(nome, cognome, area_stringa, False)
-                        
                         st.success(f"✅ {nome} {cognome} salvato!")
                     except HTTPError as e:
                         st.error("❌ Errore Airtable.")
@@ -131,7 +136,6 @@ elif menu == "👥 Gestione Pazienti":
                 else:
                     st.warning("⚠️ Nome e Cognome obbligatori.")
 
-    # --- TABELLA ---
     st.divider()
     st.subheader("Elenco Completo")
     
