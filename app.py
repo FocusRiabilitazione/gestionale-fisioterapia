@@ -17,7 +17,7 @@ api = Api(API_KEY)
 # --- 2. FUNZIONI ---
 
 def get_data(table_name):
-    """Scarica i dati da Airtable, pulendo i valori nulli"""
+    """Scarica i dati da Airtable e gestisce i nomi delle colonne"""
     try:
         table = api.table(BASE_ID, table_name)
         records = table.all()
@@ -28,26 +28,31 @@ def get_data(table_name):
         data = [{'id': r['id'], **r['fields']} for r in records]
         df = pd.DataFrame(data)
         
+        # --- CORREZIONE NOME COLONNA ---
+        # Se Airtable ci manda "Appuntamento_Disdetto", noi lo usiamo come "Disdetto" nell'App
+        if 'Appuntamento_Disdetto' in df.columns:
+            df = df.rename(columns={'Appuntamento_Disdetto': 'Disdetto'})
+        
         return df
     except Exception as e:
         return pd.DataFrame()
 
 def save_paziente(nome, cognome, area, disdetto):
-    """Salva un nuovo paziente"""
+    """Salva un nuovo paziente usando il nome corretto della colonna"""
     table = api.table(BASE_ID, "Pazienti")
     record = {
         "Nome": nome,
         "Cognome": cognome,
         "Area": area,
-        "Disdetto": disdetto 
+        "Appuntamento_Disdetto": disdetto  # <--- CORRETTO: Usa il nome reale di Airtable
     }
     table.create(record, typecast=True)
 
 def update_paziente(record_id, nuovo_stato):
-    """Aggiorna lo stato Disdetto"""
+    """Aggiorna lo stato usando il nome corretto della colonna"""
     table = api.table(BASE_ID, "Pazienti")
-    # Airtable vuole True/False o None. Inviamo True o False.
-    table.update(record_id, {"Disdetto": nuovo_stato})
+    # <--- CORRETTO: Usa il nome reale di Airtable
+    table.update(record_id, {"Appuntamento_Disdetto": nuovo_stato})
 
 # --- 3. INTERFACCIA GRAFICA ---
 
@@ -78,15 +83,13 @@ if menu == "📊 Dashboard & Allarmi":
     df = get_data("Pazienti")
     
     if not df.empty:
-        # PULIZIA DATI FONDAMENTALE
+        # Se la colonna non esiste (perché nessuno è ancora disdetto), la creiamo falsa
         if 'Disdetto' not in df.columns:
             df['Disdetto'] = False
         else:
-            # Riempie i vuoti con False (importante per il conteggio)
             df['Disdetto'] = df['Disdetto'].fillna(False)
 
         totali = len(df)
-        # Conta disdetti (True o 1)
         disdetti_count = len(df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ])
         attivi = totali - disdetti_count
         
@@ -131,7 +134,7 @@ if menu == "📊 Dashboard & Allarmi":
         st.info("Nessun dato pazienti trovato.")
 
 # =========================================================
-# SEZIONE 2: GESTIONE PAZIENTI (FIX SALVATAGGIO)
+# SEZIONE 2: GESTIONE PAZIENTI
 # =========================================================
 elif menu == "👥 Gestione Pazienti":
     st.title("📂 Anagrafica Pazienti")
@@ -157,6 +160,7 @@ elif menu == "👥 Gestione Pazienti":
                 if nome and cognome:
                     try:
                         area_stringa = ", ".join(aree_scelte)
+                        # Qui inviamo False alla colonna corretta
                         save_paziente(nome, cognome, area_stringa, False)
                         st.success(f"✅ {nome} {cognome} salvato!")
                         st.rerun()
@@ -172,20 +176,17 @@ elif menu == "👥 Gestione Pazienti":
     # --- TABELLA INTERATTIVA ---
     st.subheader("Elenco e Modifica Rapida")
     
-    # 1. Carichiamo i dati
     df_original = get_data("Pazienti")
     
     if not df_original.empty:
-        # --- FIX IMPORTANTE: Normalizzazione dati ---
-        # Se la colonna non esiste la creiamo
+        # Se la colonna non c'è, la creiamo vuota
         if 'Disdetto' not in df_original.columns:
             df_original['Disdetto'] = False
         
-        # Riempiamo i "NaN" (vuoti) con False in modo che il checkbox funzioni bene
+        # Pulizia dati per evitare errori col checkbox
         df_original['Disdetto'] = df_original['Disdetto'].fillna(False).infer_objects(copy=False)
-        # ---------------------------------------------
 
-        # 2. BARRA DI RICERCA
+        # Ricerca
         search_query = st.text_input("🔍 Cerca Paziente per Cognome", placeholder="Es. Rossi...")
         
         if search_query:
@@ -193,7 +194,7 @@ elif menu == "👥 Gestione Pazienti":
         else:
             df_filtered = df_original
 
-        # 3. PREPARIAMO LA TABELLA
+        # Mostriamo le colonne
         cols_to_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'id']
         available_cols = [c for c in cols_to_show if c in df_filtered.columns]
         
@@ -207,7 +208,7 @@ elif menu == "👥 Gestione Pazienti":
                     help="Spunta se il paziente ha disdetto",
                     default=False,
                 ),
-                "id": None, # Nasconde ID
+                "id": None, 
             },
             disabled=["Nome", "Cognome", "Area"], 
             hide_index=True,
@@ -215,7 +216,7 @@ elif menu == "👥 Gestione Pazienti":
             key="editor_pazienti"
         )
 
-        # 4. BOTTONE DI SALVATAGGIO
+        # Bottone di salvataggio
         if st.button("💾 Salva Modifiche su Airtable"):
             changes_count = 0
             
@@ -223,14 +224,13 @@ elif menu == "👥 Gestione Pazienti":
                 record_id = row['id']
                 nuovo_stato = row['Disdetto']
                 
-                # Cerchiamo lo stato originale
+                # Confronto
                 original_row = df_original[df_original['id'] == record_id]
                 
                 if not original_row.empty:
-                    # Recuperiamo il valore e ci assicuriamo sia booleano (True/False)
                     vecchio_stato = original_row.iloc[0]['Disdetto']
                     
-                    # Normalizziamo tutto a True/False puro per evitare errori
+                    # Normalizzazione a True/False
                     is_vecchio_true = True if vecchio_stato in [True, 1, "True"] else False
                     is_nuovo_true = True if nuovo_stato in [True, 1, "True"] else False
 
@@ -245,7 +245,7 @@ elif menu == "👥 Gestione Pazienti":
                 st.success(f"✅ Aggiornati {changes_count} pazienti!")
                 st.rerun() 
             else:
-                st.warning("⚠️ Nessuna modifica rilevata. Assicurati di aver cambiato una spunta.")
+                st.warning("⚠️ Nessuna modifica rilevata.")
 
     else:
         st.info("Database vuoto.")
@@ -285,4 +285,12 @@ elif menu == "💰 Calcolo Preventivo":
 # SEZIONE 4: SCADENZE
 # =========================================================
 elif menu == "📝 Scadenze Ufficio":
-    st.title("Check
+    st.title("Checklist Pagamenti")
+    df_scad = get_data("Scadenze")
+    if not df_scad.empty:
+        if 'Data_Scadenza' in df_scad.columns:
+            df_scad = df_scad.sort_values("Data_Scadenza")
+        st.dataframe(df_scad, use_container_width=True)
+    else:
+        st.info("Nessuna scadenza trovata.")
+        
