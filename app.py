@@ -9,35 +9,34 @@ try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except FileNotFoundError:
-    # Se stai testando in locale senza secrets.toml, metti qui le chiavi reali
-    API_KEY = "tua_chiave" 
-    BASE_ID = "tuo_base_id"
+    # Se non trova il file secrets, usa valori placeholder (o gestisci l'errore)
+    API_KEY = "tua_chiave_se_non_usi_secrets"
+    BASE_ID = "tuo_base_id_se_non_usi_secrets"
 
 api = Api(API_KEY)
 
 # --- 2. FUNZIONI ---
 
-# AGGIUNTO IL TTL=60 PER AGGIORNARE I DATI OGNI MINUTO
+# AGGIUNTO IL TTL=60: I dati si aggiornano ogni 60 secondi
 @st.cache_data(ttl=60)
 def get_data(table_name):
-    """Scarica i dati da Airtable"""
+    """Scarica i dati da Airtable e li converte in DataFrame"""
     try:
         table = api.table(BASE_ID, table_name)
         records = table.all()
         if not records:
             return pd.DataFrame()
         
-        # Recuperiamo ID e Campi
+        # Recuperiamo ID e Campi appiattiti
         data = [{'id': r['id'], **r['fields']} for r in records]
         df = pd.DataFrame(data)
         return df
     except Exception as e:
-        # Utile per il debug: stampa l'errore nella console se qualcosa non va
-        print(f"Errore caricamento {table_name}: {e}") 
+        print(f"Errore caricamento {table_name}: {e}")
         return pd.DataFrame()
 
 def save_paziente(nome, cognome, area, disdetto):
-    """Salva un nuovo paziente"""
+    """Salva un nuovo paziente su Airtable"""
     table = api.table(BASE_ID, "Pazienti")
     record = {
         "Nome": nome,
@@ -48,7 +47,7 @@ def save_paziente(nome, cognome, area, disdetto):
     table.create(record, typecast=True)
 
 def update_paziente(record_id, nuovo_stato):
-    """Aggiorna lo stato su Airtable"""
+    """Aggiorna lo stato Disdetto su Airtable"""
     table = api.table(BASE_ID, "Pazienti")
     table.update(record_id, {"Disdetto": nuovo_stato}, typecast=True)
 
@@ -79,13 +78,14 @@ if menu == "📊 Dashboard & Allarmi":
     df = get_data("Pazienti")
     
     if not df.empty:
+        # Gestione colonna Disdetto
         if 'Disdetto' not in df.columns:
             df['Disdetto'] = False
         else:
             df['Disdetto'] = df['Disdetto'].fillna(False)
 
         totali = len(df)
-        # Contiamo i disdetti (supporta sia booleani che check di airtable)
+        # Contiamo i disdetti (compatibile con checkbox airtable o booleani)
         disdetti_count = len(df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ])
         attivi = totali - disdetti_count
         
@@ -96,9 +96,11 @@ if menu == "📊 Dashboard & Allarmi":
         
         st.divider()
         
+        # Grafico distribuzione Aree
         if 'Area' in df.columns:
             st.subheader("📍 Distribuzione per Area Trattata")
             
+            # Logica per separare le aree se sono liste o stringhe con virgole
             all_areas = []
             for item in df['Area'].dropna():
                 if isinstance(item, list):
@@ -112,6 +114,7 @@ if menu == "📊 Dashboard & Allarmi":
                 counts = pd.Series(all_areas).value_counts().reset_index()
                 counts.columns = ['Area', 'Pazienti']
                 
+                # Definizione colori specifici
                 domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
                 range_ = ["#33A1C9", "#F1C40F", "#2ECC71", "#9B59B6", "#E74C3C", "#7F8C8D"]
 
@@ -156,13 +159,14 @@ elif menu == "👥 Gestione Pazienti":
                         area_stringa = ", ".join(aree_scelte)
                         save_paziente(nome, cognome, area_stringa, False)
                         st.success(f"✅ {nome} {cognome} salvato!")
+                        # Ricarica per aggiornare la tabella
                         st.rerun()
                     except HTTPError as e:
-                        st.error("❌ Errore Airtable.")
+                        st.error("❌ Errore di comunicazione con Airtable.")
                     except Exception as e:
-                        st.error(f"❌ Errore: {e}")
+                        st.error(f"❌ Errore generico: {e}")
                 else:
-                    st.warning("⚠️ Nome e Cognome obbligatori.")
+                    st.warning("⚠️ Nome e Cognome sono obbligatori.")
 
     st.divider()
     
@@ -172,22 +176,22 @@ elif menu == "👥 Gestione Pazienti":
     df_original = get_data("Pazienti")
     
     if not df_original.empty:
-        # 1. Gestione Disdetto
+        # 1. Gestione Disdetto (Default False se vuoto)
         if 'Disdetto' not in df_original.columns:
             df_original['Disdetto'] = False
         df_original['Disdetto'] = df_original['Disdetto'].fillna(False).infer_objects(copy=False)
 
-        # 2. Pulizia Area e FORZATURA STRIGA (Fondamentale per i colori)
+        # 2. Pulizia Area per far funzionare i colori
         if 'Area' in df_original.columns:
-             # Trasformiamo liste in stringhe e puliamo gli spazi extra che rompono i colori
+             # Se è una lista prendi il primo elemento, se è stringa pulisci spazi
              df_original['Area'] = df_original['Area'].apply(
                  lambda x: x[0] if isinstance(x, list) and len(x) > 0 else (str(x) if x else "")
              ).str.strip() 
 
-        # 3. Definiamo la colonna come 'category' per aiutare Streamlit
+        # 3. Conversione a Category per Streamlit
         df_original['Area'] = df_original['Area'].astype("category")
 
-        # Ricerca
+        # Barra di Ricerca
         search_query = st.text_input("🔍 Cerca Paziente per Cognome", placeholder="Es. Rossi...")
         
         if search_query:
@@ -195,6 +199,7 @@ elif menu == "👥 Gestione Pazienti":
         else:
             df_filtered = df_original
 
+        # Colonne da mostrare
         cols_to_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'id']
         available_cols = [c for c in cols_to_show if c in df_filtered.columns]
         
@@ -208,24 +213,23 @@ elif menu == "👥 Gestione Pazienti":
                     help="Spunta se il paziente ha disdetto",
                     default=False,
                 ),
-                # 4. CONFIGURAZIONE COLORI (SelectboxColumn)
+                # Configurazione Selectbox colorata
                 "Area": st.column_config.SelectboxColumn(
                     "Area",
                     width="medium",
-                    # Le opzioni devono essere identiche a quelle nel DB per colorarsi
                     options=lista_aree, 
                     required=False,
                 ),
-                "id": None, 
+                "id": None, # Nasconde la colonna ID
             },
-            # Disabilitiamo la modifica dell'Area, i colori rimarranno
+            # Disabilitiamo modifica colonne anagrafiche (tranne checkbox)
             disabled=["Nome", "Cognome", "Area"], 
             hide_index=True,
             use_container_width=True,
             key="editor_pazienti"
         )
 
-        # Bottone di salvataggio
+        # Bottone Salvataggio Modifiche
         if st.button("💾 Salva Modifiche su Airtable"):
             changes_count = 0
             
@@ -233,11 +237,13 @@ elif menu == "👥 Gestione Pazienti":
                 record_id = row['id']
                 nuovo_stato = row['Disdetto']
                 
+                # Troviamo lo stato originale
                 original_row = df_original[df_original['id'] == record_id]
                 
                 if not original_row.empty:
                     vecchio_stato = original_row.iloc[0]['Disdetto']
                     
+                    # Normalizzazione booleana per confronto
                     is_vecchio_true = True if vecchio_stato in [True, 1, "True", "Checked"] else False
                     is_nuovo_true = True if nuovo_stato in [True, 1, "True", "Checked"] else False
 
@@ -255,83 +261,77 @@ elif menu == "👥 Gestione Pazienti":
                 st.warning("⚠️ Nessuna modifica rilevata.")
 
     else:
-        st.info("Database vuoto.")
+        st.info("Database vuoto o connessione assente.")
 
 # =========================================================
-# SEZIONE 3: PREVENTIVI (MODIFICATA)
+# SEZIONE 3: PREVENTIVI (AGGIORNATA CON TABELLA "Servizi")
 # =========================================================
 elif menu == "💰 Calcolo Preventivo":
     st.title("Generatore Preventivi")
     
-    # --- MODIFICA: Caricamento dinamico da Airtable ---
-    # Cambia "Listino" se la tua tabella ha un altro nome
-    df_listino = get_data("Listino") 
+    # 1. Carichiamo la tabella "Servizi" (Nome corretto da screenshot)
+    df_listino = get_data("Servizi") 
     
     listino = {}
     
     if not df_listino.empty:
-        # Cerchiamo di costruire il dizionario { "Nome": Prezzo }
-        # Assicurati che su Airtable le colonne si chiamino "Nome" e "Prezzo"
-        col_nome = None
-        col_prezzo = None
+        # Verifichiamo esistenza colonne "Servizio" e "Prezzo" (Nomi corretti da screenshot)
+        col_servizio = 'Servizio'
+        col_prezzo = 'Prezzo'
         
-        # Cerchiamo colonne simili se non sono esatte
-        for c in df_listino.columns:
-            if "nome" in c.lower() or "trattamento" in c.lower():
-                col_nome = c
-            if "prezzo" in c.lower() or "costo" in c.lower() or "tariffa" in c.lower():
-                col_prezzo = c
-                
-        if col_nome and col_prezzo:
+        if col_servizio in df_listino.columns and col_prezzo in df_listino.columns:
             for index, row in df_listino.iterrows():
-                nome_tratt = row[col_nome]
+                nome_tratt = row[col_servizio]
                 prezzo_tratt = row[col_prezzo]
                 
-                # Piccola pulizia dati
                 if nome_tratt:
-                    # Se il prezzo è vuoto, mettiamo 0
                     if pd.isna(prezzo_tratt):
                         prezzo_tratt = 0
                     listino[str(nome_tratt)] = float(prezzo_tratt)
         else:
-            st.error(f"⚠️ Non trovo le colonne 'Nome' e 'Prezzo' nella tabella Listino. Colonne trovate: {list(df_listino.columns)}")
+            st.error(f"⚠️ Errore Colonne: Non trovo '{col_servizio}' e '{col_prezzo}' in Airtable. Colonne trovate: {list(df_listino.columns)}")
     else:
-        st.warning("⚠️ Tabella 'Listino' vuota o non trovata su Airtable. Uso i dati di default.")
-        # Fallback se airtable fallisce
-        listino = {
-            "Valutazione Iniziale (Default)": 50, 
-            "Seduta Tecar (Default)": 35
-        }
+        st.warning("⚠️ Tabella 'Servizi' vuota o non trovata. Controlla il nome su Airtable.")
 
-    # --- FINE MODIFICA ---
-    
+    # 2. Selezione multipla
     c1, c2 = st.columns([2, 1])
     with c1: 
-        scelte = st.multiselect("Scegli Trattamenti", list(listino.keys()))
+        # Ordiniamo le opzioni alfabeticamente
+        opzioni_ordinate = sorted(list(listino.keys()))
+        scelte = st.multiselect("Scegli Trattamenti", opzioni_ordinate)
         
     totale = 0
     if scelte:
         st.write("---")
         for t in scelte:
             qty = st.number_input(f"Sedute di {t}", 1, 20, 5, key=t)
-            costo = listino[t] * qty
-            st.write(f"▫️ {t}: {listino[t]}€ x {qty} = **{costo} €**")
-            totale += costo
+            costo_unitario = listino[t]
+            costo_totale = costo_unitario * qty
+            st.write(f"▫️ {t}: {costo_unitario}€ x {qty} = **{costo_totale} €**")
+            totale += costo_totale
         st.write("---")
         st.subheader(f"TOTALE: {totale} €")
         
+        # Esempio sconto pacchetto se supera i 300 euro
         if totale > 300: 
-            st.success(f"SCONTO PACCHETTO: **{int(totale*0.9)} €**")
+            st.success(f"SCONTO PACCHETTO (10%): **{int(totale*0.9)} €**")
 
 # =========================================================
 # SEZIONE 4: SCADENZE
 # =========================================================
 elif menu == "📝 Scadenze Ufficio":
     st.title("Checklist Pagamenti")
+    
     df_scad = get_data("Scadenze")
+    
     if not df_scad.empty:
         if 'Data_Scadenza' in df_scad.columns:
+            # Convertiamo in data vera per ordinare
+            df_scad['Data_Scadenza'] = pd.to_datetime(df_scad['Data_Scadenza'], errors='coerce')
             df_scad = df_scad.sort_values("Data_Scadenza")
+            # Riconvertiamo in stringa solo data per visualizzazione pulita
+            df_scad['Data_Scadenza'] = df_scad['Data_Scadenza'].dt.strftime('%Y-%m-%d')
+            
         st.dataframe(df_scad, use_container_width=True)
     else:
         st.info("Nessuna scadenza trovata.")
