@@ -3,13 +3,14 @@ from pyairtable import Api
 import pandas as pd
 from requests.exceptions import HTTPError
 import altair as alt
+from datetime import date
 
 # --- 1. CONFIGURAZIONE CONNESSIONE ---
 try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except FileNotFoundError:
-    # Se non trova il file secrets, usa valori placeholder (o gestisci l'errore)
+    # Se non trova il file secrets, usa valori placeholder
     API_KEY = "tua_chiave_se_non_usi_secrets"
     BASE_ID = "tuo_base_id_se_non_usi_secrets"
 
@@ -46,10 +47,21 @@ def save_paziente(nome, cognome, area, disdetto):
     }
     table.create(record, typecast=True)
 
-def update_paziente(record_id, nuovo_stato):
-    """Aggiorna lo stato Disdetto su Airtable"""
+# --- MODIFICA 1: La funzione ora accetta anche la data ---
+def update_paziente(record_id, nuovo_stato, nuova_data_disdetta):
+    """Aggiorna lo stato Disdetto e la Data Disdetta su Airtable"""
     table = api.table(BASE_ID, "Pazienti")
-    table.update(record_id, {"Disdetto": nuovo_stato}, typecast=True)
+    
+    fields = {"Disdetto": nuovo_stato}
+    
+    # Se c'è una data, la convertiamo in stringa ISO, altrimenti None
+    if nuova_data_disdetta:
+        fields["Data_Disdetta"] = str(nuova_data_disdetta)
+    else:
+        # Se togli la spunta o cancelli la data, pulisce il campo su Airtable
+        fields["Data_Disdetta"] = None
+        
+    table.update(record_id, fields, typecast=True)
 
 # --- 3. INTERFACCIA GRAFICA ---
 
@@ -131,7 +143,7 @@ if menu == "📊 Dashboard & Allarmi":
         st.info("Nessun dato pazienti trovato.")
 
 # =========================================================
-# SEZIONE 2: GESTIONE PAZIENTI
+# SEZIONE 2: GESTIONE PAZIENTI (MODIFICATA CON DATA)
 # =========================================================
 elif menu == "👥 Gestione Pazienti":
     st.title("📂 Anagrafica Pazienti")
@@ -157,9 +169,9 @@ elif menu == "👥 Gestione Pazienti":
                 if nome and cognome:
                     try:
                         area_stringa = ", ".join(aree_scelte)
+                        # All'inserimento la disdetta è False
                         save_paziente(nome, cognome, area_stringa, False)
                         st.success(f"✅ {nome} {cognome} salvato!")
-                        # Ricarica per aggiornare la tabella
                         st.rerun()
                     except HTTPError as e:
                         st.error("❌ Errore di comunicazione con Airtable.")
@@ -181,6 +193,12 @@ elif menu == "👥 Gestione Pazienti":
             df_original['Disdetto'] = False
         df_original['Disdetto'] = df_original['Disdetto'].fillna(False).infer_objects(copy=False)
 
+        # --- MODIFICA 2: Gestione Data Disdetta ---
+        if 'Data_Disdetta' not in df_original.columns:
+            df_original['Data_Disdetta'] = None
+        # Convertiamo in datetime per permettere al calendario di funzionare
+        df_original['Data_Disdetta'] = pd.to_datetime(df_original['Data_Disdetta'], errors='coerce').dt.date
+
         # 2. Pulizia Area per far funzionare i colori
         if 'Area' in df_original.columns:
              # Se è una lista prendi il primo elemento, se è stringa pulisci spazi
@@ -199,11 +217,11 @@ elif menu == "👥 Gestione Pazienti":
         else:
             df_filtered = df_original
 
-        # Colonne da mostrare
-        cols_to_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'id']
+        # Colonne da mostrare (Aggiunta Data_Disdetta)
+        cols_to_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'Data_Disdetta', 'id']
         available_cols = [c for c in cols_to_show if c in df_filtered.columns]
         
-        st.info("💡 Spunta la casella 'Disdetto' per cambiare stato. Poi clicca 'Salva Modifiche' in basso.")
+        st.info("💡 Se spunti 'Disdetto', inserisci anche la data accanto.")
         
         edited_df = st.data_editor(
             df_filtered[available_cols],
@@ -213,7 +231,12 @@ elif menu == "👥 Gestione Pazienti":
                     help="Spunta se il paziente ha disdetto",
                     default=False,
                 ),
-                # Configurazione Selectbox colorata
+                # --- MODIFICA 3: Colonna Data ---
+                "Data_Disdetta": st.column_config.DateColumn(
+                    "Data Disdetta",
+                    format="DD/MM/YYYY",
+                    help="Data in cui è avvenuta la disdetta"
+                ),
                 "Area": st.column_config.SelectboxColumn(
                     "Area",
                     width="medium",
@@ -222,34 +245,48 @@ elif menu == "👥 Gestione Pazienti":
                 ),
                 "id": None, # Nasconde la colonna ID
             },
-            # Disabilitiamo modifica colonne anagrafiche (tranne checkbox)
             disabled=["Nome", "Cognome", "Area"], 
             hide_index=True,
             use_container_width=True,
             key="editor_pazienti"
         )
 
-        # Bottone Salvataggio Modifiche
+        # Bottone Salvataggio Modifiche (AGGIORNATO)
         if st.button("💾 Salva Modifiche su Airtable"):
             changes_count = 0
             
             for index, row in edited_df.iterrows():
                 record_id = row['id']
                 nuovo_stato = row['Disdetto']
+                nuova_data = row['Data_Disdetta']
                 
                 # Troviamo lo stato originale
                 original_row = df_original[df_original['id'] == record_id]
                 
                 if not original_row.empty:
                     vecchio_stato = original_row.iloc[0]['Disdetto']
+                    vecchia_data = original_row.iloc[0]['Data_Disdetta']
                     
                     # Normalizzazione booleana per confronto
                     is_vecchio_true = True if vecchio_stato in [True, 1, "True", "Checked"] else False
                     is_nuovo_true = True if nuovo_stato in [True, 1, "True", "Checked"] else False
+                    
+                    # Controllo cambiamenti (Stato O Data)
+                    stato_cambiato = (is_vecchio_true != is_nuovo_true)
+                    
+                    data_cambiata = False
+                    # Logica confronto date (gestione dei None/NaT)
+                    if pd.isna(vecchia_data) and pd.notna(nuova_data):
+                        data_cambiata = True
+                    elif pd.notna(vecchia_data) and pd.isna(nuova_data):
+                        data_cambiata = True
+                    elif pd.notna(vecchia_data) and pd.notna(nuova_data) and vecchia_data != nuova_data:
+                        data_cambiata = True
 
-                    if is_vecchio_true != is_nuovo_true:
+                    if stato_cambiato or data_cambiata:
                         try:
-                            update_paziente(record_id, is_nuovo_true)
+                            # Passiamo entrambi i parametri alla funzione aggiornata
+                            update_paziente(record_id, is_nuovo_true, nuova_data)
                             changes_count += 1
                         except Exception as e:
                             st.error(f"Errore aggiornamento ID {record_id}: {e}")
@@ -264,18 +301,17 @@ elif menu == "👥 Gestione Pazienti":
         st.info("Database vuoto o connessione assente.")
 
 # =========================================================
-# SEZIONE 3: PREVENTIVI (AGGIORNATA CON TABELLA "Servizi")
+# SEZIONE 3: PREVENTIVI
 # =========================================================
 elif menu == "💰 Calcolo Preventivo":
     st.title("Generatore Preventivi")
     
-    # 1. Carichiamo la tabella "Servizi" (Nome corretto da screenshot)
+    # 1. Carichiamo la tabella "Servizi"
     df_listino = get_data("Servizi") 
     
     listino = {}
     
     if not df_listino.empty:
-        # Verifichiamo esistenza colonne "Servizio" e "Prezzo" (Nomi corretti da screenshot)
         col_servizio = 'Servizio'
         col_prezzo = 'Prezzo'
         
@@ -296,7 +332,6 @@ elif menu == "💰 Calcolo Preventivo":
     # 2. Selezione multipla
     c1, c2 = st.columns([2, 1])
     with c1: 
-        # Ordiniamo le opzioni alfabeticamente
         opzioni_ordinate = sorted(list(listino.keys()))
         scelte = st.multiselect("Scegli Trattamenti", opzioni_ordinate)
         
@@ -312,7 +347,6 @@ elif menu == "💰 Calcolo Preventivo":
         st.write("---")
         st.subheader(f"TOTALE: {totale} €")
         
-        # Esempio sconto pacchetto se supera i 300 euro
         if totale > 300: 
             st.success(f"SCONTO PACCHETTO (10%): **{int(totale*0.9)} €**")
 
@@ -326,10 +360,8 @@ elif menu == "📝 Scadenze Ufficio":
     
     if not df_scad.empty:
         if 'Data_Scadenza' in df_scad.columns:
-            # Convertiamo in data vera per ordinare
             df_scad['Data_Scadenza'] = pd.to_datetime(df_scad['Data_Scadenza'], errors='coerce')
             df_scad = df_scad.sort_values("Data_Scadenza")
-            # Riconvertiamo in stringa solo data per visualizzazione pulita
             df_scad['Data_Scadenza'] = df_scad['Data_Scadenza'].dt.strftime('%Y-%m-%d')
             
         st.dataframe(df_scad, use_container_width=True)
