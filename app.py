@@ -42,25 +42,28 @@ def save_paziente(nome, cognome, area, disdetto):
         "Area": area,
         "Disdetto": disdetto 
     }
-    # Quando crei, puliamo la cache per vedere subito il nuovo paziente
+    # Puliamo la cache per vedere subito il nuovo dato
     get_data.clear()
     table.create(record, typecast=True)
 
 def update_paziente(record_id, nuovo_stato, nuova_data_disdetta):
-    """
-    Aggiorna lo stato Disdetto e la Data Disdetta su Airtable.
-    """
+    """Aggiorna lo stato Disdetto e la Data Disdetta su Airtable."""
     table = api.table(BASE_ID, "Pazienti")
     
     fields = {"Disdetto": nuovo_stato}
     
-    # Gestione Data: se esiste e non è NaT la salviamo, altrimenti puliamo il campo
     if nuova_data_disdetta and str(nuova_data_disdetta) != "NaT":
         fields["Data_Disdetta"] = str(nuova_data_disdetta)
     else:
         fields["Data_Disdetta"] = None
         
     table.update(record_id, fields, typecast=True)
+
+# --- NUOVA FUNZIONE PER CANCELLARE ---
+def delete_paziente(record_id):
+    """Elimina definitivamente il paziente da Airtable"""
+    table = api.table(BASE_ID, "Pazienti")
+    table.delete(record_id)
 
 # --- 3. INTERFACCIA GRAFICA ---
 
@@ -192,8 +195,10 @@ elif menu == "👥 Gestione Pazienti":
              df_original['Area'] = df_original['Area'].apply(
                  lambda x: x[0] if isinstance(x, list) and len(x) > 0 else (str(x) if x else "")
              ).str.strip() 
-
         df_original['Area'] = df_original['Area'].astype("category")
+
+        # --- AGGIUNTA COLONNA DIMISSIONE (Solo in locale) ---
+        df_original['Dimissione'] = False
 
         # Ricerca
         search_query = st.text_input("🔍 Cerca Paziente per Cognome", placeholder="Es. Rossi...")
@@ -203,16 +208,23 @@ elif menu == "👥 Gestione Pazienti":
         else:
             df_filtered = df_original
 
-        cols_to_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'Data_Disdetta', 'id']
+        # Aggiungiamo 'Dimissione' alle colonne da mostrare
+        cols_to_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'Data_Disdetta', 'Dimissione', 'id']
         available_cols = [c for c in cols_to_show if c in df_filtered.columns]
         
-        st.info("💡 Spunta 'Disdetto' e clicca Salva: la data di oggi verrà inserita automaticamente.")
+        st.info("💡 **Disdetto**: il paziente rinuncia (storico). **Dimissione**: CANCELLA il paziente dal database.")
         
         edited_df = st.data_editor(
             df_filtered[available_cols],
             column_config={
                 "Disdetto": st.column_config.CheckboxColumn(
                     "Disdetto",
+                    default=False,
+                ),
+                # Configurazione Dimissione (Cestino)
+                "Dimissione": st.column_config.CheckboxColumn(
+                    "🗑️ Dimissione",
+                    help="Spunta e salva per ELIMINARE definitivamente il paziente",
                     default=False,
                 ),
                 "Data_Disdetta": st.column_config.DateColumn(
@@ -235,9 +247,22 @@ elif menu == "👥 Gestione Pazienti":
 
         if st.button("💾 Salva Modifiche su Airtable"):
             changes_count = 0
+            deleted_count = 0
             
             for index, row in edited_df.iterrows():
                 record_id = row['id']
+                
+                # --- LOGICA DIMISSIONE (CANCELLAZIONE) ---
+                # Se è flaggato Dimissione, lo cancelliamo subito e saltiamo il resto
+                if row['Dimissione'] == True:
+                    try:
+                        delete_paziente(record_id)
+                        deleted_count += 1
+                        continue # Passa al prossimo paziente, questo non esiste più
+                    except Exception as e:
+                        st.error(f"Errore cancellazione {row['Cognome']}: {e}")
+                
+                # --- LOGICA AGGIORNAMENTO (Se non è stato cancellato) ---
                 nuovo_stato = row['Disdetto']
                 nuova_data = row['Data_Disdetta']
                 
@@ -250,12 +275,9 @@ elif menu == "👥 Gestione Pazienti":
                     is_vecchio_true = True if vecchio_stato in [True, 1, "True", "Checked"] else False
                     is_nuovo_true = True if nuovo_stato in [True, 1, "True", "Checked"] else False
                     
-                    # --- AUTOMAZIONE ---
-                    # Se spuntiamo ORA disdetto e la data è vuota -> Metti Oggi
                     if is_nuovo_true and (pd.isna(nuova_data) or str(nuova_data) == "NaT"):
                          nuova_data = date.today()
                     
-                    # Verifichiamo se ci sono cambiamenti
                     stato_cambiato = (is_vecchio_true != is_nuovo_true)
                     
                     data_cambiata = False
@@ -273,10 +295,15 @@ elif menu == "👥 Gestione Pazienti":
                         except Exception as e:
                             st.error(f"Errore aggiornamento ID {record_id}: {e}")
             
-            if changes_count > 0:
-                # --- PUNTO FONDAMENTALE: SVUOTA LA CACHE ---
+            if changes_count > 0 or deleted_count > 0:
                 get_data.clear()
-                st.success(f"✅ Aggiornati {changes_count} pazienti! (Ricarico...)")
+                msg = ""
+                if deleted_count > 0:
+                    msg += f"🗑️ Eliminati {deleted_count} pazienti. "
+                if changes_count > 0:
+                    msg += f"✅ Aggiornati {changes_count} pazienti."
+                
+                st.success(msg)
                 st.rerun() 
             else:
                 st.warning("⚠️ Nessuna modifica rilevata.")
