@@ -45,20 +45,20 @@ def save_paziente(nome, cognome, area, disdetto):
     get_data.clear()
     table.create(record, typecast=True)
 
-def update_paziente_completo(record_id, dati_aggiornati):
+def update_generic(table_name, record_id, dati_aggiornati):
     """
-    Funzione unica per aggiornare qualsiasi campo del paziente.
+    Funzione universale per aggiornare qualsiasi tabella.
+    Gestisce correttamente le date per evitare errori.
     """
-    table = api.table(BASE_ID, "Pazienti")
+    table = api.table(BASE_ID, table_name)
     
     fields_to_send = {}
     for k, v in dati_aggiornati.items():
-        # Gestione speciale per le date
+        # Gestione date e timestamp pandas
         if "Data" in k: 
             if pd.isna(v) or str(v) == "NaT" or v == "":
                 fields_to_send[k] = None
             else:
-                # Se è un Timestamp di Pandas, lo formattiamo stringa YYYY-MM-DD
                 if hasattr(v, 'strftime'):
                     fields_to_send[k] = v.strftime('%Y-%m-%d')
                 else:
@@ -68,10 +68,32 @@ def update_paziente_completo(record_id, dati_aggiornati):
             
     table.update(record_id, fields_to_send, typecast=True)
 
-def delete_paziente(record_id):
-    """Elimina definitivamente il paziente da Airtable"""
-    table = api.table(BASE_ID, "Pazienti")
+def delete_generic(table_name, record_id):
+    """Elimina un record da una tabella qualsiasi"""
+    table = api.table(BASE_ID, table_name)
     table.delete(record_id)
+
+def save_prestito(paziente, oggetto, data_prestito):
+    """Registra un nuovo prestito"""
+    table = api.table(BASE_ID, "Prestiti")
+    # Convertiamo la data in stringa sicura
+    data_str = data_prestito.strftime('%Y-%m-%d') if hasattr(data_prestito, 'strftime') else str(data_prestito)
+    
+    record = {
+        "Paziente": paziente,
+        "Oggetto": oggetto,
+        "Data_Prestito": data_str,
+        "Restituito": False
+    }
+    get_data.clear()
+    table.create(record, typecast=True)
+
+def save_prodotto(prodotto, quantita):
+    """Aggiunge un prodotto all'inventario"""
+    table = api.table(BASE_ID, "Inventario")
+    record = {"Prodotto": prodotto, "Quantita": quantita}
+    get_data.clear()
+    table.create(record, typecast=True)
 
 # --- 3. INTERFACCIA GRAFICA ---
 
@@ -80,13 +102,13 @@ st.set_page_config(page_title="Gestionale Fisio", page_icon="🏥", layout="wide
 st.sidebar.title("Navigazione")
 menu = st.sidebar.radio(
     "Vai a:", 
-    ["📊 Dashboard & Allarmi", "👥 Gestione Pazienti", "💰 Calcolo Preventivo", "📝 Scadenze Ufficio"]
+    ["📊 Dashboard & Allarmi", "👥 Gestione Pazienti", "💰 Calcolo Preventivo", "📦 Inventario Materiali", "🤝 Materiali Prestati", "📝 Scadenze Ufficio"]
 )
 st.sidebar.divider()
 st.sidebar.info("App collegata ad Airtable.")
 
 # =========================================================
-# SEZIONE 1: DASHBOARD (CORRETTA)
+# SEZIONE 1: DASHBOARD
 # =========================================================
 if menu == "📊 Dashboard & Allarmi":
     
@@ -100,148 +122,105 @@ if menu == "📊 Dashboard & Allarmi":
     df = get_data("Pazienti")
     
     if not df.empty:
-        # --- PREPARAZIONE DATI (Fix Date) ---
-        # 1. Disdetti
+        # Preparazione Dati (CORRETTA CON TIMESTAMP)
         if 'Disdetto' not in df.columns: df['Disdetto'] = False
         else: df['Disdetto'] = df['Disdetto'].fillna(False)
         
-        # FIX: Non usiamo più .dt.date qui, teniamo il Timestamp nativo per evitare errori di confronto
+        # FIX: Usiamo pd.to_datetime senza .dt.date per compatibilità
         if 'Data_Disdetta' not in df.columns: df['Data_Disdetta'] = None
         df['Data_Disdetta'] = pd.to_datetime(df['Data_Disdetta'], errors='coerce')
 
-        # 2. Visite Esterne
         if 'Visita_Esterna' not in df.columns: df['Visita_Esterna'] = False
         else: df['Visita_Esterna'] = df['Visita_Esterna'].fillna(False)
         
-        # FIX: Idem qui, teniamo Timestamp
+        # FIX: Usiamo pd.to_datetime senza .dt.date
         if 'Data_Visita' not in df.columns: df['Data_Visita'] = None
         df['Data_Visita'] = pd.to_datetime(df['Data_Visita'], errors='coerce')
 
-        # Calcoli base
         totali = len(df)
         df_disdetti = df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ]
-        cnt_disdetti = len(df_disdetti)
-        
-        cnt_attivi = totali - cnt_disdetti
+        cnt_attivi = totali - len(df_disdetti)
         
         k1, k2, k3 = st.columns(3)
         k1.metric("Pazienti Attivi", cnt_attivi)
-        k2.metric("Disdetti Totali", cnt_disdetti)
+        k2.metric("Disdetti Totali", len(df_disdetti))
 
-        # --- LOGICHE DI ALLARME (Fix Date) ---
-        # Usiamo Timestamp normalizzati invece di date.today()
+        # --- LOGICHE DATE (CORRETTE) ---
         oggi = pd.Timestamp.now().normalize()
         
-        # A. DISDETTE DA RICHIAMARE (>10 gg)
+        # ALERT DISDETTE (>10gg)
         limite_recall = oggi - pd.Timedelta(days=10)
-        da_richiamare = df_disdetti[
-            (df_disdetti['Data_Disdetta'].notna()) & 
-            (df_disdetti['Data_Disdetta'] <= limite_recall)
-        ]
+        da_richiamare = df_disdetti[ (df_disdetti['Data_Disdetta'].notna()) & (df_disdetti['Data_Disdetta'] <= limite_recall) ]
         cnt_recall = len(da_richiamare)
         k3.metric("Recall Disdette", cnt_recall, delta_color="inverse")
 
-        # B. VISITE ESTERNE
+        # ALERT VISITE
         df_visite = df[ (df['Visita_Esterna'] == True) | (df['Visita_Esterna'] == 1) ]
-        
-        # Alert 1: Visita Imminente (Oggi o Domani)
         domani = oggi + pd.Timedelta(days=1)
         
-        # Ora il confronto avviene tra Timestamp e Timestamp -> Nessun Errore
-        visite_imminenti = df_visite[
-            (df_visite['Data_Visita'].notna()) & 
-            (df_visite['Data_Visita'] >= oggi) &
-            (df_visite['Data_Visita'] <= domani)
-        ]
+        visite_imminenti = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] >= oggi) & (df_visite['Data_Visita'] <= domani) ]
         
-        # Alert 2: Visita passata da > 7 giorni
         sette_giorni_fa = oggi - pd.Timedelta(days=7)
-        visite_passate = df_visite[
-            (df_visite['Data_Visita'].notna()) & 
-            (df_visite['Data_Visita'] <= sette_giorni_fa)
-        ]
+        visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
+
+        # ALERT PRESTITI NON RESTITUITI (> 30gg)
+        df_prestiti = get_data("Prestiti")
+        prestiti_scaduti = pd.DataFrame()
+        if not df_prestiti.empty and 'Data_Prestito' in df_prestiti.columns:
+            df_prestiti['Data_Prestito'] = pd.to_datetime(df_prestiti['Data_Prestito'], errors='coerce')
+            limite_prestiti = oggi - pd.Timedelta(days=30)
+            
+            if 'Restituito' not in df_prestiti.columns: df_prestiti['Restituito'] = False
+            # Normalizziamo booleani
+            prestiti_scaduti = df_prestiti[ (df_prestiti['Restituito'] != True) & (df_prestiti['Data_Prestito'] <= limite_prestiti) ]
 
         st.divider()
 
-        # --- VISUALIZZAZIONE ALERT ---
-
-        # 1. ALERT VISITE ESTERNE IMMINENTI (GIALLO)
+        # Visualizzazione Alerts
         if not visite_imminenti.empty:
-            st.warning(f"👨‍⚕️ **VISITE MEDICHE IMMINENTI ({len(visite_imminenti)})** - Ricordati di sentire il dottore!")
+            st.warning(f"👨‍⚕️ **VISITE MEDICHE IMMINENTI ({len(visite_imminenti)})**")
             for i, row in visite_imminenti.iterrows():
-                # Formattiamo solo per la visualizzazione
-                data_v = row['Data_Visita'].strftime('%d/%m')
-                st.write(f"🔹 **{row['Nome']} {row['Cognome']}** -> Visita il **{data_v}**")
+                d_vis = row['Data_Visita'].strftime('%d/%m')
+                st.write(f"🔹 **{row['Nome']} {row['Cognome']}** -> {d_vis}")
 
-        # 2. ALERT VISITE PASSATE DA RI-PROGRAMMARE (ARANCIONE)
         if not visite_passate.empty:
-            st.error(f"📅 **VISITE PASSATE DA > 1 SETTIMANA ({len(visite_passate)})** - Paziente rientrato?")
+            st.error(f"📅 **VISITE PASSATE DA > 1 SETTIMANA**")
             for i, row in visite_passate.iterrows():
                 rec_id = row['id']
-                data_v = row['Data_Visita'].strftime('%d/%m')
-                
-                col_text, col_btn = st.columns([3, 1])
-                with col_text:
-                    st.write(f"🔸 **{row['Nome']} {row['Cognome']}** (Visita del {data_v})")
-                with col_btn:
-                    # Tasto Rientrato
-                    if st.button("✅ Rientrato", key=f"rientro_{rec_id}"):
-                        update_paziente_completo(rec_id, {"Visita_Esterna": False, "Data_Visita": None})
-                        st.toast("Paziente riattivato!")
-                        get_data.clear()
-                        st.rerun()
-            st.divider()
+                d_vis = row['Data_Visita'].strftime('%d/%m')
+                c_txt, c_btn = st.columns([3, 1])
+                c_txt.write(f"🔸 **{row['Nome']} {row['Cognome']}** (Visita: {d_vis})")
+                if c_btn.button("✅ Rientrato", key=f"rientro_{rec_id}"):
+                    update_generic("Pazienti", rec_id, {"Visita_Esterna": False, "Data_Visita": None})
+                    get_data.clear()
+                    st.rerun()
 
-        # 3. ALERT DISDETTE (ROSSO)
         if cnt_recall > 0:
-            st.error(f"📞 **RECALL DISDETTE ({cnt_recall})** - Disdetta > 10 giorni fa")
+            st.error(f"📞 **RECALL DISDETTE ({cnt_recall})**")
             for i, row in da_richiamare.iterrows():
                 rec_id = row['id']
                 nome = f"{row['Nome']} {row['Cognome']}"
-                data_s = row['Data_Disdetta'].strftime('%d/%m')
-                
                 with st.container(border=True):
                     c1, c2, c3 = st.columns([2,1,1])
-                    c1.markdown(f"**{nome}** (dal {data_s})")
-                    
-                    if c2.button("✅ Recuperato", key=f"rec_{rec_id}", use_container_width=True):
-                        update_paziente_completo(rec_id, {"Disdetto": False, "Data_Disdetta": None})
+                    c1.markdown(f"**{nome}**")
+                    if c2.button("✅ Recuperato", key=f"rec_{rec_id}"):
+                        update_generic("Pazienti", rec_id, {"Disdetto": False, "Data_Disdetta": None})
                         get_data.clear()
                         st.rerun()
-                        
-                    if c3.button("⏳ Rimanda", key=f"post_{rec_id}", use_container_width=True):
-                        # Resetta la data a Oggi
-                        update_paziente_completo(rec_id, {"Disdetto": True, "Data_Disdetta": date.today()})
+                    if c3.button("⏳ Rimanda", key=f"post_{rec_id}"):
+                        update_generic("Pazienti", rec_id, {"Disdetto": True, "Data_Disdetta": date.today()})
                         get_data.clear()
                         st.rerun()
         
-        if visite_imminenti.empty and visite_passate.empty and cnt_recall == 0:
-            st.success("✅ Nessun alert attivo. Tutto sotto controllo!")
+        # ALERT PRESTITI
+        if not prestiti_scaduti.empty:
+            st.warning(f"📦 **MATERIALI NON RESTITUITI DA > 30GG ({len(prestiti_scaduti)})**")
+            for i, row in prestiti_scaduti.iterrows():
+                d_pres = row['Data_Prestito'].strftime('%d/%m')
+                st.write(f"🔹 **{row.get('Paziente','?')}** ha ancora: **{row.get('Oggetto','?')}** (dal {d_pres})")
 
-        st.write("---")
-
-        # GRAFICO
-        if 'Area' in df.columns:
-            st.subheader("📍 Carico di Lavoro (Attivi)")
-            df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
-            
-            all_areas = []
-            for item in df_attivi['Area'].dropna():
-                if isinstance(item, list): all_areas.extend(item)
-                elif isinstance(item, str): all_areas.extend([p.strip() for p in item.split(',')])
-                else: all_areas.append(str(item))
-            
-            if all_areas:
-                counts = pd.Series(all_areas).value_counts().reset_index()
-                counts.columns = ['Area', 'Pazienti']
-                domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
-                range_ = ["#33A1C9", "#F1C40F", "#2ECC71", "#9B59B6", "#E74C3C", "#7F8C8D"]
-                
-                chart = alt.Chart(counts).mark_bar().encode(
-                    x=alt.X('Pazienti'), y=alt.Y('Area', sort='-x'),
-                    color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None)
-                ).properties(height=350)
-                st.altair_chart(chart, use_container_width=True)
+        if visite_imminenti.empty and visite_passate.empty and cnt_recall == 0 and prestiti_scaduti.empty:
+            st.success("✅ Nessun alert attivo.")
 
     else:
         st.info("Nessun dato pazienti trovato.")
@@ -251,10 +230,9 @@ if menu == "📊 Dashboard & Allarmi":
 # =========================================================
 elif menu == "👥 Gestione Pazienti":
     st.title("📂 Anagrafica Pazienti")
-    
     lista_aree = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
     
-    with st.expander("➕ Nuovo Inserimento", expanded=False):
+    with st.expander("➕ Nuovo Inserimento"):
         with st.form("form_paziente", clear_on_submit=True):
             c1, c2 = st.columns(2)
             c1.text_input("Nome", key="new_name")
@@ -266,23 +244,17 @@ elif menu == "👥 Gestione Pazienti":
                     save_paziente(st.session_state.new_name, st.session_state.new_surname, area_s, False)
                     st.success("Salvato!")
                     st.rerun()
-
     st.divider()
     
     df_original = get_data("Pazienti")
-    
     if not df_original.empty:
-        # Preparazione colonne
-        cols_bool = ['Disdetto', 'Visita_Esterna', 'Dimissione']
-        cols_date = ['Data_Disdetta', 'Data_Visita']
-        
-        for c in cols_bool:
+        # Setup colonne
+        for c in ['Disdetto', 'Visita_Esterna', 'Dimissione']:
             if c not in df_original.columns: df_original[c] = False
-            if c == 'Dimissione': df_original[c] = False 
             df_original[c] = df_original[c].fillna(False).infer_objects(copy=False)
             
-        # FIX: Anche qui carichiamo come Datetime, non Date, per coerenza
-        for c in cols_date:
+        # FIX: Carichiamo come Datetime, non Date
+        for c in ['Data_Disdetta', 'Data_Visita']:
             if c not in df_original.columns: df_original[c] = None
             df_original[c] = pd.to_datetime(df_original[c], errors='coerce')
 
@@ -290,97 +262,71 @@ elif menu == "👥 Gestione Pazienti":
              df_original['Area'] = df_original['Area'].apply(lambda x: x[0] if isinstance(x, list) and len(x)>0 else (str(x) if x else "")).str.strip() 
         df_original['Area'] = df_original['Area'].astype("category")
 
-        # Search bar
         search = st.text_input("🔍 Cerca...", placeholder="Cognome...")
-        if search:
-            df_filt = df_original[df_original['Cognome'].astype(str).str.contains(search, case=False, na=False)]
-        else:
-            df_filt = df_original
+        df_filt = df_original[df_original['Cognome'].astype(str).str.contains(search, case=False, na=False)] if search else df_original
 
         cols_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'Data_Disdetta', 'Visita_Esterna', 'Data_Visita', 'Dimissione', 'id']
         valid_cols = [c for c in cols_show if c in df_filt.columns]
 
-        st.info("💡 **Disdetto**: Paziente perso. **Visita Esterna**: Alert follow-up. **Dimissione**: CANCELLA il record.")
-        
         edited = st.data_editor(
             df_filt[valid_cols],
             column_config={
                 "Disdetto": st.column_config.CheckboxColumn("Disdetto", width="small"),
-                "Data_Disdetta": st.column_config.DateColumn("Data Disd.", format="DD/MM/YYYY", width="medium"),
-                "Visita_Esterna": st.column_config.CheckboxColumn("Visita Ext.", help="Spunta se va dallo specialista", width="small"),
-                "Data_Visita": st.column_config.DateColumn("Data Visita", format="DD/MM/YYYY", width="medium"),
-                "Dimissione": st.column_config.CheckboxColumn("🗑️", width="small"),
+                "Data_Disdetta": st.column_config.DateColumn("Data Disd.", format="DD/MM/YYYY"),
+                "Visita_Esterna": st.column_config.CheckboxColumn("Visita Ext.", width="small"),
+                "Data_Visita": st.column_config.DateColumn("Data Visita", format="DD/MM/YYYY"),
+                "Dimissione": st.column_config.CheckboxColumn("🗑️"),
                 "Area": st.column_config.SelectboxColumn("Area", options=lista_aree),
                 "id": None
             },
-            disabled=["Nome", "Cognome"],
-            hide_index=True,
-            use_container_width=True,
-            key="editor_main"
+            disabled=["Nome", "Cognome"], hide_index=True, use_container_width=True, key="editor_main"
         )
 
         if st.button("💾 Salva Modifiche"):
             count_upd = 0
             count_del = 0
-            
             for i, row in edited.iterrows():
                 rec_id = row['id']
-                
-                # 1. CANCELLAZIONE
                 if row.get('Dimissione') == True:
-                    delete_paziente(rec_id)
+                    delete_generic("Pazienti", rec_id)
                     count_del += 1
                     continue
 
-                # 2. AGGIORNAMENTO
                 orig = df_original[df_original['id'] == rec_id].iloc[0]
                 changes = {}
                 
-                # Disdetto
-                curr_dis = row['Disdetto']
-                old_dis = True if orig['Disdetto'] in [True, 1, "True"] else False
-                curr_date_dis = row['Data_Disdetta']
+                # Logic checks
+                if row['Disdetto'] != (orig['Disdetto'] in [True, 1]): changes['Disdetto'] = row['Disdetto']
                 
-                # Automazione data disdetta
-                if curr_dis and (pd.isna(curr_date_dis) or str(curr_date_dis) == "NaT"):
-                    curr_date_dis = pd.Timestamp.now().normalize()
-                    changes['Data_Disdetta'] = curr_date_dis
+                # Auto-date Disdetta
+                d_dis = row['Data_Disdetta']
+                # Se spuntato e data vuota/NaT -> metti Oggi
+                if row['Disdetto'] and (pd.isna(d_dis) or str(d_dis) == "NaT"): 
+                    d_dis = pd.Timestamp.now().normalize()
+                    changes['Data_Disdetta'] = d_dis
+                elif str(d_dis) != str(orig['Data_Disdetta']):
+                    changes['Data_Disdetta'] = d_dis
 
-                if curr_dis != old_dis: changes['Disdetto'] = curr_dis
-                if str(curr_date_dis) != str(orig['Data_Disdetta']): changes['Data_Disdetta'] = curr_date_dis
-                
-                # Visita Esterna
-                curr_vis = row['Visita_Esterna']
-                old_vis = True if orig['Visita_Esterna'] in [True, 1, "True"] else False
-                curr_date_vis = row['Data_Visita']
-                
-                if curr_vis != old_vis: changes['Visita_Esterna'] = curr_vis
-                if str(curr_date_vis) != str(orig['Data_Visita']): changes['Data_Visita'] = curr_date_vis
-                
-                # Area
+                if row['Visita_Esterna'] != (orig['Visita_Esterna'] in [True, 1]): changes['Visita_Esterna'] = row['Visita_Esterna']
+                if str(row['Data_Visita']) != str(orig['Data_Visita']): changes['Data_Visita'] = row['Data_Visita']
                 if row['Area'] != orig['Area']: changes['Area'] = row['Area']
 
                 if changes:
-                    update_paziente_completo(rec_id, changes)
+                    update_generic("Pazienti", rec_id, changes)
                     count_upd += 1
 
             if count_upd > 0 or count_del > 0:
                 get_data.clear()
-                st.success(f"Fatto! Aggiornati: {count_upd}, Eliminati: {count_del}")
+                st.success("Aggiornato!")
                 st.rerun()
-            else:
-                st.warning("Nessuna modifica.")
 
 # =========================================================
 # SEZIONE 3: PREVENTIVI
 # =========================================================
 elif menu == "💰 Calcolo Preventivo":
     st.title("Generatore Preventivi")
-    df_listino = get_data("Servizi") 
-    listino = {}
-    if not df_listino.empty and 'Servizio' in df_listino.columns:
-        for index, row in df_listino.iterrows():
-            if row['Servizio']: listino[str(row['Servizio'])] = float(row.get('Prezzo', 0) or 0)
+    df_srv = get_data("Servizi") 
+    listino = {str(r['Servizio']): float(r.get('Prezzo', 0) or 0) for i, r in df_srv.iterrows() if r.get('Servizio')} if not df_srv.empty else {}
     
     c1, c2 = st.columns([2, 1])
     scelte = c1.multiselect("Trattamenti", sorted(list(listino.keys())))
@@ -393,11 +339,142 @@ elif menu == "💰 Calcolo Preventivo":
             st.write(f"{t}: {listino[t]}€ x {qty} = **{costo}€**")
             tot += costo
         st.subheader(f"TOTALE: {tot} €")
-        if tot > 300: 
-            st.success(f"SCONTO PACCHETTO (10%): **{int(tot*0.9)} €**")
 
 # =========================================================
-# SEZIONE 4: SCADENZE
+# SEZIONE 4: INVENTARIO (NUOVA)
+# =========================================================
+elif menu == "📦 Inventario Materiali":
+    st.title("📦 Magazzino e Inventario")
+    
+    c1, c2 = st.columns([2, 1])
+    with c1:
+        st.info("Gestisci qui le quantità dei materiali (Elettrodi, Creme, Fasce...)")
+    with c2:
+        with st.expander("➕ Aggiungi Prodotto"):
+            with st.form("add_prod"):
+                new_prod = st.text_input("Nome Prodotto")
+                new_qty = st.number_input("Quantità Iniziale", 0, 1000, 1)
+                if st.form_submit_button("Aggiungi"):
+                    save_prodotto(new_prod, new_qty)
+                    st.success("Fatto!")
+                    st.rerun()
+
+    df_inv = get_data("Inventario")
+    if not df_inv.empty:
+        # Ordina per nome
+        if 'Prodotto' in df_inv.columns: df_inv = df_inv.sort_values('Prodotto')
+        
+        edited_inv = st.data_editor(
+            df_inv[['Prodotto', 'Quantita', 'id']],
+            column_config={
+                "Prodotto": st.column_config.TextColumn("Prodotto", disabled=True),
+                "Quantita": st.column_config.NumberColumn("Quantità", min_value=0, step=1),
+                "id": None
+            },
+            hide_index=True,
+            use_container_width=True
+        )
+
+        if st.button("💾 Aggiorna Quantità"):
+            cnt = 0
+            for i, row in edited_inv.iterrows():
+                rec_id = row['id']
+                orig_qty = df_inv[df_inv['id']==rec_id].iloc[0]['Quantita']
+                if row['Quantita'] != orig_qty:
+                    update_generic("Inventario", rec_id, {"Quantita": row['Quantita']})
+                    cnt += 1
+            if cnt > 0:
+                get_data.clear()
+                st.success("Inventario Aggiornato!")
+                st.rerun()
+    else:
+        st.info("Inventario vuoto.")
+
+# =========================================================
+# SEZIONE 5: MATERIALI PRESTATI (NUOVA)
+# =========================================================
+elif menu == "🤝 Materiali Prestati":
+    st.title("🤝 Registro Prestiti")
+    
+    # --- FORM PRESTITO ---
+    st.subheader("Nuovo Prestito")
+    
+    # Carichiamo i dati per i menu a tendina
+    df_paz = get_data("Pazienti")
+    df_inv = get_data("Inventario")
+    
+    nomi_pazienti = []
+    if not df_paz.empty:
+        nomi_pazienti = sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows() if r.get('Cognome')])
+        
+    nomi_prodotti = []
+    if not df_inv.empty:
+        nomi_prodotti = sorted([r['Prodotto'] for i, r in df_inv.iterrows() if r.get('Prodotto')])
+
+    with st.form("form_prestito"):
+        c1, c2, c3 = st.columns(3)
+        paz_scelto = c1.selectbox("Paziente", nomi_pazienti if nomi_pazienti else ["Nessun Paziente"])
+        prod_scelto = c2.selectbox("Oggetto", nomi_prodotti if nomi_prodotti else ["Nessun Prodotto"])
+        data_prestito = c3.date_input("Data Prestito", date.today())
+        
+        if st.form_submit_button("Registra Prestito"):
+            if paz_scelto and prod_scelto:
+                save_prestito(paz_scelto, prod_scelto, data_prestito)
+                st.success(f"Segnato: {prod_scelto} a {paz_scelto}")
+                st.rerun()
+            else:
+                st.error("Seleziona paziente e prodotto.")
+
+    st.divider()
+    
+    # --- TABELLA PRESTATI ---
+    st.subheader("In Prestito (Non Restituiti)")
+    
+    df_pres = get_data("Prestiti")
+    
+    if not df_pres.empty:
+        # Pulizia dati
+        if 'Restituito' not in df_pres.columns: df_pres['Restituito'] = False
+        df_pres['Restituito'] = df_pres['Restituito'].fillna(False)
+        
+        # FIX: Date Handling per evitare errori di visualizzazione
+        if 'Data_Prestito' not in df_pres.columns: df_pres['Data_Prestito'] = None
+        df_pres['Data_Prestito'] = pd.to_datetime(df_pres['Data_Prestito'], errors='coerce')
+        
+        # Filtriamo solo quelli NON restituiti
+        active_loans = df_pres[df_pres['Restituito'] != True].copy()
+        
+        if not active_loans.empty:
+            edited_loans = st.data_editor(
+                active_loans[['Paziente', 'Oggetto', 'Data_Prestito', 'Restituito', 'id']],
+                column_config={
+                    "Paziente": st.column_config.TextColumn("Paziente", disabled=True),
+                    "Oggetto": st.column_config.TextColumn("Oggetto", disabled=True),
+                    "Data_Prestito": st.column_config.DateColumn("Data", format="DD/MM/YYYY", disabled=True), 
+                    "Restituito": st.column_config.CheckboxColumn("✅ Restituito?", help="Spunta se l'hanno riportato"),
+                    "id": None
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+            
+            if st.button("💾 Conferma Restituzioni"):
+                cnt = 0
+                for i, row in edited_loans.iterrows():
+                    if row['Restituito'] == True: # Se l'utente l'ha spuntato
+                        update_generic("Prestiti", row['id'], {"Restituito": True})
+                        cnt += 1
+                if cnt > 0:
+                    get_data.clear()
+                    st.success(f"{cnt} Articoli restituiti!")
+                    st.rerun()
+        else:
+            st.info("Nessun materiale fuori al momento.")
+    else:
+        st.info("Nessun storico prestiti.")
+
+# =========================================================
+# SEZIONE 6: SCADENZE
 # =========================================================
 elif menu == "📝 Scadenze Ufficio":
     st.title("Checklist Pagamenti")
@@ -407,4 +484,3 @@ elif menu == "📝 Scadenze Ufficio":
         st.dataframe(df_scad.sort_values("Data_Scadenza").style.format({"Data_Scadenza": lambda t: t.strftime("%d/%m/%Y") if t else ""}), use_container_width=True)
     else:
         st.info("Nessuna scadenza.")
-        
