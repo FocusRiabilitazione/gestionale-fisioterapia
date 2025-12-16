@@ -10,15 +10,14 @@ try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except FileNotFoundError:
-    # Se non trova il file secrets, usa valori placeholder
-    API_KEY = "tua_chiave_se_non_usi_secrets"
-    BASE_ID = "tuo_base_id_se_non_usi_secrets"
+    # Valori fallback se non usi il file secrets.toml (sconsigliato in produzione)
+    API_KEY = "tua_chiave"
+    BASE_ID = "tuo_base_id"
 
 api = Api(API_KEY)
 
 # --- 2. FUNZIONI ---
 
-# AGGIUNTO IL TTL=60: I dati si aggiornano ogni 60 secondi
 @st.cache_data(ttl=60)
 def get_data(table_name):
     """Scarica i dati da Airtable e li converte in DataFrame"""
@@ -47,18 +46,21 @@ def save_paziente(nome, cognome, area, disdetto):
     }
     table.create(record, typecast=True)
 
-# --- MODIFICA 1: La funzione ora accetta anche la data ---
 def update_paziente(record_id, nuovo_stato, nuova_data_disdetta):
-    """Aggiorna lo stato Disdetto e la Data Disdetta su Airtable"""
+    """
+    Aggiorna lo stato Disdetto e la Data Disdetta su Airtable.
+    Include la correzione per l'errore 'NaT'.
+    """
     table = api.table(BASE_ID, "Pazienti")
     
     fields = {"Disdetto": nuovo_stato}
     
-    # Se c'è una data, la convertiamo in stringa ISO, altrimenti None
-    if nuova_data_disdetta:
+    # --- CORREZIONE ERRORE 'NaT' ---
+    # Controlliamo che la data esista e che non sia la stringa "NaT" (Not a Time)
+    if nuova_data_disdetta and str(nuova_data_disdetta) != "NaT":
         fields["Data_Disdetta"] = str(nuova_data_disdetta)
     else:
-        # Se togli la spunta o cancelli la data, pulisce il campo su Airtable
+        # Se è vuoto o NaT, inviamo None per pulire il campo su Airtable
         fields["Data_Disdetta"] = None
         
     table.update(record_id, fields, typecast=True)
@@ -143,7 +145,7 @@ if menu == "📊 Dashboard & Allarmi":
         st.info("Nessun dato pazienti trovato.")
 
 # =========================================================
-# SEZIONE 2: GESTIONE PAZIENTI (MODIFICATA CON DATA)
+# SEZIONE 2: GESTIONE PAZIENTI
 # =========================================================
 elif menu == "👥 Gestione Pazienti":
     st.title("📂 Anagrafica Pazienti")
@@ -193,20 +195,19 @@ elif menu == "👥 Gestione Pazienti":
             df_original['Disdetto'] = False
         df_original['Disdetto'] = df_original['Disdetto'].fillna(False).infer_objects(copy=False)
 
-        # --- MODIFICA 2: Gestione Data Disdetta ---
+        # 2. Gestione Data Disdetta
         if 'Data_Disdetta' not in df_original.columns:
             df_original['Data_Disdetta'] = None
         # Convertiamo in datetime per permettere al calendario di funzionare
         df_original['Data_Disdetta'] = pd.to_datetime(df_original['Data_Disdetta'], errors='coerce').dt.date
 
-        # 2. Pulizia Area per far funzionare i colori
+        # 3. Pulizia Area per far funzionare i colori
         if 'Area' in df_original.columns:
-             # Se è una lista prendi il primo elemento, se è stringa pulisci spazi
              df_original['Area'] = df_original['Area'].apply(
                  lambda x: x[0] if isinstance(x, list) and len(x) > 0 else (str(x) if x else "")
              ).str.strip() 
 
-        # 3. Conversione a Category per Streamlit
+        # 4. Conversione a Category per Streamlit
         df_original['Area'] = df_original['Area'].astype("category")
 
         # Barra di Ricerca
@@ -217,7 +218,7 @@ elif menu == "👥 Gestione Pazienti":
         else:
             df_filtered = df_original
 
-        # Colonne da mostrare (Aggiunta Data_Disdetta)
+        # Colonne da mostrare
         cols_to_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'Data_Disdetta', 'id']
         available_cols = [c for c in cols_to_show if c in df_filtered.columns]
         
@@ -231,7 +232,7 @@ elif menu == "👥 Gestione Pazienti":
                     help="Spunta se il paziente ha disdetto",
                     default=False,
                 ),
-                # --- MODIFICA 3: Colonna Data ---
+                # Colonna Data
                 "Data_Disdetta": st.column_config.DateColumn(
                     "Data Disdetta",
                     format="DD/MM/YYYY",
