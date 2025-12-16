@@ -88,7 +88,7 @@ def save_prodotto(prodotto, quantita):
 
 # --- 3. INTERFACCIA GRAFICA ---
 
-st.set_page_config(page_title="Gestionale Fisio", page_icon="🏥", layout="wide")
+st.set_page_config(page_title="Gestionale Fisio", page_icon="logo.png", layout="wide")
 
 st.sidebar.title("Navigazione")
 menu = st.sidebar.radio(
