@@ -42,6 +42,8 @@ def save_paziente(nome, cognome, area, disdetto):
         "Area": area,
         "Disdetto": disdetto 
     }
+    # Quando crei, puliamo la cache per vedere subito il nuovo paziente
+    get_data.clear()
     table.create(record, typecast=True)
 
 def update_paziente(record_id, nuovo_stato, nuova_data_disdetta):
@@ -204,7 +206,7 @@ elif menu == "👥 Gestione Pazienti":
         cols_to_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'Data_Disdetta', 'id']
         available_cols = [c for c in cols_to_show if c in df_filtered.columns]
         
-        st.info("💡 Se spunti 'Disdetto' e salvi, la data di oggi verrà inserita automaticamente (se vuota).")
+        st.info("💡 Spunta 'Disdetto' e clicca Salva: la data di oggi verrà inserita automaticamente.")
         
         edited_df = st.data_editor(
             df_filtered[available_cols],
@@ -249,7 +251,7 @@ elif menu == "👥 Gestione Pazienti":
                     is_nuovo_true = True if nuovo_stato in [True, 1, "True", "Checked"] else False
                     
                     # --- AUTOMAZIONE ---
-                    # Se l'utente ha messo la spunta ORA (nuovo=True) ma la data è vuota, mettiamo OGGI.
+                    # Se spuntiamo ORA disdetto e la data è vuota -> Metti Oggi
                     if is_nuovo_true and (pd.isna(nuova_data) or str(nuova_data) == "NaT"):
                          nuova_data = date.today()
                     
@@ -261,7 +263,7 @@ elif menu == "👥 Gestione Pazienti":
                         data_cambiata = True
                     elif pd.notna(vecchia_data) and pd.isna(nuova_data):
                         data_cambiata = True
-                    elif pd.notna(vecchia_data) and pd.notna(nuova_data) and vecchia_data != nuova_data:
+                    elif pd.notna(vecchia_data) and pd.notna(nuova_data) and (vecchia_data != nuova_data):
                         data_cambiata = True
 
                     if stato_cambiato or data_cambiata:
@@ -272,7 +274,9 @@ elif menu == "👥 Gestione Pazienti":
                             st.error(f"Errore aggiornamento ID {record_id}: {e}")
             
             if changes_count > 0:
-                st.success(f"✅ Aggiornati {changes_count} pazienti!")
+                # --- PUNTO FONDAMENTALE: SVUOTA LA CACHE ---
+                get_data.clear()
+                st.success(f"✅ Aggiornati {changes_count} pazienti! (Ricarico...)")
                 st.rerun() 
             else:
                 st.warning("⚠️ Nessuna modifica rilevata.")
