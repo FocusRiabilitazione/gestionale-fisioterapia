@@ -3,13 +3,14 @@ from pyairtable import Api
 import pandas as pd
 from requests.exceptions import HTTPError
 import altair as alt
-from datetime import date
+from datetime import date, timedelta
 
 # --- 1. CONFIGURAZIONE CONNESSIONE ---
 try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except FileNotFoundError:
+    # Valori placeholder se non usi secrets.toml
     API_KEY = "tua_chiave"
     BASE_ID = "tuo_base_id"
 
@@ -52,6 +53,7 @@ def update_paziente(record_id, nuovo_stato, nuova_data_disdetta):
     
     fields = {"Disdetto": nuovo_stato}
     
+    # Gestione Data: invia stringa se valida, None se vuota/NaT
     if nuova_data_disdetta and str(nuova_data_disdetta) != "NaT":
         fields["Data_Disdetta"] = str(nuova_data_disdetta)
     else:
@@ -59,7 +61,6 @@ def update_paziente(record_id, nuovo_stato, nuova_data_disdetta):
         
     table.update(record_id, fields, typecast=True)
 
-# --- NUOVA FUNZIONE PER CANCELLARE ---
 def delete_paziente(record_id):
     """Elimina definitivamente il paziente da Airtable"""
     table = api.table(BASE_ID, "Pazienti")
@@ -78,62 +79,125 @@ st.sidebar.divider()
 st.sidebar.info("App collegata ad Airtable.")
 
 # =========================================================
-# SEZIONE 1: DASHBOARD
+# SEZIONE 1: DASHBOARD & ALLARMI (CON RECALL)
 # =========================================================
 if menu == "📊 Dashboard & Allarmi":
     
     try:
-        st.image("logo.png", width=300) 
+        st.image("logo.png", width=250) 
     except FileNotFoundError:
-        st.title("Buongiorno! ☕")
+        st.title("🏥 Dashboard Studio")
 
-    st.write("Panoramica dello studio.")
-    
+    st.write("---")
+
     df = get_data("Pazienti")
     
     if not df.empty:
-        if 'Disdetto' not in df.columns:
-            df['Disdetto'] = False
-        else:
-            df['Disdetto'] = df['Disdetto'].fillna(False)
+        # --- PREPARAZIONE DATI ---
+        if 'Disdetto' not in df.columns: df['Disdetto'] = False
+        else: df['Disdetto'] = df['Disdetto'].fillna(False)
 
+        if 'Data_Disdetta' not in df.columns: df['Data_Disdetta'] = None
+        # Convertiamo in data
+        df['Data_Disdetta'] = pd.to_datetime(df['Data_Disdetta'], errors='coerce').dt.date
+
+        # Calcoli base
         totali = len(df)
-        disdetti_count = len(df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ])
-        attivi = totali - disdetti_count
+        df_disdetti = df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) | (df['Disdetto'] == "True") ]
+        cnt_disdetti = len(df_disdetti)
+        cnt_attivi = totali - cnt_disdetti
         
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Totale Anagrafica", totali)
-        col2.metric("Pazienti Attivi", attivi)
-        col3.metric("Pazienti Disdetti", disdetti_count, delta_color="inverse")
+        # Mostriamo i KPI in alto
+        k1, k2, k3 = st.columns(3)
+        k1.metric("Pazienti Attivi", cnt_attivi)
+        k2.metric("Disdetti Totali", cnt_disdetti)
         
+        # --- LOGICA INTELLIGENTE "RECALL" ---
+        oggi = date.today()
+        limite_recall = oggi - timedelta(days=10) # Data di 10 giorni fa
+        
+        # Cerchiamo chi è disdetto DA PIÙ DI 10 GIORNI (e ha una data valida)
+        da_richiamare = df_disdetti[
+            (df_disdetti['Data_Disdetta'].notna()) & 
+            (df_disdetti['Data_Disdetta'] <= limite_recall)
+        ]
+        
+        cnt_recall = len(da_richiamare)
+        k3.metric("Da Richiamare (>10gg)", cnt_recall, delta_color="inverse")
+
         st.divider()
+
+        # --- BOX ALERT & AZIONI ---
+        if cnt_recall > 0:
+            st.error(f"📞 CI SONO {cnt_recall} PAZIENTI DA RICHIAMARE (Disdetta > 10 giorni fa)")
+            
+            st.write("Gestisci i richiami direttamente da qui:")
+            
+            # Creiamo una "card" per ogni paziente da chiamare
+            for i, row in da_richiamare.iterrows():
+                rec_id = row['id']
+                nome_completo = f"{row['Nome']} {row['Cognome']}"
+                # Gestione sicura della data per visualizzazione
+                data_vis = row['Data_Disdetta'].strftime('%d/%m/%Y') if row['Data_Disdetta'] else "N/D"
+                
+                # Usiamo un container con bordo per separare i pazienti
+                with st.container(border=True):
+                    c1, c2, c3 = st.columns([2, 1, 1])
+                    
+                    with c1:
+                        st.markdown(f"**{nome_completo}**")
+                        st.caption(f"Disdetto il: {data_vis} (Area: {row.get('Area', '-')})")
+                    
+                    with c2:
+                        # AZIONE 1: RIPROGRAMMATO -> Diventa Attivo
+                        if st.button("✅ Recuperato", key=f"rec_{rec_id}", use_container_width=True):
+                            try:
+                                update_paziente(rec_id, False, None) # False = Attivo, None = No data
+                                st.toast(f"{nome_completo} tornato attivo!")
+                                get_data.clear() # Pulisce cache fondamentale
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Errore: {e}")
+
+                    with c3:
+                        # AZIONE 2: RIMANDA -> Aggiorna data a OGGI
+                        if st.button("⏳ Rimanda", key=f"post_{rec_id}", use_container_width=True):
+                            try:
+                                update_paziente(rec_id, True, date.today()) # Aggiorna data a oggi
+                                st.toast(f"Richiamo per {nome_completo} posticipato di 10gg.")
+                                get_data.clear()
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Errore: {e}")
         
+        else:
+            st.success("✅ Nessun paziente in attesa di richiamo (tutti gestiti o recenti).")
+
+        st.write("---")
+
+        # --- GRAFICO AREE (SOLO ATTIVI) ---
         if 'Area' in df.columns:
-            st.subheader("📍 Distribuzione per Area Trattata")
+            st.subheader("📍 Distribuzione Trattamenti (Attivi)")
+            df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) | (df['Disdetto'].isna()) ]
             
             all_areas = []
-            for item in df['Area'].dropna():
-                if isinstance(item, list):
-                    all_areas.extend(item)
-                elif isinstance(item, str):
-                    all_areas.extend([p.strip() for p in item.split(',')])
-                else:
-                    all_areas.append(str(item))
+            for item in df_attivi['Area'].dropna():
+                if isinstance(item, list): all_areas.extend(item)
+                elif isinstance(item, str): all_areas.extend([p.strip() for p in item.split(',')])
+                else: all_areas.append(str(item))
             
             if all_areas:
                 counts = pd.Series(all_areas).value_counts().reset_index()
                 counts.columns = ['Area', 'Pazienti']
-                
                 domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
                 range_ = ["#33A1C9", "#F1C40F", "#2ECC71", "#9B59B6", "#E74C3C", "#7F8C8D"]
 
                 chart = alt.Chart(counts).mark_bar().encode(
-                    x=alt.X('Area', sort='-y', title="Area Trattata"),
-                    y=alt.Y('Pazienti', title="Numero Pazienti"),
+                    x=alt.X('Pazienti', title="Numero Pazienti"),
+                    y=alt.Y('Area', sort='-x', title=""),
                     color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None),
                     tooltip=['Area', 'Pazienti']
-                ).properties(height=400)
-                
+                ).properties(height=350)
                 st.altair_chart(chart, use_container_width=True)
                 
     else:
@@ -197,7 +261,7 @@ elif menu == "👥 Gestione Pazienti":
              ).str.strip() 
         df_original['Area'] = df_original['Area'].astype("category")
 
-        # --- AGGIUNTA COLONNA DIMISSIONE (Solo in locale) ---
+        # Colonna Dimissione locale
         df_original['Dimissione'] = False
 
         # Ricerca
@@ -208,35 +272,23 @@ elif menu == "👥 Gestione Pazienti":
         else:
             df_filtered = df_original
 
-        # Aggiungiamo 'Dimissione' alle colonne da mostrare
+        # Colonne da mostrare
         cols_to_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'Data_Disdetta', 'Dimissione', 'id']
         available_cols = [c for c in cols_to_show if c in df_filtered.columns]
         
-        st.info("💡 **Disdetto**: il paziente rinuncia (storico). **Dimissione**: CANCELLA il paziente dal database.")
+        st.info("💡 **Disdetto**: spunta e salva (data automatica). **Dimissione**: spunta e salva per CANCELLARE.")
         
         edited_df = st.data_editor(
             df_filtered[available_cols],
             column_config={
-                "Disdetto": st.column_config.CheckboxColumn(
-                    "Disdetto",
-                    default=False,
-                ),
-                # Configurazione Dimissione (Cestino)
+                "Disdetto": st.column_config.CheckboxColumn("Disdetto", default=False),
                 "Dimissione": st.column_config.CheckboxColumn(
                     "🗑️ Dimissione",
-                    help="Spunta e salva per ELIMINARE definitivamente il paziente",
+                    help="Spunta e salva per ELIMINARE definitivamente",
                     default=False,
                 ),
-                "Data_Disdetta": st.column_config.DateColumn(
-                    "Data Disdetta",
-                    format="DD/MM/YYYY",
-                ),
-                "Area": st.column_config.SelectboxColumn(
-                    "Area",
-                    width="medium",
-                    options=lista_aree, 
-                    required=False,
-                ),
+                "Data_Disdetta": st.column_config.DateColumn("Data Disdetta", format="DD/MM/YYYY"),
+                "Area": st.column_config.SelectboxColumn("Area", width="medium", options=lista_aree, required=False),
                 "id": None, 
             },
             disabled=["Nome", "Cognome", "Area"], 
@@ -252,17 +304,16 @@ elif menu == "👥 Gestione Pazienti":
             for index, row in edited_df.iterrows():
                 record_id = row['id']
                 
-                # --- LOGICA DIMISSIONE (CANCELLAZIONE) ---
-                # Se è flaggato Dimissione, lo cancelliamo subito e saltiamo il resto
+                # --- 1. LOGICA CANCELLAZIONE ---
                 if row['Dimissione'] == True:
                     try:
                         delete_paziente(record_id)
                         deleted_count += 1
-                        continue # Passa al prossimo paziente, questo non esiste più
+                        continue 
                     except Exception as e:
                         st.error(f"Errore cancellazione {row['Cognome']}: {e}")
                 
-                # --- LOGICA AGGIORNAMENTO (Se non è stato cancellato) ---
+                # --- 2. LOGICA AGGIORNAMENTO ---
                 nuovo_stato = row['Disdetto']
                 nuova_data = row['Data_Disdetta']
                 
@@ -275,18 +326,16 @@ elif menu == "👥 Gestione Pazienti":
                     is_vecchio_true = True if vecchio_stato in [True, 1, "True", "Checked"] else False
                     is_nuovo_true = True if nuovo_stato in [True, 1, "True", "Checked"] else False
                     
+                    # Automazione Data Oggi
                     if is_nuovo_true and (pd.isna(nuova_data) or str(nuova_data) == "NaT"):
                          nuova_data = date.today()
                     
                     stato_cambiato = (is_vecchio_true != is_nuovo_true)
                     
                     data_cambiata = False
-                    if pd.isna(vecchia_data) and pd.notna(nuova_data):
-                        data_cambiata = True
-                    elif pd.notna(vecchia_data) and pd.isna(nuova_data):
-                        data_cambiata = True
-                    elif pd.notna(vecchia_data) and pd.notna(nuova_data) and (vecchia_data != nuova_data):
-                        data_cambiata = True
+                    if pd.isna(vecchia_data) and pd.notna(nuova_data): data_cambiata = True
+                    elif pd.notna(vecchia_data) and pd.isna(nuova_data): data_cambiata = True
+                    elif pd.notna(vecchia_data) and pd.notna(nuova_data) and (vecchia_data != nuova_data): data_cambiata = True
 
                     if stato_cambiato or data_cambiata:
                         try:
@@ -296,13 +345,10 @@ elif menu == "👥 Gestione Pazienti":
                             st.error(f"Errore aggiornamento ID {record_id}: {e}")
             
             if changes_count > 0 or deleted_count > 0:
-                get_data.clear()
+                get_data.clear() # SVUOTA CACHE
                 msg = ""
-                if deleted_count > 0:
-                    msg += f"🗑️ Eliminati {deleted_count} pazienti. "
-                if changes_count > 0:
-                    msg += f"✅ Aggiornati {changes_count} pazienti."
-                
+                if deleted_count > 0: msg += f"🗑️ Eliminati {deleted_count} pazienti. "
+                if changes_count > 0: msg += f"✅ Aggiornati {changes_count} pazienti."
                 st.success(msg)
                 st.rerun() 
             else:
@@ -329,10 +375,8 @@ elif menu == "💰 Calcolo Preventivo":
             for index, row in df_listino.iterrows():
                 nome_tratt = row[col_servizio]
                 prezzo_tratt = row[col_prezzo]
-                
                 if nome_tratt:
-                    if pd.isna(prezzo_tratt):
-                        prezzo_tratt = 0
+                    if pd.isna(prezzo_tratt): prezzo_tratt = 0
                     listino[str(nome_tratt)] = float(prezzo_tratt)
         else:
             st.error(f"⚠️ Errore Colonne: Non trovo '{col_servizio}' e '{col_prezzo}' in Airtable.")
