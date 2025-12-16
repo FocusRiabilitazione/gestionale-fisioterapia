@@ -30,8 +30,7 @@ def get_data(table_name):
         df = pd.DataFrame(data)
         return df
     except Exception as e:
-        # In produzione puoi commentare il print se vuoi la console pulita
-        print(f"Errore caricamento {table_name}: {e}")
+        # print(f"Errore caricamento {table_name}: {e}")
         return pd.DataFrame()
 
 def save_paziente(nome, cognome, area, disdetto):
@@ -43,25 +42,27 @@ def save_paziente(nome, cognome, area, disdetto):
         "Area": area,
         "Disdetto": disdetto 
     }
-    # Puliamo la cache per vedere subito il nuovo dato
     get_data.clear()
     table.create(record, typecast=True)
 
 def update_paziente_completo(record_id, dati_aggiornati):
     """
     Funzione unica per aggiornare qualsiasi campo del paziente.
-    Accetta un dizionario: {'Colonna': Valore}
     """
     table = api.table(BASE_ID, "Pazienti")
     
-    # Pulizia date: Se il valore è NaT o vuoto, lo forziamo a None per Airtable
     fields_to_send = {}
     for k, v in dati_aggiornati.items():
-        if "Data" in k: # Se è una colonna data
+        # Gestione speciale per le date
+        if "Data" in k: 
             if pd.isna(v) or str(v) == "NaT" or v == "":
                 fields_to_send[k] = None
             else:
-                fields_to_send[k] = str(v)
+                # Se è un Timestamp di Pandas, lo formattiamo stringa YYYY-MM-DD
+                if hasattr(v, 'strftime'):
+                    fields_to_send[k] = v.strftime('%Y-%m-%d')
+                else:
+                    fields_to_send[k] = str(v)
         else:
             fields_to_send[k] = v
             
@@ -85,7 +86,7 @@ st.sidebar.divider()
 st.sidebar.info("App collegata ad Airtable.")
 
 # =========================================================
-# SEZIONE 1: DASHBOARD (CON TUTTI GLI ALERT)
+# SEZIONE 1: DASHBOARD (CORRETTA)
 # =========================================================
 if menu == "📊 Dashboard & Allarmi":
     
@@ -99,38 +100,40 @@ if menu == "📊 Dashboard & Allarmi":
     df = get_data("Pazienti")
     
     if not df.empty:
-        # --- PREPARAZIONE DATI ---
+        # --- PREPARAZIONE DATI (Fix Date) ---
         # 1. Disdetti
         if 'Disdetto' not in df.columns: df['Disdetto'] = False
         else: df['Disdetto'] = df['Disdetto'].fillna(False)
         
+        # FIX: Non usiamo più .dt.date qui, teniamo il Timestamp nativo per evitare errori di confronto
         if 'Data_Disdetta' not in df.columns: df['Data_Disdetta'] = None
-        df['Data_Disdetta'] = pd.to_datetime(df['Data_Disdetta'], errors='coerce').dt.date
+        df['Data_Disdetta'] = pd.to_datetime(df['Data_Disdetta'], errors='coerce')
 
         # 2. Visite Esterne
         if 'Visita_Esterna' not in df.columns: df['Visita_Esterna'] = False
         else: df['Visita_Esterna'] = df['Visita_Esterna'].fillna(False)
         
+        # FIX: Idem qui, teniamo Timestamp
         if 'Data_Visita' not in df.columns: df['Data_Visita'] = None
-        df['Data_Visita'] = pd.to_datetime(df['Data_Visita'], errors='coerce').dt.date
+        df['Data_Visita'] = pd.to_datetime(df['Data_Visita'], errors='coerce')
 
         # Calcoli base
         totali = len(df)
         df_disdetti = df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ]
         cnt_disdetti = len(df_disdetti)
         
-        # Consideriamo "Attivi" quelli non disdetti (anche se sono in visita esterna, tecnicamente sono ancora in carico)
         cnt_attivi = totali - cnt_disdetti
         
         k1, k2, k3 = st.columns(3)
         k1.metric("Pazienti Attivi", cnt_attivi)
         k2.metric("Disdetti Totali", cnt_disdetti)
 
-        # --- LOGICHE DI ALLARME ---
-        oggi = date.today()
+        # --- LOGICHE DI ALLARME (Fix Date) ---
+        # Usiamo Timestamp normalizzati invece di date.today()
+        oggi = pd.Timestamp.now().normalize()
         
         # A. DISDETTE DA RICHIAMARE (>10 gg)
-        limite_recall = oggi - timedelta(days=10)
+        limite_recall = oggi - pd.Timedelta(days=10)
         da_richiamare = df_disdetti[
             (df_disdetti['Data_Disdetta'].notna()) & 
             (df_disdetti['Data_Disdetta'] <= limite_recall)
@@ -139,19 +142,20 @@ if menu == "📊 Dashboard & Allarmi":
         k3.metric("Recall Disdette", cnt_recall, delta_color="inverse")
 
         # B. VISITE ESTERNE
-        # Filtriamo chi ha Visita Esterna = True
         df_visite = df[ (df['Visita_Esterna'] == True) | (df['Visita_Esterna'] == 1) ]
         
         # Alert 1: Visita Imminente (Oggi o Domani)
-        domani = oggi + timedelta(days=1)
+        domani = oggi + pd.Timedelta(days=1)
+        
+        # Ora il confronto avviene tra Timestamp e Timestamp -> Nessun Errore
         visite_imminenti = df_visite[
             (df_visite['Data_Visita'].notna()) & 
             (df_visite['Data_Visita'] >= oggi) &
             (df_visite['Data_Visita'] <= domani)
         ]
         
-        # Alert 2: Visita passata da > 7 giorni (da riprogrammare)
-        sette_giorni_fa = oggi - timedelta(days=7)
+        # Alert 2: Visita passata da > 7 giorni
+        sette_giorni_fa = oggi - pd.Timedelta(days=7)
         visite_passate = df_visite[
             (df_visite['Data_Visita'].notna()) & 
             (df_visite['Data_Visita'] <= sette_giorni_fa)
@@ -165,6 +169,7 @@ if menu == "📊 Dashboard & Allarmi":
         if not visite_imminenti.empty:
             st.warning(f"👨‍⚕️ **VISITE MEDICHE IMMINENTI ({len(visite_imminenti)})** - Ricordati di sentire il dottore!")
             for i, row in visite_imminenti.iterrows():
+                # Formattiamo solo per la visualizzazione
                 data_v = row['Data_Visita'].strftime('%d/%m')
                 st.write(f"🔹 **{row['Nome']} {row['Cognome']}** -> Visita il **{data_v}**")
 
@@ -179,8 +184,8 @@ if menu == "📊 Dashboard & Allarmi":
                 with col_text:
                     st.write(f"🔸 **{row['Nome']} {row['Cognome']}** (Visita del {data_v})")
                 with col_btn:
+                    # Tasto Rientrato
                     if st.button("✅ Rientrato", key=f"rientro_{rec_id}"):
-                        # Togliamo la spunta Visita Esterna e puliamo la data
                         update_paziente_completo(rec_id, {"Visita_Esterna": False, "Data_Visita": None})
                         st.toast("Paziente riattivato!")
                         get_data.clear()
@@ -205,18 +210,17 @@ if menu == "📊 Dashboard & Allarmi":
                         st.rerun()
                         
                     if c3.button("⏳ Rimanda", key=f"post_{rec_id}", use_container_width=True):
-                        # Resetta la data a Oggi così sparisce dall'alert per 10 giorni
+                        # Resetta la data a Oggi
                         update_paziente_completo(rec_id, {"Disdetto": True, "Data_Disdetta": date.today()})
                         get_data.clear()
                         st.rerun()
         
-        # Messaggio se è tutto pulito
         if visite_imminenti.empty and visite_passate.empty and cnt_recall == 0:
             st.success("✅ Nessun alert attivo. Tutto sotto controllo!")
 
         st.write("---")
 
-        # GRAFICO (Solo pazienti attivi)
+        # GRAFICO
         if 'Area' in df.columns:
             st.subheader("📍 Carico di Lavoro (Attivi)")
             df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
@@ -243,14 +247,13 @@ if menu == "📊 Dashboard & Allarmi":
         st.info("Nessun dato pazienti trovato.")
 
 # =========================================================
-# SEZIONE 2: GESTIONE PAZIENTI (COMPLETA)
+# SEZIONE 2: GESTIONE PAZIENTI
 # =========================================================
 elif menu == "👥 Gestione Pazienti":
     st.title("📂 Anagrafica Pazienti")
     
     lista_aree = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
     
-    # Form Inserimento
     with st.expander("➕ Nuovo Inserimento", expanded=False):
         with st.form("form_paziente", clear_on_submit=True):
             c1, c2 = st.columns(2)
@@ -273,15 +276,15 @@ elif menu == "👥 Gestione Pazienti":
         cols_bool = ['Disdetto', 'Visita_Esterna', 'Dimissione']
         cols_date = ['Data_Disdetta', 'Data_Visita']
         
-        # Gestione mancanza colonne o valori nulli
         for c in cols_bool:
             if c not in df_original.columns: df_original[c] = False
             if c == 'Dimissione': df_original[c] = False 
             df_original[c] = df_original[c].fillna(False).infer_objects(copy=False)
             
+        # FIX: Anche qui carichiamo come Datetime, non Date, per coerenza
         for c in cols_date:
             if c not in df_original.columns: df_original[c] = None
-            df_original[c] = pd.to_datetime(df_original[c], errors='coerce').dt.date
+            df_original[c] = pd.to_datetime(df_original[c], errors='coerce')
 
         if 'Area' in df_original.columns:
              df_original['Area'] = df_original['Area'].apply(lambda x: x[0] if isinstance(x, list) and len(x)>0 else (str(x) if x else "")).str.strip() 
@@ -294,7 +297,6 @@ elif menu == "👥 Gestione Pazienti":
         else:
             df_filt = df_original
 
-        # Tabella Editor
         cols_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'Data_Disdetta', 'Visita_Esterna', 'Data_Visita', 'Dimissione', 'id']
         valid_cols = [c for c in cols_show if c in df_filt.columns]
 
@@ -331,25 +333,23 @@ elif menu == "👥 Gestione Pazienti":
                     continue
 
                 # 2. AGGIORNAMENTO
-                # Recuperiamo la riga originale per confrontare i valori
                 orig = df_original[df_original['id'] == rec_id].iloc[0]
-                
                 changes = {}
                 
-                # --- Logica Disdetto ---
+                # Disdetto
                 curr_dis = row['Disdetto']
                 old_dis = True if orig['Disdetto'] in [True, 1, "True"] else False
                 curr_date_dis = row['Data_Disdetta']
                 
-                # Automazione: se spuntato e data vuota -> Oggi
+                # Automazione data disdetta
                 if curr_dis and (pd.isna(curr_date_dis) or str(curr_date_dis) == "NaT"):
-                    curr_date_dis = date.today()
+                    curr_date_dis = pd.Timestamp.now().normalize()
                     changes['Data_Disdetta'] = curr_date_dis
 
                 if curr_dis != old_dis: changes['Disdetto'] = curr_dis
                 if str(curr_date_dis) != str(orig['Data_Disdetta']): changes['Data_Disdetta'] = curr_date_dis
                 
-                # --- Logica Visita Esterna ---
+                # Visita Esterna
                 curr_vis = row['Visita_Esterna']
                 old_vis = True if orig['Visita_Esterna'] in [True, 1, "True"] else False
                 curr_date_vis = row['Data_Visita']
@@ -357,11 +357,9 @@ elif menu == "👥 Gestione Pazienti":
                 if curr_vis != old_vis: changes['Visita_Esterna'] = curr_vis
                 if str(curr_date_vis) != str(orig['Data_Visita']): changes['Data_Visita'] = curr_date_vis
                 
-                # --- Logica Area ---
-                if row['Area'] != orig['Area']:
-                    changes['Area'] = row['Area']
+                # Area
+                if row['Area'] != orig['Area']: changes['Area'] = row['Area']
 
-                # Se ci sono modifiche, aggiorniamo
                 if changes:
                     update_paziente_completo(rec_id, changes)
                     count_upd += 1
@@ -380,7 +378,6 @@ elif menu == "💰 Calcolo Preventivo":
     st.title("Generatore Preventivi")
     df_listino = get_data("Servizi") 
     listino = {}
-    
     if not df_listino.empty and 'Servizio' in df_listino.columns:
         for index, row in df_listino.iterrows():
             if row['Servizio']: listino[str(row['Servizio'])] = float(row.get('Prezzo', 0) or 0)
