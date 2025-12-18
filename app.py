@@ -9,7 +9,7 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE (DARK I-TECH)
+# 0. CONFIGURAZIONE & STILE (DARK I-TECH PRO)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio", page_icon="🏥", layout="wide")
 
@@ -27,67 +27,92 @@ st.markdown("""
         color: #FAFAFA;
     }
     
+    /* STYLE DELLA SIDEBAR (Navigazione) */
+    section[data-testid="stSidebar"] {
+        background-color: #111319; /* Quasi nero */
+        border-right: 1px solid #2B2D31;
+    }
+
+    /* TRASFORMA I RADIO BUTTON IN "BOTTONI NAVIGAZIONE" */
+    div.row-widget.stRadio > div {
+        background-color: transparent;
+    }
+    div.row-widget.stRadio > div[role="radiogroup"] > label {
+        background-color: #1E2129;
+        padding: 10px 15px;
+        margin-bottom: 4px;
+        border-radius: 8px;
+        border: 1px solid #2B2D31;
+        transition: all 0.2s ease;
+        color: #E0E0E0;
+    }
+    div.row-widget.stRadio > div[role="radiogroup"] > label:hover {
+        background-color: #262933;
+        border-color: #FF4B2B;
+        color: white;
+    }
+    /* Nasconde il pallino del radio button per un look più app */
+    div.row-widget.stRadio div[role="radiogroup"] > label > div:first-child {
+        display: none;
+    }
+
     /* METRICHE (KPI) */
     div[data-testid="stMetric"] {
-        background-color: #262730;
-        border: 1px solid #41444C;
+        background-color: #1E2129;
+        border: 1px solid #2B2D31;
         padding: 15px;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        transition: transform 0.2s;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
     }
     div[data-testid="stMetric"]:hover {
-        transform: translateY(-2px);
         border-color: #FF4B2B;
     }
-    
-    div[data-testid="stMetricLabel"] { color: #BDC1C6; }
+    div[data-testid="stMetricLabel"] { color: #9CA3AF; font-size: 0.85rem; }
     div[data-testid="stMetricValue"] { color: #FFFFFF; }
 
     /* PULSANTI */
     div.stButton > button {
-        background: linear-gradient(90deg, #FF4B2B 0%, #FF416C 100%);
+        background: linear-gradient(135deg, #FF4B2B 0%, #FF416C 100%);
         color: white;
         border: none;
         padding: 0.5rem 1rem;
-        border-radius: 8px;
+        border-radius: 6px;
         font-weight: 600;
         letter-spacing: 0.5px;
-        transition: all 0.3s ease;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
     div.stButton > button:hover {
-        background: linear-gradient(90deg, #FF416C 0%, #FF4B2B 100%);
-        box-shadow: 0 0 15px rgba(255, 65, 108, 0.6);
+        box-shadow: 0 0 12px rgba(255, 65, 108, 0.5);
         color: white;
-        border: none;
     }
 
-    /* SIDEBAR */
-    section[data-testid="stSidebar"] {
-        background-color: #161920;
-        border-right: 1px solid #333;
-    }
-    
     /* TABELLE */
     div[data-testid="stDataFrame"] {
-        background-color: #262730;
-        border-radius: 10px;
-        border: 1px solid #41444C;
+        background-color: #1E2129;
+        border-radius: 8px;
+        border: 1px solid #2B2D31;
     }
 
     /* INPUT E TITOLI */
     .streamlit-expanderHeader {
-        background-color: #262730;
+        background-color: #1E2129;
         border-radius: 8px;
         color: white;
+        border: 1px solid #2B2D31;
     }
     input, select, textarea {
-        background-color: #1E1E1E !important;
+        background-color: #16181D !important;
         color: white !important;
+        border: 1px solid #2B2D31 !important;
+        border-radius: 6px;
     }
     h1, h2, h3 {
         color: #FFFFFF !important;
         font-weight: 700;
+        letter-spacing: -0.5px;
+    }
+    hr {
+        border-color: #2B2D31;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -220,17 +245,23 @@ def create_pdf(paziente, righe_preventivo, totale):
 with st.sidebar:
     try: st.image("logo.png", use_container_width=True)
     except: st.title("Focus Rehab")
-    st.markdown("### Menu Principale")
-    menu = st.radio("", ["📊 Dashboard", "👥 Gestione Pazienti", "💰 Preventivi & Pacchetti", "📦 Inventario", "🤝 Prestiti", "📝 Scadenze"], label_visibility="collapsed")
+    
+    st.markdown("### Navigazione")
+    # NUOVE ICONE I-TECH
+    menu = st.radio(
+        "", 
+        ["⚡ Dashboard", "🗂️ Anagrafica", "💳 Preventivi", "🧬 Magazzino", "🔄 Prestiti", "📅 Scadenze"],
+        label_visibility="collapsed"
+    )
     st.divider()
-    st.caption("App v2.2 - Dark & Original Colors")
+    st.caption("Focus App v2.3 - Pro")
 
 # =========================================================
 # SEZIONE 1: DASHBOARD
 # =========================================================
-if menu == "📊 Dashboard":
-    st.title("📊 Dashboard Studio")
-    st.markdown("Panoramica attività in tempo reale")
+if menu == "⚡ Dashboard":
+    st.title("⚡ Dashboard")
+    st.markdown("Panoramica attività")
     st.write("")
 
     df = get_data("Pazienti")
@@ -259,17 +290,17 @@ if menu == "📊 Dashboard":
         visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
 
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Pazienti Attivi", cnt_attivi, "Totale")
+        col1.metric("Pazienti Attivi", cnt_attivi)
         col2.metric("Disdetti Storico", len(df_disdetti))
-        col3.metric("Da Richiamare", len(da_richiamare), delta_color="inverse")
-        col4.metric("Visite Imminenti", len(visite_imminenti), "Oggi/Domani")
+        col3.metric("Recall", len(da_richiamare), delta_color="inverse")
+        col4.metric("Visite Mediche", len(visite_imminenti))
 
         st.write(""); st.write("")
 
         c_left, c_right = st.columns([1, 1.5], gap="large")
 
         with c_left:
-            st.subheader("🔔 Avvisi Urgenti")
+            st.subheader("Avvisi")
             if not visite_imminenti.empty:
                 with st.container(border=True):
                     st.warning(f"👨‍⚕️ **Visite ({len(visite_imminenti)})**")
@@ -294,10 +325,10 @@ if menu == "📊 Dashboard":
                         st.caption(f"• {row['Nome']} {row['Cognome']}")
 
             if visite_imminenti.empty and visite_passate.empty and len(da_richiamare) == 0:
-                st.success("Nessun allarme attivo.")
+                st.success("Tutto regolare.")
 
         with c_right:
-            st.subheader("📈 Analisi Aree")
+            st.subheader("Aree di Competenza")
             df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
             
             all_areas = []
@@ -326,13 +357,13 @@ if menu == "📊 Dashboard":
                 ).configure_view(strokeWidth=0)
                 st.altair_chart(chart, use_container_width=True)
             else:
-                st.info("Popola le Aree per vedere il grafico.")
+                st.info("Dati insufficienti per il grafico.")
 
 # =========================================================
 # SEZIONE 2: PAZIENTI
 # =========================================================
-elif menu == "👥 Gestione Pazienti":
-    st.title("📂 Anagrafica Pazienti")
+elif menu == "🗂️ Anagrafica":
+    st.title("🗂️ Anagrafica Pazienti")
     lista_aree = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
     
     with st.container(border=True):
@@ -411,8 +442,8 @@ elif menu == "👥 Gestione Pazienti":
 # =========================================================
 # SEZIONE 3: PREVENTIVI
 # =========================================================
-elif menu == "💰 Preventivi & Pacchetti":
-    st.title("💰 Gestione Preventivi")
+elif menu == "💳 Preventivi":
+    st.title("💳 Preventivi")
     tab1, tab2 = st.tabs(["📝 Generatore", "📂 Archivio"])
     df_srv = get_data("Servizi")
     df_paz = get_data("Pazienti")
@@ -536,8 +567,8 @@ elif menu == "💰 Preventivi & Pacchetti":
 # =========================================================
 # SEZIONE 4: INVENTARIO
 # =========================================================
-elif menu == "📦 Inventario":
-    st.title("📦 Magazzino")
+elif menu == "🧬 Magazzino":
+    st.title("🧬 Magazzino")
     col_add, col_tab = st.columns([1, 2])
     with col_add:
         with st.container(border=True):
@@ -574,8 +605,8 @@ elif menu == "📦 Inventario":
 # =========================================================
 # SEZIONE 5: PRESTITI
 # =========================================================
-elif menu == "🤝 Prestiti":
-    st.title("🤝 Registro Prestiti")
+elif menu == "🔄 Prestiti":
+    st.title("🔄 Registro Prestiti")
     df_paz = get_data("Pazienti"); df_inv = get_data("Inventario")
     
     with st.expander("➕ Registra Nuovo Prestito", expanded=True):
@@ -621,8 +652,8 @@ elif menu == "🤝 Prestiti":
 # =========================================================
 # SEZIONE 6: SCADENZE
 # =========================================================
-elif menu == "📝 Scadenze":
-    st.title("🗓️ Checklist Scadenze")
+elif menu == "📅 Scadenze":
+    st.title("📅 Checklist Scadenze")
     df_scad = get_data("Scadenze")
     if not df_scad.empty and 'Data_Scadenza' in df_scad.columns:
         df_scad['Data_Scadenza'] = pd.to_datetime(df_scad['Data_Scadenza'], errors='coerce')
