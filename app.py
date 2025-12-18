@@ -6,6 +6,7 @@ import altair as alt
 from datetime import date, timedelta
 from fpdf import FPDF
 import io
+import os
 
 # --- 1. CONFIGURAZIONE CONNESSIONE ---
 try:
@@ -91,11 +92,24 @@ def create_pdf(paziente, righe_preventivo, totale):
     """Genera il file PDF in memoria"""
     class PDF(FPDF):
         def header(self):
+            # LOGO: Cerca logo.png, se esiste lo mette
+            if os.path.exists("logo.png"):
+                try:
+                    # x=10, y=8, w=30 (dimensione)
+                    self.image('logo.png', 10, 8, 30)
+                except:
+                    pass
+            
+            # Intestazione Testuale
             self.set_font('Arial', 'B', 16)
-            self.cell(0, 10, 'Studio Fisioterapico', 0, 1, 'C')
+            # Spostiamo il titolo un po' a destra per non sovrapporsi al logo
+            self.cell(40) 
+            self.cell(0, 10, 'Focus Riabilitazione', 0, 1, 'L')
+            
             self.set_font('Arial', 'I', 10)
-            self.cell(0, 5, 'Preventivo Trattamenti', 0, 1, 'C')
-            self.ln(10)
+            self.cell(40)
+            self.cell(0, 5, 'Preventivo Trattamenti Fisioterapici', 0, 1, 'L')
+            self.ln(15)
 
         def footer(self):
             self.set_y(-15)
@@ -105,38 +119,71 @@ def create_pdf(paziente, righe_preventivo, totale):
     pdf = PDF()
     pdf.add_page()
     
+    # 1. Info Paziente
     pdf.set_font('Arial', '', 12)
-    pdf.cell(0, 10, f'Paziente: {paziente}', 0, 1)
-    pdf.cell(0, 10, f'Data: {date.today().strftime("%d/%m/%Y")}', 0, 1)
+    pdf.cell(0, 8, f'Gentile Paziente: {paziente}', 0, 1)
+    pdf.cell(0, 8, f'Data emissione: {date.today().strftime("%d/%m/%Y")}', 0, 1)
     pdf.ln(5)
     
+    # 2. Tabella Trattamenti
+    pdf.set_fill_color(240, 240, 240) # Grigio chiaro per intestazione
     pdf.set_font('Arial', 'B', 12)
-    pdf.cell(100, 10, 'Trattamento', 1)
-    pdf.cell(30, 10, 'Q.ta', 1, 0, 'C')
-    pdf.cell(40, 10, 'Prezzo', 1, 0, 'R')
+    pdf.cell(100, 10, 'Trattamento', 1, 0, 'L', 1)
+    pdf.cell(30, 10, 'Q.ta', 1, 0, 'C', 1)
+    pdf.cell(40, 10, 'Importo', 1, 0, 'R', 1)
     pdf.ln()
     
     pdf.set_font('Arial', '', 12)
     for riga in righe_preventivo:
         # Check per evitare errori se mancano chiavi
-        nome = str(riga.get('nome', '-'))[:40]
+        nome = str(riga.get('nome', '-'))[:45] # Taglia nomi troppo lunghi
         qty = str(riga.get('qty', '0'))
         tot_riga = str(riga.get('tot', '0'))
         
         pdf.cell(100, 10, nome, 1)
         pdf.cell(30, 10, qty, 1, 0, 'C')
-        pdf.cell(40, 10, f"{tot_riga} Euro", 1, 0, 'R')
+        pdf.cell(40, 10, f"{tot_riga} E", 1, 0, 'R') # Uso E invece di Euro per compatibilità caratteri
         pdf.ln()
         
-    pdf.ln(10)
+    pdf.ln(5)
+    
+    # 3. Totale
     pdf.set_font('Arial', 'B', 14)
-    pdf.cell(0, 10, f'TOTALE: {totale} Euro', 0, 1, 'R')
+    pdf.cell(130, 10, 'TOTALE PREVENTIVO:', 0, 0, 'R')
+    pdf.cell(40, 10, f'{totale} Euro', 1, 1, 'R')
+    
+    pdf.ln(10)
+
+    # 4. Sezione Pagamento Rateizzato
+    pdf.set_font('Arial', 'B', 11)
+    pdf.cell(0, 8, 'PIANO DI PAGAMENTO RATEIZZATO (Da compilare se applicabile):', 0, 1)
+    
+    pdf.set_font('Arial', '', 11)
+    # Disegniamo 3 righe per scrivere a mano
+    pdf.cell(0, 8, '1) Importo E _______________ entro il _______________', 0, 1)
+    pdf.cell(0, 8, '2) Importo E _______________ entro il _______________', 0, 1)
+    pdf.cell(0, 8, '3) Importo E _______________ entro il _______________', 0, 1)
+    
+    pdf.ln(15)
+
+    # 5. Firma e Data Finale
+    pdf.set_font('Arial', '', 12)
+    
+    # Usiamo le coordinate per posizionare Data a sx e Firma a dx
+    y_pos = pdf.get_y()
+    
+    pdf.cell(90, 10, f'Data: {date.today().strftime("%d/%m/%Y")}', 0, 0, 'L')
+    pdf.cell(90, 10, 'Firma per accettazione:', 0, 1, 'L')
+    
+    # Riga per la firma
+    pdf.set_xy(100, y_pos + 10) # Sposta cursore sotto "Firma"
+    pdf.cell(80, 0, '', 'T') # T = Top border (linea orizzontale)
     
     return pdf.output(dest='S').encode('latin-1')
 
 # --- 3. INTERFACCIA GRAFICA ---
 
-st.set_page_config(page_title="Gestionale Fisio", page_icon="🏥", layout="wide")
+st.set_page_config(page_title="Gestionale Fisio", page_icon="logo.png", layout="wide")
 
 st.sidebar.title("Navigazione")
 menu = st.sidebar.radio(
@@ -144,7 +191,7 @@ menu = st.sidebar.radio(
     ["📊 Dashboard & Allarmi", "👥 Gestione Pazienti", "💰 Calcolo Preventivo", "📦 Inventario Materiali", "🤝 Materiali Prestati", "📝 Scadenze Ufficio"]
 )
 st.sidebar.divider()
-st.sidebar.info("App v1.3 - Fix Preventivi")
+st.sidebar.info("App v1.4 - PDF Pro")
 
 # =========================================================
 # SEZIONE 1: DASHBOARD
@@ -596,5 +643,4 @@ elif menu == "📝 Scadenze Ufficio":
         st.dataframe(df_scad.sort_values("Data_Scadenza").style.format({"Data_Scadenza": lambda t: t.strftime("%d/%m/%Y") if t else ""}), use_container_width=True)
     else:
         st.info("Nessuna scadenza.")
-
-# --- FINE CODICE ---
+        
