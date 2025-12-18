@@ -168,33 +168,30 @@ def save_preventivo_temp(paziente, dettagli_str, totale, note):
     get_data.clear()
     table.create(record, typecast=True)
 
-# === NUOVA FUNZIONE PDF DESIGN PREMIUM ===
+# === PDF MODIFICATO (Versione Pulita) ===
 def create_pdf(paziente, righe_preventivo, totale, note=""):
     class PDF(FPDF):
         def header(self):
             # 1. LOGO CENTRATO E GRANDE
-            # Pagina A4 larghezza ~210mm. Logo width=60mm.
-            # Posizione X = (210 - 60) / 2 = 75
+            # Posizioniamo il logo a Y=10
             if os.path.exists("logo.png"):
                 try: self.image('logo.png', 75, 10, 60)
                 except: pass
             
-            self.ln(35) # Spazio per il logo aumentato
+            # Spostiamo il cursore sotto il logo
+            # Se il logo è alto circa 2cm (20mm), finisce a Y=30.
+            # Impostiamo Y=32 per il testo, così è subito sotto.
+            self.set_y(32)
 
-            # 2. INTESTAZIONE AZIENDALE
-            self.set_font('Arial', 'B', 16)
-            self.cell(0, 10, 'Focus Riabilitazione', 0, 1, 'C')
-            
-            # 3. TITOLO NUOVO
-            self.set_font('Arial', '', 12)
-            self.set_text_color(100, 100, 100) # Grigio scuro
-            self.cell(0, 5, 'PREVENTIVO PERCORSO RIABILITATIVO', 0, 1, 'C')
+            # 2. TITOLO (Senza nome azienda sopra)
+            self.set_font('Arial', 'B', 12) # Bolder per risaltare
+            self.set_text_color(80, 80, 80) # Grigio scuro elegante
+            self.cell(0, 10, 'PREVENTIVO PERCORSO RIABILITATIVO', 0, 1, 'C')
             
             # Linea decorativa
-            self.ln(5)
             self.set_draw_color(200, 200, 200)
             self.line(20, self.get_y(), 190, self.get_y())
-            self.ln(10)
+            self.ln(8) # Spazio dopo la linea
 
         def footer(self):
             self.set_y(-15); self.set_font('Arial', 'I', 8)
@@ -204,7 +201,7 @@ def create_pdf(paziente, righe_preventivo, totale, note=""):
     pdf = PDF()
     pdf.add_page()
     
-    # INFO PAZIENTE E DATA (Design pulito)
+    # INFO PAZIENTE
     pdf.set_text_color(0) # Nero
     pdf.set_font('Arial', 'B', 12)
     pdf.cell(95, 8, f'Paziente: {paziente}', 0, 0, 'L')
@@ -224,34 +221,31 @@ def create_pdf(paziente, righe_preventivo, totale, note=""):
     
     # TABELLA PREZZI
     pdf.set_text_color(255, 255, 255) # Testo bianco
-    pdf.set_fill_color(50, 50, 50)    # Sfondo Grigio Scuro (Professionale)
+    pdf.set_fill_color(50, 50, 50)    # Sfondo Grigio Scuro
     pdf.set_font('Arial', 'B', 11)
     
-    # Header Tabella
-    pdf.cell(110, 10, ' Trattamento', 0, 0, 'L', 1) # Il bordo '0' ma fill '1'
+    pdf.cell(110, 10, ' Trattamento', 0, 0, 'L', 1) 
     pdf.cell(30, 10, 'Q.ta', 0, 0, 'C', 1)
     pdf.cell(50, 10, 'Importo ', 0, 1, 'R', 1)
     
-    # Righe Tabella
     pdf.set_text_color(0) # Torna nero
     pdf.set_font('Arial', '', 11)
-    fill = False # Alternanza colori (opzionale, qui mettiamo bianco)
     
     for riga in righe_preventivo:
         nome = str(riga.get('nome', '-'))[:55]
         qty = str(riga.get('qty', '0'))
         tot_riga = str(riga.get('tot', '0'))
         
-        pdf.cell(110, 10, f" {nome}", 'B') # Bordo solo sotto
+        pdf.cell(110, 10, f" {nome}", 'B') 
         pdf.cell(30, 10, qty, 'B', 0, 'C')
         pdf.cell(50, 10, f"{tot_riga} E ", 'B', 1, 'R')
         
     pdf.ln(5)
     
-    # TOTALE EVIDENZIATO
+    # TOTALE
     pdf.set_font('Arial', 'B', 14)
     pdf.cell(140, 12, 'TOTALE COMPLESSIVO:', 0, 0, 'R')
-    pdf.set_fill_color(240, 240, 240) # Sfondo grigio chiarissimo per il totale
+    pdf.set_fill_color(240, 240, 240)
     pdf.cell(50, 12, f'{totale} Euro', 1, 1, 'R', 1)
     pdf.ln(10)
 
@@ -261,7 +255,6 @@ def create_pdf(paziente, righe_preventivo, totale, note=""):
     pdf.set_font('Arial', '', 10)
     pdf.set_draw_color(180, 180, 180)
     
-    # 3 righe per le rate con linea tratteggiata simulata
     pdf.cell(15, 8, '1) Euro', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
     pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
     
@@ -278,7 +271,7 @@ def create_pdf(paziente, righe_preventivo, totale, note=""):
     pdf.set_xy(110, y_pos)
     pdf.cell(80, 6, 'Firma per accettazione:', 0, 1, 'L')
     pdf.set_xy(110, y_pos + 15)
-    pdf.cell(80, 0, '', 'T') # Linea firma
+    pdf.cell(80, 0, '', 'T')
     
     return pdf.output(dest='S').encode('latin-1')
 
@@ -290,7 +283,7 @@ with st.sidebar:
     st.markdown("### Navigazione")
     menu = st.radio("", ["⚡ Dashboard", "🗂️ Anagrafica", "💳 Preventivi", "🧬 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
     st.divider()
-    st.caption("Focus App v2.5 - PDF Premium")
+    st.caption("Focus App v2.6 - Clean PDF")
 
 # =========================================================
 # SEZIONE 1: DASHBOARD
