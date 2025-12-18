@@ -92,20 +92,16 @@ def create_pdf(paziente, righe_preventivo, totale):
     """Genera il file PDF in memoria"""
     class PDF(FPDF):
         def header(self):
-            # LOGO: Cerca logo.png, se esiste lo mette
+            # LOGO
             if os.path.exists("logo.png"):
                 try:
-                    # x=10, y=8, w=30 (dimensione)
                     self.image('logo.png', 10, 8, 30)
-                except:
-                    pass
+                except: pass
             
-            # Intestazione Testuale
+            # Intestazione
             self.set_font('Arial', 'B', 16)
-            # Spostiamo il titolo un po' a destra per non sovrapporsi al logo
             self.cell(40) 
             self.cell(0, 10, 'Focus Riabilitazione', 0, 1, 'L')
-            
             self.set_font('Arial', 'I', 10)
             self.cell(40)
             self.cell(0, 5, 'Preventivo Trattamenti Fisioterapici', 0, 1, 'L')
@@ -119,14 +115,14 @@ def create_pdf(paziente, righe_preventivo, totale):
     pdf = PDF()
     pdf.add_page()
     
-    # 1. Info Paziente
+    # Info Paziente
     pdf.set_font('Arial', '', 12)
     pdf.cell(0, 8, f'Gentile Paziente: {paziente}', 0, 1)
     pdf.cell(0, 8, f'Data emissione: {date.today().strftime("%d/%m/%Y")}', 0, 1)
     pdf.ln(5)
     
-    # 2. Tabella Trattamenti
-    pdf.set_fill_color(240, 240, 240) # Grigio chiaro per intestazione
+    # Tabella
+    pdf.set_fill_color(240, 240, 240)
     pdf.set_font('Arial', 'B', 12)
     pdf.cell(100, 10, 'Trattamento', 1, 0, 'L', 1)
     pdf.cell(30, 10, 'Q.ta', 1, 0, 'C', 1)
@@ -135,49 +131,37 @@ def create_pdf(paziente, righe_preventivo, totale):
     
     pdf.set_font('Arial', '', 12)
     for riga in righe_preventivo:
-        # Check per evitare errori se mancano chiavi
-        nome = str(riga.get('nome', '-'))[:45] # Taglia nomi troppo lunghi
+        nome = str(riga.get('nome', '-'))[:45]
         qty = str(riga.get('qty', '0'))
         tot_riga = str(riga.get('tot', '0'))
         
         pdf.cell(100, 10, nome, 1)
         pdf.cell(30, 10, qty, 1, 0, 'C')
-        pdf.cell(40, 10, f"{tot_riga} E", 1, 0, 'R') # Uso E invece di Euro per compatibilità caratteri
+        pdf.cell(40, 10, f"{tot_riga} E", 1, 0, 'R')
         pdf.ln()
         
     pdf.ln(5)
-    
-    # 3. Totale
     pdf.set_font('Arial', 'B', 14)
     pdf.cell(130, 10, 'TOTALE PREVENTIVO:', 0, 0, 'R')
     pdf.cell(40, 10, f'{totale} Euro', 1, 1, 'R')
-    
     pdf.ln(10)
 
-    # 4. Sezione Pagamento Rateizzato
+    # Pagamento Rateizzato
     pdf.set_font('Arial', 'B', 11)
     pdf.cell(0, 8, 'PIANO DI PAGAMENTO RATEIZZATO (Da compilare se applicabile):', 0, 1)
-    
     pdf.set_font('Arial', '', 11)
-    # Disegniamo 3 righe per scrivere a mano
     pdf.cell(0, 8, '1) Importo E _______________ entro il _______________', 0, 1)
     pdf.cell(0, 8, '2) Importo E _______________ entro il _______________', 0, 1)
     pdf.cell(0, 8, '3) Importo E _______________ entro il _______________', 0, 1)
-    
     pdf.ln(15)
 
-    # 5. Firma e Data Finale
+    # Firma
     pdf.set_font('Arial', '', 12)
-    
-    # Usiamo le coordinate per posizionare Data a sx e Firma a dx
     y_pos = pdf.get_y()
-    
     pdf.cell(90, 10, f'Data: {date.today().strftime("%d/%m/%Y")}', 0, 0, 'L')
     pdf.cell(90, 10, 'Firma per accettazione:', 0, 1, 'L')
-    
-    # Riga per la firma
-    pdf.set_xy(100, y_pos + 10) # Sposta cursore sotto "Firma"
-    pdf.cell(80, 0, '', 'T') # T = Top border (linea orizzontale)
+    pdf.set_xy(100, y_pos + 10)
+    pdf.cell(80, 0, '', 'T')
     
     return pdf.output(dest='S').encode('latin-1')
 
@@ -191,7 +175,7 @@ menu = st.sidebar.radio(
     ["📊 Dashboard & Allarmi", "👥 Gestione Pazienti", "💰 Calcolo Preventivo", "📦 Inventario Materiali", "🤝 Materiali Prestati", "📝 Scadenze Ufficio"]
 )
 st.sidebar.divider()
-st.sidebar.info("App v1.4 - PDF Pro")
+st.sidebar.info("App v1.5 - Standard Packs")
 
 # =========================================================
 # SEZIONE 1: DASHBOARD
@@ -227,7 +211,6 @@ if menu == "📊 Dashboard & Allarmi":
         k2.metric("Disdetti Totali", len(df_disdetti))
 
         oggi = pd.Timestamp.now().normalize()
-        
         limite_recall = oggi - pd.Timedelta(days=10)
         da_richiamare = df_disdetti[ (df_disdetti['Data_Disdetta'].notna()) & (df_disdetti['Data_Disdetta'] <= limite_recall) ]
         cnt_recall = len(da_richiamare)
@@ -416,7 +399,7 @@ elif menu == "👥 Gestione Pazienti":
                 st.rerun()
 
 # =========================================================
-# SEZIONE 3: PREVENTIVI (AVANZATA & FIXED)
+# SEZIONE 3: PREVENTIVI (AVANZATA & STANDARD)
 # =========================================================
 elif menu == "💰 Calcolo Preventivo":
     st.title("💰 Gestione Preventivi")
@@ -425,6 +408,7 @@ elif menu == "💰 Calcolo Preventivo":
 
     df_srv = get_data("Servizi")
     df_paz = get_data("Pazienti")
+    df_std = get_data("Preventivi_Standard") # Nuova tabella
 
     with tab1:
         # A. Listino
@@ -448,13 +432,46 @@ elif menu == "💰 Calcolo Preventivo":
 
         # B. Generatore
         st.subheader("Nuovo Preventivo")
+        
+        # Gestione Standard Pack
+        selected_services_default = []
+        if not df_std.empty and 'Nome' in df_std.columns:
+            opt_std = ["-- Seleziona (Opzionale) --"] + list(df_std['Nome'].unique())
+            scelta_std = st.selectbox("📂 Carica da Modello Standard", opt_std)
+            
+            if scelta_std != "-- Seleziona (Opzionale) --":
+                row_std = df_std[df_std['Nome'] == scelta_std].iloc[0]
+                content = row_std.get('Contenuto', '')
+                if content:
+                    # Parsing "Tecar x10, Massaggio x5"
+                    parts = [x.strip() for x in content.split(',')]
+                    for p in parts:
+                        # p = "Tecar x10"
+                        if ' x' in p:
+                            srv_name, srv_qty = p.split(' x')
+                            # Aggiungi alla lista per multiselect
+                            selected_services_default.append(srv_name)
+                            # Salva quantità in session_state per i number_input
+                            st.session_state[f"qty_preload_{srv_name}"] = int(srv_qty)
+        
+        # Selezione Paziente
         nomi_pazienti = ["Nuovo Paziente"]
         if not df_paz.empty:
             nomi_pazienti += sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows() if r.get('Cognome')])
         
         paziente_scelto = st.selectbox("Intestato a:", nomi_pazienti)
+        
+        # Multiselect (con default value se caricato da standard)
         listino_dict = {str(r['Servizio']): float(r.get('Prezzo', 0) or 0) for i, r in df_srv.iterrows() if r.get('Servizio')}
-        servizi_scelti = st.multiselect("Aggiungi Trattamenti", sorted(list(listino_dict.keys())))
+        
+        # Filtriamo solo i servizi che esistono nel listino per evitare errori
+        valid_defaults = [s for s in selected_services_default if s in listino_dict]
+        
+        servizi_scelti = st.multiselect(
+            "Aggiungi Trattamenti", 
+            sorted(list(listino_dict.keys())),
+            default=valid_defaults
+        )
 
         righe_preventivo = []
         totale = 0
@@ -464,7 +481,11 @@ elif menu == "💰 Calcolo Preventivo":
             for s in servizi_scelti:
                 c1, c2, c3 = st.columns([3, 1, 1])
                 with c1: st.write(f"**{s}**")
-                with c2: qty = st.number_input(f"Q.tà", 1, 50, 1, key=f"q_{s}", label_visibility="collapsed")
+                
+                # Check se c'è una quantità precaricata dal modello standard
+                def_qty = st.session_state.get(f"qty_preload_{s}", 1)
+                
+                with c2: qty = st.number_input(f"Q.tà", 1, 50, def_qty, key=f"q_{s}", label_visibility="collapsed")
                 with c3: 
                     costo = listino_dict[s] * qty
                     st.write(f"{costo} €")
@@ -478,6 +499,9 @@ elif menu == "💰 Calcolo Preventivo":
                 dettagli_str = " | ".join([f"{r['nome']} x{r['qty']} ({r['tot']}€)" for r in righe_preventivo])
                 save_preventivo_temp(paziente_scelto, dettagli_str, totale)
                 st.success("Salvato nei 'Preventivi Salvati'!")
+                # Pulizia session state opzionale
+                for k in list(st.session_state.keys()):
+                    if k.startswith("qty_preload_"): del st.session_state[k]
                 st.balloons()
 
     with tab2:
@@ -487,12 +511,7 @@ elif menu == "💰 Calcolo Preventivo":
             for i, row in df_prev.iterrows():
                 rec_id = row['id']
                 paz = row.get('Paziente', 'Sconosciuto')
-                
-                # FIX CRUCIALE: Assicuriamoci che i dati siano stringhe anche se vuoti o NaN
-                dett = row.get('Dettagli', '')
-                if pd.isna(dett): dett = ""
-                dett = str(dett)
-                
+                dett = str(row.get('Dettagli', ''))
                 tot = row.get('Totale', 0)
                 data_c = row.get('Data_Creazione', '')
 
@@ -643,4 +662,5 @@ elif menu == "📝 Scadenze Ufficio":
         st.dataframe(df_scad.sort_values("Data_Scadenza").style.format({"Data_Scadenza": lambda t: t.strftime("%d/%m/%Y") if t else ""}), use_container_width=True)
     else:
         st.info("Nessuna scadenza.")
-        
+
+# --- FINE CODICE ---
