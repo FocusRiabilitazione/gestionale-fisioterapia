@@ -118,9 +118,14 @@ def create_pdf(paziente, righe_preventivo, totale):
     
     pdf.set_font('Arial', '', 12)
     for riga in righe_preventivo:
-        pdf.cell(100, 10, str(riga['nome'])[:40], 1)
-        pdf.cell(30, 10, str(riga['qty']), 1, 0, 'C')
-        pdf.cell(40, 10, f"{riga['tot']} Euro", 1, 0, 'R')
+        # Check per evitare errori se mancano chiavi
+        nome = str(riga.get('nome', '-'))[:40]
+        qty = str(riga.get('qty', '0'))
+        tot_riga = str(riga.get('tot', '0'))
+        
+        pdf.cell(100, 10, nome, 1)
+        pdf.cell(30, 10, qty, 1, 0, 'C')
+        pdf.cell(40, 10, f"{tot_riga} Euro", 1, 0, 'R')
         pdf.ln()
         
     pdf.ln(10)
@@ -139,7 +144,7 @@ menu = st.sidebar.radio(
     ["📊 Dashboard & Allarmi", "👥 Gestione Pazienti", "💰 Calcolo Preventivo", "📦 Inventario Materiali", "🤝 Materiali Prestati", "📝 Scadenze Ufficio"]
 )
 st.sidebar.divider()
-st.sidebar.info("App v1.2 - Full")
+st.sidebar.info("App v1.3 - Fix Preventivi")
 
 # =========================================================
 # SEZIONE 1: DASHBOARD
@@ -176,20 +181,17 @@ if menu == "📊 Dashboard & Allarmi":
 
         oggi = pd.Timestamp.now().normalize()
         
-        # Alert Disdette
         limite_recall = oggi - pd.Timedelta(days=10)
         da_richiamare = df_disdetti[ (df_disdetti['Data_Disdetta'].notna()) & (df_disdetti['Data_Disdetta'] <= limite_recall) ]
         cnt_recall = len(da_richiamare)
         k3.metric("Recall Disdette", cnt_recall, delta_color="inverse")
 
-        # Alert Visite
         df_visite = df[ (df['Visita_Esterna'] == True) | (df['Visita_Esterna'] == 1) ]
         domani = oggi + pd.Timedelta(days=1)
         visite_imminenti = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] >= oggi) & (df_visite['Data_Visita'] <= domani) ]
         sette_giorni_fa = oggi - pd.Timedelta(days=7)
         visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
 
-        # Alert Prestiti
         df_prestiti = get_data("Prestiti")
         prestiti_scaduti = pd.DataFrame()
         if not df_prestiti.empty and 'Data_Prestito' in df_prestiti.columns:
@@ -200,7 +202,6 @@ if menu == "📊 Dashboard & Allarmi":
 
         st.divider()
 
-        # Visualizzazione Alerts
         alert_shown = False
         
         if not visite_imminenti.empty:
@@ -253,7 +254,6 @@ if menu == "📊 Dashboard & Allarmi":
 
         st.write("---")
 
-        # Grafico
         st.subheader("📍 Carico di Lavoro")
         df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
         
@@ -369,7 +369,7 @@ elif menu == "👥 Gestione Pazienti":
                 st.rerun()
 
 # =========================================================
-# SEZIONE 3: PREVENTIVI (AVANZATA)
+# SEZIONE 3: PREVENTIVI (AVANZATA & FIXED)
 # =========================================================
 elif menu == "💰 Calcolo Preventivo":
     st.title("💰 Gestione Preventivi")
@@ -440,7 +440,12 @@ elif menu == "💰 Calcolo Preventivo":
             for i, row in df_prev.iterrows():
                 rec_id = row['id']
                 paz = row.get('Paziente', 'Sconosciuto')
+                
+                # FIX CRUCIALE: Assicuriamoci che i dati siano stringhe anche se vuoti o NaN
                 dett = row.get('Dettagli', '')
+                if pd.isna(dett): dett = ""
+                dett = str(dett)
+                
                 tot = row.get('Totale', 0)
                 data_c = row.get('Data_Creazione', '')
 
@@ -592,4 +597,4 @@ elif menu == "📝 Scadenze Ufficio":
     else:
         st.info("Nessuna scadenza.")
 
-# --- FINE DEL CODICE ---
+# --- FINE CODICE ---
