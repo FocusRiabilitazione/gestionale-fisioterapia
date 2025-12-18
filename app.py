@@ -4,6 +4,8 @@ import pandas as pd
 from requests.exceptions import HTTPError
 import altair as alt
 from datetime import date, timedelta
+from fpdf import FPDF
+import io
 
 # --- 1. CONFIGURAZIONE CONNESSIONE ---
 try:
@@ -25,7 +27,6 @@ def get_data(table_name):
         records = table.all()
         if not records:
             return pd.DataFrame()
-        
         data = [{'id': r['id'], **r['fields']} for r in records]
         df = pd.DataFrame(data)
         return df
@@ -33,19 +34,12 @@ def get_data(table_name):
         return pd.DataFrame()
 
 def save_paziente(nome, cognome, area, disdetto):
-    """Salva un nuovo paziente su Airtable"""
     table = api.table(BASE_ID, "Pazienti")
-    record = {
-        "Nome": nome,
-        "Cognome": cognome,
-        "Area": area,
-        "Disdetto": disdetto 
-    }
+    record = {"Nome": nome, "Cognome": cognome, "Area": area, "Disdetto": disdetto}
     get_data.clear()
     table.create(record, typecast=True)
 
 def update_generic(table_name, record_id, dati_aggiornati):
-    """Funzione universale per aggiornare qualsiasi tabella."""
     table = api.table(BASE_ID, table_name)
     fields_to_send = {}
     for k, v in dati_aggiornati.items():
@@ -62,33 +56,82 @@ def update_generic(table_name, record_id, dati_aggiornati):
     table.update(record_id, fields_to_send, typecast=True)
 
 def delete_generic(table_name, record_id):
-    """Elimina un record da una tabella qualsiasi"""
     table = api.table(BASE_ID, table_name)
     table.delete(record_id)
+    get_data.clear()
 
 def save_prestito(paziente, oggetto, data_prestito):
-    """Registra un nuovo prestito"""
     table = api.table(BASE_ID, "Prestiti")
     data_str = data_prestito.strftime('%Y-%m-%d') if hasattr(data_prestito, 'strftime') else str(data_prestito)
-    record = {
-        "Paziente": paziente,
-        "Oggetto": oggetto,
-        "Data_Prestito": data_str,
-        "Restituito": False
-    }
+    record = {"Paziente": paziente, "Oggetto": oggetto, "Data_Prestito": data_str, "Restituito": False}
     get_data.clear()
     table.create(record, typecast=True)
 
 def save_prodotto(prodotto, quantita):
-    """Aggiunge un prodotto all'inventario"""
     table = api.table(BASE_ID, "Inventario")
     record = {"Prodotto": prodotto, "Quantita": quantita}
     get_data.clear()
     table.create(record, typecast=True)
 
+# --- FUNZIONI PER PREVENTIVI ---
+
+def save_preventivo_temp(paziente, dettagli_str, totale):
+    """Salva il preventivo nella tabella temporanea"""
+    table = api.table(BASE_ID, "Preventivi_Salvati")
+    record = {
+        "Paziente": paziente,
+        "Dettagli": dettagli_str,
+        "Totale": totale,
+        "Data_Creazione": str(date.today())
+    }
+    get_data.clear()
+    table.create(record, typecast=True)
+
+def create_pdf(paziente, righe_preventivo, totale):
+    """Genera il file PDF in memoria"""
+    class PDF(FPDF):
+        def header(self):
+            self.set_font('Arial', 'B', 16)
+            self.cell(0, 10, 'Studio Fisioterapico', 0, 1, 'C')
+            self.set_font('Arial', 'I', 10)
+            self.cell(0, 5, 'Preventivo Trattamenti', 0, 1, 'C')
+            self.ln(10)
+
+        def footer(self):
+            self.set_y(-15)
+            self.set_font('Arial', 'I', 8)
+            self.cell(0, 10, f'Pagina {self.page_no()}', 0, 0, 'C')
+
+    pdf = PDF()
+    pdf.add_page()
+    
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(0, 10, f'Paziente: {paziente}', 0, 1)
+    pdf.cell(0, 10, f'Data: {date.today().strftime("%d/%m/%Y")}', 0, 1)
+    pdf.ln(5)
+    
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(100, 10, 'Trattamento', 1)
+    pdf.cell(30, 10, 'Q.ta', 1, 0, 'C')
+    pdf.cell(40, 10, 'Prezzo', 1, 0, 'R')
+    pdf.ln()
+    
+    pdf.set_font('Arial', '', 12)
+    for riga in righe_preventivo:
+        pdf.cell(100, 10, str(riga['nome'])[:40], 1)
+        pdf.cell(30, 10, str(riga['qty']), 1, 0, 'C')
+        pdf.cell(40, 10, f"{riga['tot']} Euro", 1, 0, 'R')
+        pdf.ln()
+        
+    pdf.ln(10)
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, f'TOTALE: {totale} Euro', 0, 1, 'R')
+    
+    return pdf.output(dest='S').encode('latin-1')
+
 # --- 3. INTERFACCIA GRAFICA ---
 
-st.set_page_config(page_title="Gestionale Fisio", page_icon="logo.png", layout="wide")
+st.set_page_config(page_title="Gestionale Fisio", page_icon="🏥", layout="wide")
 
 st.sidebar.title("Navigazione")
 menu = st.sidebar.radio(
@@ -96,7 +139,7 @@ menu = st.sidebar.radio(
     ["📊 Dashboard & Allarmi", "👥 Gestione Pazienti", "💰 Calcolo Preventivo", "📦 Inventario Materiali", "🤝 Materiali Prestati", "📝 Scadenze Ufficio"]
 )
 st.sidebar.divider()
-st.sidebar.info("App collegata ad Airtable.")
+st.sidebar.info("App v1.2 - Full")
 
 # =========================================================
 # SEZIONE 1: DASHBOARD
@@ -113,8 +156,6 @@ if menu == "📊 Dashboard & Allarmi":
     df = get_data("Pazienti")
     
     if not df.empty:
-        # --- PULIZIA DATI ---
-        # Garantiamo che le colonne esistano sempre
         for col in ['Disdetto', 'Visita_Esterna']:
             if col not in df.columns: df[col] = False
             df[col] = df[col].fillna(False)
@@ -125,7 +166,6 @@ if menu == "📊 Dashboard & Allarmi":
             
         if 'Area' not in df.columns: df['Area'] = None
 
-        # --- CALCOLI KPI ---
         totali = len(df)
         df_disdetti = df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ]
         cnt_attivi = totali - len(df_disdetti)
@@ -134,24 +174,22 @@ if menu == "📊 Dashboard & Allarmi":
         k1.metric("Pazienti Attivi", cnt_attivi)
         k2.metric("Disdetti Totali", len(df_disdetti))
 
-        # --- ALERT LOGIC ---
         oggi = pd.Timestamp.now().normalize()
         
-        # 1. Recall Disdette
+        # Alert Disdette
         limite_recall = oggi - pd.Timedelta(days=10)
         da_richiamare = df_disdetti[ (df_disdetti['Data_Disdetta'].notna()) & (df_disdetti['Data_Disdetta'] <= limite_recall) ]
         cnt_recall = len(da_richiamare)
         k3.metric("Recall Disdette", cnt_recall, delta_color="inverse")
 
-        # 2. Visite
+        # Alert Visite
         df_visite = df[ (df['Visita_Esterna'] == True) | (df['Visita_Esterna'] == 1) ]
         domani = oggi + pd.Timedelta(days=1)
         visite_imminenti = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] >= oggi) & (df_visite['Data_Visita'] <= domani) ]
-        
         sette_giorni_fa = oggi - pd.Timedelta(days=7)
         visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
 
-        # 3. Prestiti
+        # Alert Prestiti
         df_prestiti = get_data("Prestiti")
         prestiti_scaduti = pd.DataFrame()
         if not df_prestiti.empty and 'Data_Prestito' in df_prestiti.columns:
@@ -162,7 +200,7 @@ if menu == "📊 Dashboard & Allarmi":
 
         st.divider()
 
-        # --- VISUALIZZAZIONE ALERT ---
+        # Visualizzazione Alerts
         alert_shown = False
         
         if not visite_imminenti.empty:
@@ -215,13 +253,10 @@ if menu == "📊 Dashboard & Allarmi":
 
         st.write("---")
 
-        # --- GRAFICO (FIXED) ---
-        st.subheader("📍 Carico di Lavoro (Attivi)")
-        
-        # Filtriamo solo gli attivi
+        # Grafico
+        st.subheader("📍 Carico di Lavoro")
         df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
         
-        # Raccogliamo le aree
         all_areas = []
         if 'Area' in df_attivi.columns:
             for item in df_attivi['Area'].dropna():
@@ -236,14 +271,13 @@ if menu == "📊 Dashboard & Allarmi":
             range_ = ["#33A1C9", "#F1C40F", "#2ECC71", "#9B59B6", "#E74C3C", "#7F8C8D"]
             
             chart = alt.Chart(counts).mark_bar().encode(
-                x=alt.X('Pazienti', title="Pazienti"), 
+                x=alt.X('Pazienti'), 
                 y=alt.Y('Area', sort='-x'),
                 color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None)
             ).properties(height=350)
             st.altair_chart(chart, use_container_width=True)
         else:
             st.info("ℹ️ Il grafico apparirà quando avrai inserito le 'Aree' per i pazienti attivi.")
-
     else:
         st.info("Nessun dato pazienti trovato.")
 
@@ -335,38 +369,126 @@ elif menu == "👥 Gestione Pazienti":
                 st.rerun()
 
 # =========================================================
-# SEZIONE 3: PREVENTIVI
+# SEZIONE 3: PREVENTIVI (AVANZATA)
 # =========================================================
 elif menu == "💰 Calcolo Preventivo":
-    st.title("Generatore Preventivi")
-    df_srv = get_data("Servizi") 
-    listino = {str(r['Servizio']): float(r.get('Prezzo', 0) or 0) for i, r in df_srv.iterrows() if r.get('Servizio')} if not df_srv.empty else {}
-    
-    c1, c2 = st.columns([2, 1])
-    scelte = c1.multiselect("Trattamenti", sorted(list(listino.keys())))
-    tot = 0
-    if scelte:
-        st.write("---")
-        for t in scelte:
-            qty = st.number_input(f"n. {t}", 1, 20, 5, key=t)
-            costo = listino[t] * qty
-            st.write(f"{t}: {listino[t]}€ x {qty} = **{costo}€**")
-            tot += costo
-        st.subheader(f"TOTALE: {tot} €")
+    st.title("💰 Gestione Preventivi")
+
+    tab1, tab2 = st.tabs(["📝 Generatore & Listino", "📂 Preventivi Salvati"])
+
+    df_srv = get_data("Servizi")
+    df_paz = get_data("Pazienti")
+
+    with tab1:
+        # A. Listino
+        with st.expander("📋 Visualizza Listino per Aree", expanded=False):
+            if not df_srv.empty and 'Area' in df_srv.columns:
+                aree_uniche = df_srv['Area'].dropna().unique()
+                cols = st.columns(len(aree_uniche) if len(aree_uniche) <= 3 else 3)
+                
+                for i, area in enumerate(aree_uniche):
+                    col_idx = i % 3
+                    with cols[col_idx]:
+                        st.markdown(f"**📍 {area}**")
+                        items = df_srv[df_srv['Area'] == area]
+                        for _, r in items.iterrows():
+                            prz = f"{r['Prezzo']}€" if 'Prezzo' in r else "-"
+                            st.caption(f"▫️ {r['Servizio']}: **{prz}**")
+            else:
+                st.warning("⚠️ Aggiungi la colonna 'Area' nella tabella Servizi su Airtable.")
+
+        st.divider()
+
+        # B. Generatore
+        st.subheader("Nuovo Preventivo")
+        nomi_pazienti = ["Nuovo Paziente"]
+        if not df_paz.empty:
+            nomi_pazienti += sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows() if r.get('Cognome')])
+        
+        paziente_scelto = st.selectbox("Intestato a:", nomi_pazienti)
+        listino_dict = {str(r['Servizio']): float(r.get('Prezzo', 0) or 0) for i, r in df_srv.iterrows() if r.get('Servizio')}
+        servizi_scelti = st.multiselect("Aggiungi Trattamenti", sorted(list(listino_dict.keys())))
+
+        righe_preventivo = []
+        totale = 0
+
+        if servizi_scelti:
+            st.write("---")
+            for s in servizi_scelti:
+                c1, c2, c3 = st.columns([3, 1, 1])
+                with c1: st.write(f"**{s}**")
+                with c2: qty = st.number_input(f"Q.tà", 1, 50, 1, key=f"q_{s}", label_visibility="collapsed")
+                with c3: 
+                    costo = listino_dict[s] * qty
+                    st.write(f"{costo} €")
+                totale += costo
+                righe_preventivo.append({"nome": s, "qty": qty, "tot": costo})
+            
+            st.divider()
+            st.metric("TOTALE", f"{totale} €")
+            
+            if st.button("💾 Salva Preventivo"):
+                dettagli_str = " | ".join([f"{r['nome']} x{r['qty']} ({r['tot']}€)" for r in righe_preventivo])
+                save_preventivo_temp(paziente_scelto, dettagli_str, totale)
+                st.success("Salvato nei 'Preventivi Salvati'!")
+                st.balloons()
+
+    with tab2:
+        st.subheader("Preventivi in Attesa")
+        df_prev = get_data("Preventivi_Salvati")
+        if not df_prev.empty:
+            for i, row in df_prev.iterrows():
+                rec_id = row['id']
+                paz = row.get('Paziente', 'Sconosciuto')
+                dett = row.get('Dettagli', '')
+                tot = row.get('Totale', 0)
+                data_c = row.get('Data_Creazione', '')
+
+                with st.container(border=True):
+                    col_info, col_pdf, col_conf = st.columns([3, 1, 1])
+                    with col_info:
+                        st.markdown(f"**{paz}** - {tot} €")
+                        st.caption(f"Del: {data_c}")
+                    with col_pdf:
+                        righe_pdf = []
+                        if dett:
+                            items = dett.split(" | ")
+                            for it in items:
+                                try:
+                                    parts = it.split(" x")
+                                    nome = parts[0]
+                                    rest = parts[1].split(" (")
+                                    qty = rest[0]
+                                    prz = rest[1].replace("€)", "")
+                                    righe_pdf.append({"nome": nome, "qty": qty, "tot": prz})
+                                except:
+                                    righe_pdf.append({"nome": it, "qty": "-", "tot": "-"})
+
+                        pdf_bytes = create_pdf(paz, righe_pdf, tot)
+                        st.download_button("📄 PDF", data=pdf_bytes, file_name=f"Prev_{paz}.pdf", mime="application/pdf", key=f"pdf_{rec_id}")
+                    with col_conf:
+                        if st.button("✅ Conferma", key=f"conf_{rec_id}"):
+                            delete_generic("Preventivi_Salvati", rec_id)
+                            st.toast("Confermato!")
+                            st.rerun()
+        else:
+            st.info("Nessun preventivo in attesa.")
 
 # =========================================================
 # SEZIONE 4: INVENTARIO
 # =========================================================
 elif menu == "📦 Inventario Materiali":
     st.title("📦 Magazzino e Inventario")
+    
     c1, c2 = st.columns([2, 1])
-    with c1: st.info("Gestisci qui le quantità dei materiali.")
+    with c1:
+        st.info("Gestisci qui le quantità dei materiali (Elettrodi, Creme, Fasce...)")
     with c2:
-        with st.expander("➕ Aggiungi"):
+        with st.expander("➕ Aggiungi Prodotto"):
             with st.form("add_prod"):
-                new_prod = st.text_input("Nome")
-                new_qty = st.number_input("Q.tà", 0, 1000, 1)
-                if st.form_submit_button("Salva"):
+                new_prod = st.text_input("Nome Prodotto")
+                new_qty = st.number_input("Quantità Iniziale", 0, 1000, 1)
+                if st.form_submit_button("Aggiungi"):
                     save_prodotto(new_prod, new_qty)
                     st.success("Fatto!")
                     st.rerun()
@@ -381,8 +503,10 @@ elif menu == "📦 Inventario Materiali":
                 "Quantita": st.column_config.NumberColumn("Quantità", min_value=0, step=1),
                 "id": None
             },
-            hide_index=True, use_container_width=True
+            hide_index=True,
+            use_container_width=True
         )
+
         if st.button("💾 Aggiorna Quantità"):
             cnt = 0
             for i, row in edited_inv.iterrows():
@@ -393,9 +517,10 @@ elif menu == "📦 Inventario Materiali":
                     cnt += 1
             if cnt > 0:
                 get_data.clear()
-                st.success("Aggiornato!")
+                st.success("Inventario Aggiornato!")
                 st.rerun()
-    else: st.info("Inventario vuoto.")
+    else:
+        st.info("Inventario vuoto.")
 
 # =========================================================
 # SEZIONE 5: PRESTITI
@@ -466,4 +591,5 @@ elif menu == "📝 Scadenze Ufficio":
         st.dataframe(df_scad.sort_values("Data_Scadenza").style.format({"Data_Scadenza": lambda t: t.strftime("%d/%m/%Y") if t else ""}), use_container_width=True)
     else:
         st.info("Nessuna scadenza.")
-        
+
+# --- FINE DEL CODICE ---
