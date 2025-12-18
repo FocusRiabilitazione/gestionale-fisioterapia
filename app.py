@@ -175,7 +175,7 @@ menu = st.sidebar.radio(
     ["📊 Dashboard & Allarmi", "👥 Gestione Pazienti", "💰 Calcolo Preventivo", "📦 Inventario Materiali", "🤝 Materiali Prestati", "📝 Scadenze Ufficio"]
 )
 st.sidebar.divider()
-st.sidebar.info("App v1.5 - Standard Packs")
+st.sidebar.info("App v1.6 - Filtered Packs")
 
 # =========================================================
 # SEZIONE 1: DASHBOARD
@@ -399,7 +399,7 @@ elif menu == "👥 Gestione Pazienti":
                 st.rerun()
 
 # =========================================================
-# SEZIONE 3: PREVENTIVI (AVANZATA & STANDARD)
+# SEZIONE 3: PREVENTIVI (AVANZATA & STANDARD & FILTRI)
 # =========================================================
 elif menu == "💰 Calcolo Preventivo":
     st.title("💰 Gestione Preventivi")
@@ -408,7 +408,7 @@ elif menu == "💰 Calcolo Preventivo":
 
     df_srv = get_data("Servizi")
     df_paz = get_data("Pazienti")
-    df_std = get_data("Preventivi_Standard") # Nuova tabella
+    df_std = get_data("Preventivi_Standard")
 
     with tab1:
         # A. Listino
@@ -433,25 +433,37 @@ elif menu == "💰 Calcolo Preventivo":
         # B. Generatore
         st.subheader("Nuovo Preventivo")
         
-        # Gestione Standard Pack
+        # --- BLOCCO STANDARD PACKS CON FILTRO ---
         selected_services_default = []
         if not df_std.empty and 'Nome' in df_std.columns:
-            opt_std = ["-- Seleziona (Opzionale) --"] + list(df_std['Nome'].unique())
-            scelta_std = st.selectbox("📂 Carica da Modello Standard", opt_std)
+            
+            # 1. Filtro Area
+            if 'Area' in df_std.columns:
+                aree_std = ["Tutte"] + sorted(list(df_std['Area'].astype(str).unique()))
+                filtro_area = st.selectbox("📂 Filtra Area Pacchetti:", aree_std)
+                
+                if filtro_area != "Tutte":
+                    df_std_filt = df_std[df_std['Area'].astype(str) == filtro_area]
+                else:
+                    df_std_filt = df_std
+            else:
+                # Se l'utente non ha ancora creato la colonna Area, non crashare
+                df_std_filt = df_std
+                st.warning("💡 Suggerimento: Aggiungi colonna 'Area' in Preventivi_Standard su Airtable per filtrare.")
+
+            # 2. Scelta Pacchetto
+            opt_std = ["-- Seleziona (Opzionale) --"] + sorted(list(df_std_filt['Nome'].unique()))
+            scelta_std = st.selectbox("👉 Scegli Pacchetto Standard:", opt_std)
             
             if scelta_std != "-- Seleziona (Opzionale) --":
-                row_std = df_std[df_std['Nome'] == scelta_std].iloc[0]
+                row_std = df_std_filt[df_std_filt['Nome'] == scelta_std].iloc[0]
                 content = row_std.get('Contenuto', '')
                 if content:
-                    # Parsing "Tecar x10, Massaggio x5"
                     parts = [x.strip() for x in content.split(',')]
                     for p in parts:
-                        # p = "Tecar x10"
                         if ' x' in p:
                             srv_name, srv_qty = p.split(' x')
-                            # Aggiungi alla lista per multiselect
                             selected_services_default.append(srv_name)
-                            # Salva quantità in session_state per i number_input
                             st.session_state[f"qty_preload_{srv_name}"] = int(srv_qty)
         
         # Selezione Paziente
@@ -461,10 +473,7 @@ elif menu == "💰 Calcolo Preventivo":
         
         paziente_scelto = st.selectbox("Intestato a:", nomi_pazienti)
         
-        # Multiselect (con default value se caricato da standard)
         listino_dict = {str(r['Servizio']): float(r.get('Prezzo', 0) or 0) for i, r in df_srv.iterrows() if r.get('Servizio')}
-        
-        # Filtriamo solo i servizi che esistono nel listino per evitare errori
         valid_defaults = [s for s in selected_services_default if s in listino_dict]
         
         servizi_scelti = st.multiselect(
@@ -482,7 +491,6 @@ elif menu == "💰 Calcolo Preventivo":
                 c1, c2, c3 = st.columns([3, 1, 1])
                 with c1: st.write(f"**{s}**")
                 
-                # Check se c'è una quantità precaricata dal modello standard
                 def_qty = st.session_state.get(f"qty_preload_{s}", 1)
                 
                 with c2: qty = st.number_input(f"Q.tà", 1, 50, def_qty, key=f"q_{s}", label_visibility="collapsed")
@@ -499,7 +507,6 @@ elif menu == "💰 Calcolo Preventivo":
                 dettagli_str = " | ".join([f"{r['nome']} x{r['qty']} ({r['tot']}€)" for r in righe_preventivo])
                 save_preventivo_temp(paziente_scelto, dettagli_str, totale)
                 st.success("Salvato nei 'Preventivi Salvati'!")
-                # Pulizia session state opzionale
                 for k in list(st.session_state.keys()):
                     if k.startswith("qty_preload_"): del st.session_state[k]
                 st.balloons()
@@ -512,6 +519,7 @@ elif menu == "💰 Calcolo Preventivo":
                 rec_id = row['id']
                 paz = row.get('Paziente', 'Sconosciuto')
                 dett = str(row.get('Dettagli', ''))
+                if pd.isna(dett): dett = ""
                 tot = row.get('Totale', 0)
                 data_c = row.get('Data_Creazione', '')
 
