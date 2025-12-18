@@ -168,30 +168,30 @@ def save_preventivo_temp(paziente, dettagli_str, totale, note):
     get_data.clear()
     table.create(record, typecast=True)
 
-# === PDF MODIFICATO (Versione Pulita) ===
+# === PDF CON EURO SIMBOLO ===
 def create_pdf(paziente, righe_preventivo, totale, note=""):
+    # SIMBOLO EURO PER FPDF (chr(128) in windows-1252)
+    euro = chr(128)
+    
     class PDF(FPDF):
         def header(self):
-            # 1. LOGO CENTRATO E GRANDE
-            # Posizioniamo il logo a Y=10
+            # 1. LOGO CENTRATO
             if os.path.exists("logo.png"):
                 try: self.image('logo.png', 75, 10, 60)
                 except: pass
             
-            # Spostiamo il cursore sotto il logo
-            # Se il logo è alto circa 2cm (20mm), finisce a Y=30.
-            # Impostiamo Y=32 per il testo, così è subito sotto.
+            # Spazio sotto il logo
             self.set_y(32)
 
-            # 2. TITOLO (Senza nome azienda sopra)
-            self.set_font('Arial', 'B', 12) # Bolder per risaltare
-            self.set_text_color(80, 80, 80) # Grigio scuro elegante
+            # 2. TITOLO PULITO
+            self.set_font('Arial', 'B', 12)
+            self.set_text_color(80, 80, 80)
             self.cell(0, 10, 'PREVENTIVO PERCORSO RIABILITATIVO', 0, 1, 'C')
             
-            # Linea decorativa
+            # Linea
             self.set_draw_color(200, 200, 200)
             self.line(20, self.get_y(), 190, self.get_y())
-            self.ln(8) # Spazio dopo la linea
+            self.ln(8)
 
         def footer(self):
             self.set_y(-15); self.set_font('Arial', 'I', 8)
@@ -202,33 +202,34 @@ def create_pdf(paziente, righe_preventivo, totale, note=""):
     pdf.add_page()
     
     # INFO PAZIENTE
-    pdf.set_text_color(0) # Nero
+    pdf.set_text_color(0)
     pdf.set_font('Arial', 'B', 12)
     pdf.cell(95, 8, f'Paziente: {paziente}', 0, 0, 'L')
     pdf.set_font('Arial', '', 12)
     pdf.cell(95, 8, f'Data: {date.today().strftime("%d/%m/%Y")}', 0, 1, 'R')
     pdf.ln(8)
     
-    # DESCRIZIONE PERCORSO
+    # DESCRIZIONE
     if note and len(note) > 5:
         pdf.set_font('Arial', 'BI', 11)
         pdf.cell(0, 8, 'Obiettivi e Descrizione del Percorso:', 0, 1)
         pdf.set_font('Arial', 'I', 11)
         pdf.set_text_color(60, 60, 60)
-        clean_note = note.encode('latin-1', 'replace').decode('latin-1')
+        # Sostituisco eventuali € scritti a mano con il codice giusto
+        clean_note = note.replace("€", euro).encode('latin-1', 'replace').decode('latin-1')
         pdf.multi_cell(0, 6, clean_note)
         pdf.ln(10)
     
     # TABELLA PREZZI
-    pdf.set_text_color(255, 255, 255) # Testo bianco
-    pdf.set_fill_color(50, 50, 50)    # Sfondo Grigio Scuro
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_fill_color(50, 50, 50)
     pdf.set_font('Arial', 'B', 11)
     
     pdf.cell(110, 10, ' Trattamento', 0, 0, 'L', 1) 
     pdf.cell(30, 10, 'Q.ta', 0, 0, 'C', 1)
     pdf.cell(50, 10, 'Importo ', 0, 1, 'R', 1)
     
-    pdf.set_text_color(0) # Torna nero
+    pdf.set_text_color(0)
     pdf.set_font('Arial', '', 11)
     
     for riga in righe_preventivo:
@@ -238,7 +239,7 @@ def create_pdf(paziente, righe_preventivo, totale, note=""):
         
         pdf.cell(110, 10, f" {nome}", 'B') 
         pdf.cell(30, 10, qty, 'B', 0, 'C')
-        pdf.cell(50, 10, f"{tot_riga} E ", 'B', 1, 'R')
+        pdf.cell(50, 10, f"{tot_riga} {euro} ", 'B', 1, 'R') # EURO QUI
         
     pdf.ln(5)
     
@@ -246,7 +247,7 @@ def create_pdf(paziente, righe_preventivo, totale, note=""):
     pdf.set_font('Arial', 'B', 14)
     pdf.cell(140, 12, 'TOTALE COMPLESSIVO:', 0, 0, 'R')
     pdf.set_fill_color(240, 240, 240)
-    pdf.cell(50, 12, f'{totale} Euro', 1, 1, 'R', 1)
+    pdf.cell(50, 12, f'{totale} {euro}', 1, 1, 'R', 1) # EURO QUI
     pdf.ln(10)
 
     # RATE
@@ -255,13 +256,14 @@ def create_pdf(paziente, righe_preventivo, totale, note=""):
     pdf.set_font('Arial', '', 10)
     pdf.set_draw_color(180, 180, 180)
     
-    pdf.cell(15, 8, '1) Euro', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
+    # EURO ANCHE NELLE RATE
+    pdf.cell(15, 8, f'1) {euro}', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
     pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
     
-    pdf.cell(15, 8, '2) Euro', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
+    pdf.cell(15, 8, f'2) {euro}', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
     pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
     
-    pdf.cell(15, 8, '3) Euro', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
+    pdf.cell(15, 8, f'3) {euro}', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
     pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
     pdf.ln(15)
 
@@ -283,7 +285,7 @@ with st.sidebar:
     st.markdown("### Navigazione")
     menu = st.radio("", ["⚡ Dashboard", "🗂️ Anagrafica", "💳 Preventivi", "🧬 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
     st.divider()
-    st.caption("Focus App v2.6 - Clean PDF")
+    st.caption("Focus App v2.7 - Euro Fix")
 
 # =========================================================
 # SEZIONE 1: DASHBOARD
