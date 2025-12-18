@@ -9,42 +9,51 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE (MODERN UI)
+# 0. CONFIGURAZIONE & STILE (DARK I-TECH)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio", page_icon="🏥", layout="wide")
 
-# CSS PERSONALIZZATO PER LOOK "I-TECH"
+# CSS PERSONALIZZATO PER LOOK "DARK I-TECH"
 st.markdown("""
 <style>
-    /* 1. FONT MODERNO (Inter/Roboto) */
+    /* 1. FONT MODERNO */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
     
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
     }
 
-    /* 2. SFONDO E CONTENITORI */
+    /* 2. SFONDO E CONTENITORI SCURI */
     .stApp {
-        background-color: #f8f9fa; /* Grigio chiarissimo professionale */
+        background-color: #0E1117; /* Nero/Blu scuro Streamlit */
+        color: #FAFAFA;
     }
     
-    /* 3. METRICHE (KPI) STILE CARD */
+    /* 3. METRICHE (KPI) STILE CARD SCURA */
     div[data-testid="stMetric"] {
-        background-color: #ffffff;
-        border: 1px solid #e0e0e0;
+        background-color: #262730; /* Grigio Antracite */
+        border: 1px solid #41444C;
         padding: 15px;
         border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         transition: transform 0.2s;
     }
     div[data-testid="stMetric"]:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+        border-color: #FF4B2B; /* Effetto glow rosso al passaggio */
+    }
+    
+    /* Testo delle metriche bianco */
+    div[data-testid="stMetricLabel"] {
+        color: #BDC1C6;
+    }
+    div[data-testid="stMetricValue"] {
+        color: #FFFFFF;
     }
 
     /* 4. PULSANTI I-TECH (Gradienti) */
     div.stButton > button {
-        background: linear-gradient(90deg, #FF4B2B 0%, #FF416C 100%); /* Gradiente Rosso Focus */
+        background: linear-gradient(90deg, #FF4B2B 0%, #FF416C 100%);
         color: white;
         border: none;
         padding: 0.5rem 1rem;
@@ -55,33 +64,42 @@ st.markdown("""
     }
     div.stButton > button:hover {
         background: linear-gradient(90deg, #FF416C 0%, #FF4B2B 100%);
-        box-shadow: 0 4px 10px rgba(255, 65, 108, 0.4);
+        box-shadow: 0 0 15px rgba(255, 65, 108, 0.6); /* Glow Effect */
+        color: white;
         border: none;
+    }
+
+    /* 5. SIDEBAR SCURA */
+    section[data-testid="stSidebar"] {
+        background-color: #161920; /* Leggermente più chiaro del fondo */
+        border-right: 1px solid #333;
+    }
+    
+    /* 6. TABELLE DATAFRAME */
+    div[data-testid="stDataFrame"] {
+        background-color: #262730;
+        border-radius: 10px;
+        border: 1px solid #41444C;
+    }
+
+    /* 7. ESPANSIONI E INPUT */
+    .streamlit-expanderHeader {
+        background-color: #262730;
+        border-radius: 8px;
         color: white;
     }
-
-    /* 5. SIDEBAR */
-    section[data-testid="stSidebar"] {
-        background-color: #ffffff;
-        border-right: 1px solid #e0e0e0;
+    
+    /* Input fields background */
+    input, select, textarea {
+        background-color: #1E1E1E !important;
+        color: white !important;
     }
     
-    /* 6. TABELLE DATAFRAME PIÙ PULITE */
-    div[data-testid="stDataFrame"] {
-        border-radius: 10px;
-        overflow: hidden;
-        border: 1px solid #eee;
-    }
-
-    /* 7. TITOLI */
+    /* 8. TITOLI */
     h1, h2, h3 {
-        color: #1f2937;
+        color: #FFFFFF !important;
         font-weight: 700;
     }
-    
-    /* Nascondere menu hamburger standard se vuoi pulizia totale (opzionale) */
-    /* #MainMenu {visibility: hidden;} */
-    /* footer {visibility: hidden;} */
 
 </style>
 """, unsafe_allow_html=True)
@@ -170,13 +188,11 @@ def create_pdf(paziente, righe_preventivo, totale):
     """Genera il file PDF in memoria"""
     class PDF(FPDF):
         def header(self):
-            # LOGO
             if os.path.exists("logo.png"):
                 try:
                     self.image('logo.png', 10, 8, 30)
                 except: pass
             
-            # Intestazione
             self.set_font('Arial', 'B', 16)
             self.cell(40) 
             self.cell(0, 10, 'Focus Riabilitazione', 0, 1, 'L')
@@ -193,7 +209,7 @@ def create_pdf(paziente, righe_preventivo, totale):
     pdf = PDF()
     pdf.add_page()
     
-    # Info Paziente
+    # Info
     pdf.set_font('Arial', '', 12)
     pdf.cell(0, 8, f'Gentile Paziente: {paziente}', 0, 1)
     pdf.cell(0, 8, f'Data emissione: {date.today().strftime("%d/%m/%Y")}', 0, 1)
@@ -224,7 +240,7 @@ def create_pdf(paziente, righe_preventivo, totale):
     pdf.cell(40, 10, f'{totale} Euro', 1, 1, 'R')
     pdf.ln(10)
 
-    # Pagamento Rateizzato
+    # Rate
     pdf.set_font('Arial', 'B', 11)
     pdf.cell(0, 8, 'PIANO DI PAGAMENTO RATEIZZATO (Da compilare se applicabile):', 0, 1)
     pdf.set_font('Arial', '', 11)
@@ -258,7 +274,7 @@ with st.sidebar:
         label_visibility="collapsed"
     )
     st.divider()
-    st.caption("App v2.0 - Modern UI")
+    st.caption("App v2.1 - Dark Tech")
 
 # =========================================================
 # SEZIONE 1: DASHBOARD
@@ -285,7 +301,6 @@ if menu == "📊 Dashboard":
         df_disdetti = df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ]
         cnt_attivi = totali - len(df_disdetti)
         
-        # Logica Alerts
         oggi = pd.Timestamp.now().normalize()
         limite_recall = oggi - pd.Timedelta(days=10)
         da_richiamare = df_disdetti[ (df_disdetti['Data_Disdetta'].notna()) & (df_disdetti['Data_Disdetta'] <= limite_recall) ]
@@ -297,7 +312,7 @@ if menu == "📊 Dashboard":
         sette_giorni_fa = oggi - pd.Timedelta(days=7)
         visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
 
-        # 1. RIGA KPI (Cards)
+        # 1. RIGA KPI (Cards Dark)
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Pazienti Attivi", cnt_attivi, "Totale")
         col2.metric("Disdetti Storico", len(df_disdetti), help="Totale disdette nel tempo")
@@ -355,16 +370,21 @@ if menu == "📊 Dashboard":
             if all_areas:
                 counts = pd.Series(all_areas).value_counts().reset_index()
                 counts.columns = ['Area', 'Pazienti']
-                # Palette moderna
+                # Palette Vivida per Dark Mode
                 domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
-                range_ = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEEAD", "#D4A5A5"]
+                range_ = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#F7B731", "#A3CB38", "#D980FA"]
                 
                 chart = alt.Chart(counts).mark_bar(cornerRadius=5).encode(
                     x=alt.X('Pazienti', title=None), 
                     y=alt.Y('Area', sort='-x', title=None),
                     color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None),
                     tooltip=['Area', 'Pazienti']
-                ).properties(height=350).configure_axis(grid=False)
+                ).properties(height=350).configure_axis(
+                    grid=False, 
+                    labelColor='white', 
+                    titleColor='white'
+                ).configure_view(strokeWidth=0)
+                
                 st.altair_chart(chart, use_container_width=True)
             else:
                 st.info("Il grafico apparirà popolando le Aree.")
@@ -406,7 +426,6 @@ elif menu == "👥 Gestione Pazienti":
              df_original['Area'] = df_original['Area'].apply(lambda x: x[0] if isinstance(x, list) and len(x)>0 else (str(x) if x else "")).str.strip() 
         df_original['Area'] = df_original['Area'].astype("category")
 
-        # Barra di ricerca moderna
         col_search, _ = st.columns([1, 2])
         with col_search:
             search = st.text_input("🔍 Cerca per Cognome...", placeholder="Es. Rossi")
@@ -416,7 +435,7 @@ elif menu == "👥 Gestione Pazienti":
         cols_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'Data_Disdetta', 'Visita_Esterna', 'Data_Visita', 'Dimissione', 'id']
         valid_cols = [c for c in cols_show if c in df_filt.columns]
 
-        # Tabella Editabile
+        # Tabella
         edited = st.data_editor(
             df_filt[valid_cols],
             column_config={
@@ -445,7 +464,6 @@ elif menu == "👥 Gestione Pazienti":
                 orig = df_original[df_original['id'] == rec_id].iloc[0]
                 changes = {}
                 
-                # Logic update
                 if row['Disdetto'] != (orig['Disdetto'] in [True, 1]): changes['Disdetto'] = row['Disdetto']
                 d_dis = row['Data_Disdetta']
                 if row['Disdetto'] and (pd.isna(d_dis) or str(d_dis) == "NaT"): 
@@ -480,7 +498,7 @@ elif menu == "💰 Preventivi & Pacchetti":
     df_std = get_data("Preventivi_Standard")
 
     with tab1:
-        # A. LISTINO RAPIDO
+        # A. LISTINO
         with st.expander("📋 Vedi Listino Prezzi", expanded=False):
             if not df_srv.empty and 'Area' in df_srv.columns:
                 aree_uniche = df_srv['Area'].dropna().unique()
@@ -499,7 +517,6 @@ elif menu == "💰 Preventivi & Pacchetti":
         with st.container(border=True):
             st.subheader("Nuovo Preventivo")
             
-            # 1. Caricamento Pacchetti Standard
             selected_services_default = []
             if not df_std.empty and 'Nome' in df_std.columns:
                 c_filtro, c_pack = st.columns(2)
@@ -529,7 +546,6 @@ elif menu == "💰 Preventivi & Pacchetti":
             
             st.divider()
 
-            # 2. Selezione Paziente
             nomi_pazienti = ["Nuovo Paziente"]
             if not df_paz.empty:
                 nomi_pazienti += sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows() if r.get('Cognome')])
@@ -544,7 +560,6 @@ elif menu == "💰 Preventivi & Pacchetti":
             with col_serv:
                 servizi_scelti = st.multiselect("Trattamenti:", sorted(list(listino_dict.keys())), default=valid_defaults)
 
-            # 3. Composizione Righe
             righe_preventivo = []
             totale = 0
 
@@ -567,12 +582,11 @@ elif menu == "💰 Preventivi & Pacchetti":
                 with col_tot:
                     st.metric("TOTALE PREVENTIVO", f"{totale} €")
                 with col_btn:
-                    st.write("") # Spacer
+                    st.write("") 
                     if st.button("💾 Salva e Genera", type="primary", use_container_width=True):
                         dettagli_str = " | ".join([f"{r['nome']} x{r['qty']} ({r['tot']}€)" for r in righe_preventivo])
                         save_preventivo_temp(paziente_scelto, dettagli_str, totale)
                         st.balloons()
-                        # Clean session state
                         for k in list(st.session_state.keys()):
                             if k.startswith("qty_preload_"): del st.session_state[k]
                         st.success("Salvato!")
@@ -595,7 +609,6 @@ elif menu == "💰 Preventivi & Pacchetti":
                         st.caption(f"Emesso il: {data_c} • Totale: **{tot} €**")
                     
                     with c2:
-                        # Rigenera PDF
                         righe_pdf = []
                         if dett:
                             items = dett.split(" | ")
@@ -646,15 +659,12 @@ elif menu == "📦 Inventario":
                 df_inv[['Prodotto', 'Quantita', 'id']],
                 column_config={
                     "Prodotto": st.column_config.TextColumn("Prodotto", disabled=True),
-                    "Quantita": st.column_config.ProgressColumn("Stock", min_value=0, max_value=50, format="%f"),
+                    "Quantita": st.column_config.NumberColumn("Quantità", min_value=0, step=1),
                     "id": None
                 },
                 hide_index=True,
                 use_container_width=True
             )
-            # Nota: ProgressColumn è solo visuale, per editare i numeri usiamo NumberColumn o lasciamo così ma l'editing è meno intuitivo con Progress. 
-            # Per editing "i-tech" meglio rimettere NumberColumn ma con stile.
-            # Rimetto NumberColumn per praticità.
             
             st.caption("Modifica le quantità direttamente nella tabella.")
             if st.button("🔄 Aggiorna Stock", type="primary"):
@@ -740,8 +750,6 @@ elif menu == "📝 Scadenze":
     df_scad = get_data("Scadenze")
     if not df_scad.empty and 'Data_Scadenza' in df_scad.columns:
         df_scad['Data_Scadenza'] = pd.to_datetime(df_scad['Data_Scadenza'], errors='coerce')
-        
-        # Ordina per data
         df_scad = df_scad.sort_values("Data_Scadenza")
         
         st.dataframe(
