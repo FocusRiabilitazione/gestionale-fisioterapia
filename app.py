@@ -156,7 +156,6 @@ def save_prodotto(prodotto, quantita):
     get_data.clear()
     table.create(record, typecast=True)
 
-# AGGIORNATA: Salva anche la Descrizione (Note)
 def save_preventivo_temp(paziente, dettagli_str, totale, note):
     table = api.table(BASE_ID, "Preventivi_Salvati")
     record = {
@@ -169,78 +168,118 @@ def save_preventivo_temp(paziente, dettagli_str, totale, note):
     get_data.clear()
     table.create(record, typecast=True)
 
-# AGGIORNATA: Stampa la descrizione nel PDF
+# === NUOVA FUNZIONE PDF DESIGN PREMIUM ===
 def create_pdf(paziente, righe_preventivo, totale, note=""):
     class PDF(FPDF):
         def header(self):
+            # 1. LOGO CENTRATO E GRANDE
+            # Pagina A4 larghezza ~210mm. Logo width=60mm.
+            # Posizione X = (210 - 60) / 2 = 75
             if os.path.exists("logo.png"):
-                try: self.image('logo.png', 10, 8, 30)
+                try: self.image('logo.png', 75, 10, 60)
                 except: pass
+            
+            self.ln(35) # Spazio per il logo aumentato
+
+            # 2. INTESTAZIONE AZIENDALE
             self.set_font('Arial', 'B', 16)
-            self.cell(40); self.cell(0, 10, 'Focus Riabilitazione', 0, 1, 'L')
-            self.set_font('Arial', 'I', 10)
-            self.cell(40); self.cell(0, 5, 'Preventivo Trattamenti Fisioterapici', 0, 1, 'L')
-            self.ln(15)
+            self.cell(0, 10, 'Focus Riabilitazione', 0, 1, 'C')
+            
+            # 3. TITOLO NUOVO
+            self.set_font('Arial', '', 12)
+            self.set_text_color(100, 100, 100) # Grigio scuro
+            self.cell(0, 5, 'PREVENTIVO PERCORSO RIABILITATIVO', 0, 1, 'C')
+            
+            # Linea decorativa
+            self.ln(5)
+            self.set_draw_color(200, 200, 200)
+            self.line(20, self.get_y(), 190, self.get_y())
+            self.ln(10)
+
         def footer(self):
             self.set_y(-15); self.set_font('Arial', 'I', 8)
+            self.set_text_color(128)
             self.cell(0, 10, f'Pagina {self.page_no()}', 0, 0, 'C')
 
     pdf = PDF()
     pdf.add_page()
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(0, 8, f'Gentile Paziente: {paziente}', 0, 1)
-    pdf.cell(0, 8, f'Data emissione: {date.today().strftime("%d/%m/%Y")}', 0, 1)
-    pdf.ln(5)
     
-    # --- NUOVA SEZIONE: DESCRIZIONE PERCORSO ---
+    # INFO PAZIENTE E DATA (Design pulito)
+    pdf.set_text_color(0) # Nero
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(95, 8, f'Paziente: {paziente}', 0, 0, 'L')
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(95, 8, f'Data: {date.today().strftime("%d/%m/%Y")}', 0, 1, 'R')
+    pdf.ln(8)
+    
+    # DESCRIZIONE PERCORSO
     if note and len(note) > 5:
-        pdf.set_font('Arial', 'B', 12)
-        pdf.cell(0, 8, 'Descrizione del Percorso / Obiettivi:', 0, 1)
-        pdf.set_font('Arial', '', 11)
-        # Multi_cell gestisce il testo lungo mandandolo a capo
-        # encode('latin-1', 'replace') serve per evitare errori con accenti
+        pdf.set_font('Arial', 'BI', 11)
+        pdf.cell(0, 8, 'Obiettivi e Descrizione del Percorso:', 0, 1)
+        pdf.set_font('Arial', 'I', 11)
+        pdf.set_text_color(60, 60, 60)
         clean_note = note.encode('latin-1', 'replace').decode('latin-1')
         pdf.multi_cell(0, 6, clean_note)
-        pdf.ln(8)
-    # -------------------------------------------
-
-    pdf.set_fill_color(240, 240, 240)
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(100, 10, 'Trattamento', 1, 0, 'L', 1)
-    pdf.cell(30, 10, 'Q.ta', 1, 0, 'C', 1)
-    pdf.cell(40, 10, 'Importo', 1, 0, 'R', 1)
-    pdf.ln()
+        pdf.ln(10)
     
-    pdf.set_font('Arial', '', 12)
+    # TABELLA PREZZI
+    pdf.set_text_color(255, 255, 255) # Testo bianco
+    pdf.set_fill_color(50, 50, 50)    # Sfondo Grigio Scuro (Professionale)
+    pdf.set_font('Arial', 'B', 11)
+    
+    # Header Tabella
+    pdf.cell(110, 10, ' Trattamento', 0, 0, 'L', 1) # Il bordo '0' ma fill '1'
+    pdf.cell(30, 10, 'Q.ta', 0, 0, 'C', 1)
+    pdf.cell(50, 10, 'Importo ', 0, 1, 'R', 1)
+    
+    # Righe Tabella
+    pdf.set_text_color(0) # Torna nero
+    pdf.set_font('Arial', '', 11)
+    fill = False # Alternanza colori (opzionale, qui mettiamo bianco)
+    
     for riga in righe_preventivo:
-        nome = str(riga.get('nome', '-'))[:45]
+        nome = str(riga.get('nome', '-'))[:55]
         qty = str(riga.get('qty', '0'))
         tot_riga = str(riga.get('tot', '0'))
-        pdf.cell(100, 10, nome, 1)
-        pdf.cell(30, 10, qty, 1, 0, 'C')
-        pdf.cell(40, 10, f"{tot_riga} E", 1, 0, 'R')
-        pdf.ln()
+        
+        pdf.cell(110, 10, f" {nome}", 'B') # Bordo solo sotto
+        pdf.cell(30, 10, qty, 'B', 0, 'C')
+        pdf.cell(50, 10, f"{tot_riga} E ", 'B', 1, 'R')
         
     pdf.ln(5)
+    
+    # TOTALE EVIDENZIATO
     pdf.set_font('Arial', 'B', 14)
-    pdf.cell(130, 10, 'TOTALE PREVENTIVO:', 0, 0, 'R')
-    pdf.cell(40, 10, f'{totale} Euro', 1, 1, 'R')
+    pdf.cell(140, 12, 'TOTALE COMPLESSIVO:', 0, 0, 'R')
+    pdf.set_fill_color(240, 240, 240) # Sfondo grigio chiarissimo per il totale
+    pdf.cell(50, 12, f'{totale} Euro', 1, 1, 'R', 1)
     pdf.ln(10)
 
-    pdf.set_font('Arial', 'B', 11)
-    pdf.cell(0, 8, 'PIANO DI PAGAMENTO RATEIZZATO (Da compilare se applicabile):', 0, 1)
-    pdf.set_font('Arial', '', 11)
-    pdf.cell(0, 8, '1) Importo E _______________ entro il _______________', 0, 1)
-    pdf.cell(0, 8, '2) Importo E _______________ entro il _______________', 0, 1)
-    pdf.cell(0, 8, '3) Importo E _______________ entro il _______________', 0, 1)
+    # RATE
+    pdf.set_font('Arial', 'B', 10)
+    pdf.cell(0, 8, 'PIANO DI PAGAMENTO CONCORDATO:', 0, 1)
+    pdf.set_font('Arial', '', 10)
+    pdf.set_draw_color(180, 180, 180)
+    
+    # 3 righe per le rate con linea tratteggiata simulata
+    pdf.cell(15, 8, '1) Euro', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
+    pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
+    
+    pdf.cell(15, 8, '2) Euro', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
+    pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
+    
+    pdf.cell(15, 8, '3) Euro', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
+    pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
     pdf.ln(15)
 
-    pdf.set_font('Arial', '', 12)
+    # FIRMA
     y_pos = pdf.get_y()
-    pdf.cell(90, 10, f'Data: {date.today().strftime("%d/%m/%Y")}', 0, 0, 'L')
-    pdf.cell(90, 10, 'Firma per accettazione:', 0, 1, 'L')
-    pdf.set_xy(100, y_pos + 10)
-    pdf.cell(80, 0, '', 'T')
+    pdf.set_font('Arial', '', 11)
+    pdf.set_xy(110, y_pos)
+    pdf.cell(80, 6, 'Firma per accettazione:', 0, 1, 'L')
+    pdf.set_xy(110, y_pos + 15)
+    pdf.cell(80, 0, '', 'T') # Linea firma
+    
     return pdf.output(dest='S').encode('latin-1')
 
 # --- 3. INTERFACCIA GRAFICA ---
@@ -251,7 +290,7 @@ with st.sidebar:
     st.markdown("### Navigazione")
     menu = st.radio("", ["⚡ Dashboard", "🗂️ Anagrafica", "💳 Preventivi", "🧬 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
     st.divider()
-    st.caption("Focus App v2.4 - Narrative PDF")
+    st.caption("Focus App v2.5 - PDF Premium")
 
 # =========================================================
 # SEZIONE 1: DASHBOARD
@@ -384,7 +423,7 @@ elif menu == "💳 Preventivi":
         with st.container(border=True):
             st.subheader("Nuovo Preventivo")
             selected_services_default = []
-            default_descrizione = "" # Variabile per la descrizione automatica
+            default_descrizione = "" 
             
             # --- SELEZIONE PACCHETTO STANDARD ---
             if not df_std.empty and 'Nome' in df_std.columns:
@@ -402,7 +441,6 @@ elif menu == "💳 Preventivi":
                 if scelta_std != "-- Seleziona --":
                     row_std = df_std_filt[df_std_filt['Nome'] == scelta_std].iloc[0]
                     content = row_std.get('Contenuto', '')
-                    # CARICA DESCRIZIONE DA AIRTABLE
                     default_descrizione = row_std.get('Descrizione', '')
                     if pd.isna(default_descrizione): default_descrizione = ""
                     
@@ -429,7 +467,6 @@ elif menu == "💳 Preventivi":
             with col_serv:
                 servizi_scelti = st.multiselect("Trattamenti:", sorted(list(listino_dict.keys())), default=valid_defaults)
 
-            # --- TEXT AREA PER LA DESCRIZIONE ---
             st.markdown("**Descrizione del Percorso / Obiettivi** (Appare nel PDF)")
             note_preventivo = st.text_area("Scrivi qui i dettagli del percorso...", value=default_descrizione, height=100)
             
