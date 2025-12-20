@@ -1,7 +1,6 @@
 import streamlit as st
 from pyairtable import Api
 import pandas as pd
-from requests.exceptions import HTTPError
 import altair as alt
 from datetime import date, timedelta
 from fpdf import FPDF
@@ -9,199 +8,140 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & ULTIMATE NEXT-GEN CSS (GLASSMORPHISM)
+# 0. CONFIGURAZIONE & NEXT GEN DESIGN (GLASSMORPHISM V20)
 # =========================================================
-st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
+st.set_page_config(page_title="Gestionale Fisio", page_icon="🏥", layout="wide")
 
 st.markdown("""
 <style>
-    /* Importazione Font Moderno 'Outfit' */
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap');
     
-    :root {
-        --primary-glow: 0 0 20px rgba(66, 153, 225, 0.6);
-        --neon-blue: #4299e1;
-        --neon-teal: #38b2ac;
-        --neon-purple: #9f7aea;
-        --neon-orange: #ed8936;
-        --glass-bg: rgba(255, 255, 255, 0.03);
-        --glass-border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    html, body, [class*="css"] {
-        font-family: 'Outfit', sans-serif;
-    }
-
-    /* SFONDO GLOBALE CON SFUMATURA PROFONDA */
+    /* SFONDO GLOBALE CON SFUMATURA PREMIUM */
     .stApp {
-        background: radial-gradient(circle at top left, #1a202c, #0d1117);
-        color: #e2e8f0;
+        background: radial-gradient(circle at top left, #1e293b, #0f172a);
+        font-family: 'Outfit', sans-serif;
+        color: #f8fafc;
     }
 
     /* --- SIDEBAR STILE VETRO --- */
     section[data-testid="stSidebar"] {
-        background-color: rgba(13, 17, 23, 0.9);
-        backdrop-filter: blur(12px);
-        border-right: var(--glass-border);
+        background-color: rgba(15, 23, 42, 0.95);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
     }
     
-    /* --- TITOLI CON GRADIENTE --- */
+    /* TITOLI CON GRADIENTE */
     h1 {
-        background: linear-gradient(90deg, #FFF, #A0AEC0);
+        background: -webkit-linear-gradient(45deg, #FF4B2B, #FF416C);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-weight: 800 !important;
-        letter-spacing: -0.5px;
-        text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        letter-spacing: -1px;
+        padding-bottom: 10px;
     }
     h2, h3 {
-        color: #FFF !important;
+        color: #e2e8f0 !important;
         font-weight: 600;
     }
 
-    /* --- CUSTOM GLASS KPI CARDS --- */
-    .glass-kpi {
-        background: var(--glass-bg);
+    /* --- CARD KPI "GLASSMORPHISM" (STATICHE) --- */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.03);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
-        border: var(--glass-border);
-        border-radius: 20px;
-        padding: 25px;
-        position: relative;
-        overflow: hidden;
-        transition: all 0.3s ease;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s ease, border-color 0.3s ease;
+        text-align: center;
+        height: 100%;
     }
-    .glass-kpi:hover {
+    .glass-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 10px 30px -5px rgba(0,0,0,0.3);
+        border-color: rgba(255, 75, 43, 0.5);
+        box-shadow: 0 10px 40px rgba(255, 75, 43, 0.15);
     }
-    .kpi-icon-wrapper {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 50px;
-        height: 50px;
-        border-radius: 15px;
-        font-size: 24px;
-        margin-bottom: 15px;
+    .kpi-val {
+        font-size: 36px;
+        font-weight: 700;
+        color: #ffffff;
+        margin: 10px 0;
+        text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
     }
-    .kpi-value {
-        font-size: 38px;
-        font-weight: 800;
-        color: #fff;
-        line-height: 1.2;
-    }
-    .kpi-label {
-        font-size: 14px;
-        color: #a0aec0;
-        font-weight: 500;
+    .kpi-lbl {
+        font-size: 13px;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 1.5px;
+        color: #94a3b8;
+        font-weight: 500;
     }
-    .glow-bar {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 4px;
+    .kpi-icon-box {
+        font-size: 24px;
+        margin-bottom: 8px;
+        display: inline-block;
+        padding: 12px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.05);
     }
 
     /* --- PULSANTI NEON --- */
     div.stButton > button {
-        background: linear-gradient(135deg, #3182ce, #2b6cb0);
+        background: linear-gradient(90deg, #FF4B2B 0%, #FF416C 100%);
         color: white;
         border: none;
-        padding: 0.75rem 1.5rem;
+        padding: 0.7rem 1.5rem;
         border-radius: 12px;
         font-weight: 600;
         letter-spacing: 0.5px;
-        box-shadow: 0 4px 15px rgba(49, 130, 206, 0.3);
+        box-shadow: 0 4px 15px rgba(255, 65, 108, 0.4);
         transition: all 0.3s ease;
     }
     div.stButton > button:hover {
-        background: linear-gradient(135deg, #4299e1, #3182ce);
-        transform: scale(1.02) translateY(-2px);
-        box-shadow: 0 6px 25px rgba(66, 153, 225, 0.5);
+        transform: scale(1.03);
+        box-shadow: 0 0 25px rgba(255, 65, 108, 0.6);
         color: white;
     }
-    /* Pulsante secondario (es. Rientrato) */
-    div.stButton > button:not([kind="primary"]) {
-         background: rgba(255,255,255,0.05);
-         border: 1px solid rgba(255,255,255,0.1);
-         box-shadow: none;
-    }
-    div.stButton > button:not([kind="primary"]):hover {
-         background: rgba(255,255,255,0.1);
-         border: 1px solid rgba(255,255,255,0.3);
-         box-shadow: none;
-    }
 
-
-    /* --- NAVIGAZIONE LATERALE (Stile "Pillole") --- */
+    /* --- RADIO BUTTONS (MENU) --- */
     div.row-widget.stRadio > div { background-color: transparent; }
     div.row-widget.stRadio > div[role="radiogroup"] > label {
         background-color: transparent;
-        padding: 12px 18px;
-        margin-bottom: 8px;
-        border-radius: 12px;
-        color: #a0aec0;
+        padding: 12px 20px;
+        margin-bottom: 5px;
+        border-radius: 10px;
+        color: #94a3b8;
         border: 1px solid transparent;
-        transition: all 0.3s ease;
-        font-weight: 500;
+        transition: all 0.2s;
     }
     div.row-widget.stRadio > div[role="radiogroup"] > label:hover {
         color: #fff;
-        background: rgba(255,255,255,0.05);
+        background: rgba(255,255,255,0.03);
     }
-    /* Stato Attivo */
     div.row-widget.stRadio > div[role="radiogroup"] > label[data-checked="true"] {
-        background: rgba(66, 153, 225, 0.15);
-        border: 1px solid var(--neon-blue);
-        color: #fff;
-        font-weight: 700;
-        box-shadow: var(--primary-glow);
+        background: rgba(255, 65, 108, 0.1);
+        border: 1px solid rgba(255, 65, 108, 0.3);
+        color: #FF416C;
+        font-weight: 600;
     }
     div.row-widget.stRadio div[role="radiogroup"] > label > div:first-child { display: none; }
 
-    /* --- TABELLE, INPUT E CONTENITORI --- */
-    /* Contenitori generici (es. st.container(border=True)) */
-    div[data-testid="stVerticalBlock"] > div[style*="border"] {
-        background-color: var(--glass-bg);
-        backdrop-filter: blur(10px);
-        border: var(--glass-border) !important;
-        border-radius: 16px;
-    }
-
-    /* Dataframe */
+    /* --- TABELLE E INPUT --- */
     div[data-testid="stDataFrame"] {
-        background-color: rgba(20, 25, 35, 0.6);
-        border: var(--glass-border);
-        border-radius: 16px;
-        overflow: hidden;
-    }
-    
-    /* Input fields */
-    input, select, textarea {
-        background-color: rgba(13, 17, 23, 0.8) !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        color: white !important;
-        border-radius: 10px;
-        padding: 10px 12px;
-    }
-    input:focus, select:focus, textarea:focus {
-        border-color: var(--neon-blue) !important;
-        box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2) !important;
-    }
-
-    /* Expander */
-    .streamlit-expanderHeader {
-        background-color: var(--glass-bg);
+        background-color: rgba(30, 41, 59, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 12px;
-        color: #FFF;
-        border: var(--glass-border);
     }
-    
-    /* Divisore */
+    input, select, textarea {
+        background-color: rgba(15, 23, 42, 0.8) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        color: white !important;
+        border-radius: 8px;
+    }
+    .streamlit-expanderHeader {
+        background-color: rgba(255,255,255,0.02);
+        border-radius: 8px;
+        color: white;
+    }
     hr { border-color: rgba(255,255,255,0.1); opacity: 0.5; }
     
     /* Allarmi colorati */
@@ -226,7 +166,7 @@ except FileNotFoundError:
 
 api = Api(API_KEY)
 
-# --- 2. FUNZIONI (Logica invariata) ---
+# --- 2. FUNZIONI ---
 
 @st.cache_data(ttl=60)
 def get_data(table_name):
@@ -342,26 +282,6 @@ def create_pdf(paziente, righe_preventivo, totale, note=""):
     pdf.cell(140, 12, 'TOTALE COMPLESSIVO:', 0, 0, 'R')
     pdf.set_fill_color(240, 240, 240)
     pdf.cell(50, 12, f'{totale} {euro}', 1, 1, 'R', 1)
-    pdf.ln(10)
-
-    pdf.set_font('Arial', 'B', 10)
-    pdf.cell(0, 8, 'PIANO DI PAGAMENTO CONCORDATO:', 0, 1)
-    pdf.set_font('Arial', '', 10)
-    pdf.set_draw_color(180, 180, 180)
-    pdf.cell(15, 8, f'1) {euro}', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
-    pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
-    pdf.cell(15, 8, f'2) {euro}', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
-    pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
-    pdf.cell(15, 8, f'3) {euro}', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
-    pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
-    pdf.ln(15)
-
-    y_pos = pdf.get_y()
-    pdf.set_font('Arial', '', 11)
-    pdf.set_xy(110, y_pos)
-    pdf.cell(80, 6, 'Firma per accettazione:', 0, 1, 'L')
-    pdf.set_xy(110, y_pos + 15)
-    pdf.cell(80, 0, '', 'T')
     return pdf.output(dest='S').encode('latin-1')
 
 # --- 3. INTERFACCIA GRAFICA ---
@@ -370,20 +290,19 @@ with st.sidebar:
     try: st.image("logo.png", use_container_width=True)
     except: st.title("Focus Rehab")
     st.write("")
-    # Navigazione con icone migliori
     menu = st.radio(
         "NAVIGAZIONE", 
-        ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "🗓️ Scadenze"],
+        ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"],
         label_visibility="collapsed"
     )
     st.divider()
-    st.markdown("<div style='text-align:center; color:#718096; font-size:11px; font-weight:500;'>Focus Pro v4.0 - Ultimate UI</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align:center; color:#64748b; font-size:12px;'>Focus App v3.0 (V20)</div>", unsafe_allow_html=True)
 
 # =========================================================
-# SEZIONE 1: DASHBOARD ULTIMATE
+# SEZIONE 1: DASHBOARD ULTIMATE (Glass)
 # =========================================================
 if menu == "⚡ Dashboard":
-    st.title("Panoramica Studio")
+    st.title("⚡ Dashboard")
     st.write("")
 
     df = get_data("Pazienti")
@@ -413,26 +332,24 @@ if menu == "⚡ Dashboard":
         sette_giorni_fa = oggi - pd.Timedelta(days=7)
         visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
 
-        # 1. RIGA KPI (ULTIMATE GLASS CARDS)
+        # 1. RIGA KPI (Cards Glassmorphism Statiche)
         col1, col2, col3, col4 = st.columns(4)
         
-        def ultimate_card(icon, val, label, color_hex):
-            rgba_color = f"{color_hex}33" # 20% opacity
+        def glass_card(icon, val, label, color):
             return f"""
-            <div class="glass-kpi">
-                <div class="kpi-icon-wrapper" style="background: {rgba_color}; color: {color_hex};">
+            <div class="glass-card">
+                <div class="kpi-icon-box" style="color: {color}; border: 1px solid {color}44; background: {color}11;">
                     {icon}
                 </div>
-                <div class="kpi-value">{val}</div>
-                <div class="kpi-label">{label}</div>
-                <div class="glow-bar" style="background: {color_hex}; box-shadow: 0 0 15px {color_hex};"></div>
+                <div class="kpi-val">{val}</div>
+                <div class="kpi-lbl">{label}</div>
             </div>
             """
 
-        with col1: st.markdown(ultimate_card("👥", cnt_attivi, "Pazienti Attivi", "#4299e1"), unsafe_allow_html=True) # Blue
-        with col2: st.markdown(ultimate_card("📉", len(df_disdetti), "Totale Disdette", "#e53e3e"), unsafe_allow_html=True) # Red
-        with col3: st.markdown(ultimate_card("💡", len(da_richiamare), "Da Richiamare", "#ed8936"), unsafe_allow_html=True) # Orange
-        with col4: st.markdown(ultimate_card("🩺", len(visite_imminenti), "Visite Mediche", "#38b2ac"), unsafe_allow_html=True) # Teal
+        with col1: st.markdown(glass_card("👥", cnt_attivi, "Attivi", "#4ECDC4"), unsafe_allow_html=True)
+        with col2: st.markdown(glass_card("📉", len(df_disdetti), "Disdetti", "#FF6B6B"), unsafe_allow_html=True)
+        with col3: st.markdown(glass_card("📞", len(da_richiamare), "Recall", "#F7B731"), unsafe_allow_html=True)
+        with col4: st.markdown(glass_card("🩺", len(visite_imminenti), "Visite", "#A3CB38"), unsafe_allow_html=True)
 
         st.write(""); st.write("")
 
@@ -472,7 +389,7 @@ if menu == "⚡ Dashboard":
                 st.success("✅ Nessun avviso urgente. Tutto in ordine.")
 
         with c_right:
-            st.subheader("Analisi Aree di Trattamento")
+            st.subheader("Analisi Aree")
             df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
             
             all_areas = []
@@ -486,7 +403,6 @@ if menu == "⚡ Dashboard":
                 counts = pd.Series(all_areas).value_counts().reset_index()
                 counts.columns = ['Area', 'Pazienti']
                 
-                # Palette Neon
                 domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
                 range_ = ["#4299e1", "#ed8936", "#38b2ac", "#9f7aea", "#f56565", "#a0aec0"]
                 
@@ -718,7 +634,7 @@ elif menu == "💳 Preventivi":
         else: st.info("Nessun preventivo salvato.")
 
 # =========================================================
-# SEZIONE 4: INVENTARIO
+# SEZIONE 4: MAGAZZINO
 # =========================================================
 elif menu == "📦 Magazzino":
     st.title("Magazzino & Materiali")
@@ -776,7 +692,7 @@ elif menu == "🔄 Prestiti":
 # =========================================================
 # SEZIONE 6: SCADENZE
 # =========================================================
-elif menu == "🗓️ Scadenze":
+elif menu == "📅 Scadenze":
     st.title("Checklist Scadenze")
     df_scad = get_data("Scadenze")
     if not df_scad.empty and 'Data_Scadenza' in df_scad.columns:
