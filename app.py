@@ -325,52 +325,18 @@ with st.sidebar:
     st.caption("Focus App v3.7")
 
 # =========================================================
-# SEZIONE 1: DASHBOARD (Clickable Version)
+# SEZIONE 1: DASHBOARD
 # =========================================================
 if menu == "⚡ Dashboard":
     st.title("⚡ Dashboard")
+    st.write("")
 
-    # 1. CSS SPECIALE PER TRASFORMARE I BOTTONI IN CARD
-    # Questo CSS rende i bottoni della dashboard alti, scuri e con bordo, simili alle tue card precedenti.
-    st.markdown("""
-    <style>
-    div[data-testid="column"] button {
-        height: 100px;
-        width: 100%;
-        border-radius: 12px;
-        border: 1px solid #252525;
-        background-color: #121212;
-        color: #FAFAFA;
-        transition: all 0.3s ease;
-    }
-    div[data-testid="column"] button:hover {
-        border-color: #FF4B2B;
-        background-color: #1A1A1A;
-        transform: translateY(-2px);
-    }
-    div[data-testid="column"] button p {
-        font-size: 18px !important;
-        font-weight: 600 !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    if 'dash_filter' not in st.session_state: st.session_state.dash_filter = None
 
-    # 2. GESTIONE STATO (Memoria di cosa stai guardando)
-    if 'dash_view' not in st.session_state:
-        st.session_state['dash_view'] = 'main' # stati possibili: main, attivi, disdetti, recall, visite
-
-    # Pulsante per tornare indietro (appare solo se stai guardando una lista)
-    if st.session_state['dash_view'] != 'main':
-        if st.button("🔙 Torna alla Panoramica", type="secondary"):
-            st.session_state['dash_view'] = 'main'
-            st.rerun()
-        st.divider()
-
-    # 3. PREPARAZIONE DATI
     df = get_data("Pazienti")
     
     if not df.empty:
-        # Pulizia dati (identica a prima)
+        # Preprocessing
         for col in ['Disdetto', 'Visita_Esterna']:
             if col not in df.columns: df[col] = False
             df[col] = df[col].fillna(False)
@@ -379,9 +345,9 @@ if menu == "⚡ Dashboard":
             df[col] = pd.to_datetime(df[col], errors='coerce')
         if 'Area' not in df.columns: df['Area'] = None
 
-        # Calcoli contatori
+        totali = len(df)
         df_disdetti = df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ]
-        df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
+        cnt_attivi = totali - len(df_disdetti)
         
         oggi = pd.Timestamp.now().normalize()
         limite_recall = oggi - pd.Timedelta(days=10)
@@ -390,133 +356,127 @@ if menu == "⚡ Dashboard":
         df_visite = df[ (df['Visita_Esterna'] == True) | (df['Visita_Esterna'] == 1) ]
         domani = oggi + pd.Timedelta(days=1)
         visite_imminenti = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] >= oggi) & (df_visite['Data_Visita'] <= domani) ]
-        visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= (oggi - pd.Timedelta(days=7))) ]
-
-        # 4. LE 4 CARD CLICCABILI (Usiamo st.button mascherati da card)
-        # Nota: Se siamo in una vista specifica, evidenziamo quella selezione (opzionale), qui li lascio sempre cliccabili
         
-        c1, c2, c3, c4 = st.columns(4)
+        sette_giorni_fa = oggi - pd.Timedelta(days=7)
+        visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
+
+        # 1. KPI CLICCABILI (CON ICONE GRANDI 50px)
+        col1, col2, col3, col4 = st.columns(4)
         
-        with c1:
-            # Uso le emoji per mantenere il colore visivo (Streamlit button supporta solo testo)
-            label_attivi = f"👥  {len(df_attivi)}\nPazienti Attivi"
-            if st.button(label_attivi, key="btn_attivi"):
-                st.session_state['dash_view'] = 'attivi'
-                st.rerun()
+        def btn_label(icon, val, lbl):
+            return f"{icon}  {val}\n\n{lbl}"
 
-        with c2:
-            label_disdetti = f"📉  {len(df_disdetti)}\nDisdetti Tot."
-            if st.button(label_disdetti, key="btn_disdetti"):
-                st.session_state['dash_view'] = 'disdetti'
-                st.rerun()
-
-        with c3:
-            label_recall = f"📞  {len(da_richiamare)}\nRecall (>10gg)"
-            if st.button(label_recall, key="btn_recall"):
-                st.session_state['dash_view'] = 'recall'
-                st.rerun()
-                
-        with c4:
-            label_visite = f"🩺  {len(visite_imminenti)}\nVisite Imminenti"
-            if st.button(label_visite, key="btn_visite"):
-                st.session_state['dash_view'] = 'visite'
-                st.rerun()
+        with col1:
+            if st.button(btn_label("👥", cnt_attivi, "ATTIVI"), key="kpi_attivi"): st.session_state.dash_filter = "Attivi"
+        with col2:
+            if st.button(btn_label("📉", len(df_disdetti), "DISDETTI"), key="kpi_disdetti"): st.session_state.dash_filter = "Disdetti"
+        with col3:
+            if st.button(btn_label("📞", len(da_richiamare), "RECALL"), key="kpi_recall"): st.session_state.dash_filter = "Recall"
+        with col4:
+            if st.button(btn_label("🩺", len(visite_imminenti), "VISITE"), key="kpi_visite"): st.session_state.dash_filter = "Visite"
 
         st.write("")
 
-        # 5. LOGICA DI VISUALIZZAZIONE: COSA MOSTRO SOTTO?
-        
-        # CASO A: VISTA DASHBOARD NORMALE (Grafici e Avvisi)
-        if st.session_state['dash_view'] == 'main':
-            
-            c_left, c_right = st.columns([1, 1.5], gap="large")
-
-            with c_left:
-                st.markdown("### 🔔 Avvisi Rapidi")
-                # Visite Imminenti
-                if not visite_imminenti.empty:
-                    with st.container(border=True):
-                        st.markdown(f"<div style='color:#A3CB38; font-weight:bold'>👨‍⚕️ Visite Oggi/Domani</div>", unsafe_allow_html=True)
-                        for i, row in visite_imminenti.iterrows():
-                            st.caption(f"**{row['Nome']} {row['Cognome']}** ({row['Data_Visita'].strftime('%d/%m')})")
+        # 2. LISTA COMPARSA (SE FILTRO ATTIVO)
+        if st.session_state.dash_filter:
+            with st.container(border=True):
+                c_head, c_x = st.columns([9, 1])
+                c_head.subheader(f"📋 Lista: {st.session_state.dash_filter}")
+                if c_x.button("❌", key="close_list"):
+                    st.session_state.dash_filter = None
+                    st.rerun()
                 
-                # Visite Passate (da far rientrare)
-                if not visite_passate.empty:
-                    with st.container(border=True):
-                        st.markdown(f"<div style='color:#FF6B6B; font-weight:bold'>⚠️ Visite Passate (Da chiudere)</div>", unsafe_allow_html=True)
-                        for i, row in visite_passate.iterrows():
-                            rec_id = row['id']
-                            cc1, cc2 = st.columns([3, 1])
-                            cc1.caption(f"{row['Nome']} {row['Cognome']}")
-                            if cc2.button("Rientrato", key=f"rientro_{rec_id}"):
-                                update_generic("Pazienti", rec_id, {"Visita_Esterna": False, "Data_Visita": None})
-                                st.rerun()
+                df_show = pd.DataFrame()
+                if st.session_state.dash_filter == "Attivi":
+                    df_show = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
+                elif st.session_state.dash_filter == "Disdetti":
+                    df_show = df_disdetti
+                elif st.session_state.dash_filter == "Recall":
+                    df_show = da_richiamare
+                elif st.session_state.dash_filter == "Visite":
+                    df_show = df_visite
                 
-                if visite_imminenti.empty and visite_passate.empty:
-                    st.success("Nessun avviso urgente.")
+                if not df_show.empty:
+                    # TABELLA TRASPARENTE
+                    st.dataframe(
+                        df_show[['Nome', 'Cognome', 'Area', 'Data_Disdetta', 'Data_Visita']],
+                        use_container_width=True,
+                        height=250
+                    )
+                else:
+                    st.info("Nessun dato.")
+            st.divider()
 
-            with c_right:
-                st.markdown("### 📈 Statistiche Aree")
-                # Grafico Altair
-                all_areas = []
-                if 'Area' in df_attivi.columns:
-                    for item in df_attivi['Area'].dropna():
-                        if isinstance(item, list): all_areas.extend(item)
-                        elif isinstance(item, str): all_areas.extend([p.strip() for p in item.split(',')])
-                        else: all_areas.append(str(item))
+        # 3. SEZIONE ALLARMI E GRAFICI
+        c_left, c_right = st.columns([1, 1.5], gap="large")
+
+        with c_left:
+            st.subheader("🔔 Avvisi Operativi")
+            
+            # --- VISITE IMMINENTI ---
+            if not visite_imminenti.empty:
+                st.markdown(f"""<span class="alert-title alert-info">👨‍⚕️ Visite Imminenti ({len(visite_imminenti)})</span>""", unsafe_allow_html=True)
+                with st.container(border=True):
+                    for i, row in visite_imminenti.iterrows():
+                        st.write(f"• **{row['Nome']} {row['Cognome']}** ({row['Data_Visita'].strftime('%d/%m')})")
+
+            # --- VISITE SCADUTE (Pulsanti Ripristinati) ---
+            if not visite_passate.empty:
+                st.markdown(f"""<span class="alert-title alert-err">⚠️ Visite Scadute (Richiedono Azione)</span>""", unsafe_allow_html=True)
+                with st.container(border=True):
+                    for i, row in visite_passate.iterrows():
+                        rec_id = row['id']
+                        c1, c2 = st.columns([3, 1.5])
+                        c1.markdown(f"**{row['Nome']} {row['Cognome']}**")
+                        if c2.button("Rientrato ✅", key=f"vis_back_{rec_id}"):
+                            update_generic("Pazienti", rec_id, {"Visita_Esterna": False, "Data_Visita": None})
+                            st.rerun()
+
+            # --- RECALL (Pulsanti Ripristinati) ---
+            if len(da_richiamare) > 0:
+                st.markdown(f"""<span class="alert-title alert-warn">📞 Recall Disdette (>10gg)</span>""", unsafe_allow_html=True)
+                with st.container(border=True):
+                    for i, row in da_richiamare.iterrows():
+                        rec_id = row['id']
+                        c1, c2 = st.columns([3, 1.5])
+                        c1.markdown(f"**{row['Nome']} {row['Cognome']}**")
+                        if c2.button("Fatto ✅", key=f"rec_done_{rec_id}"):
+                            update_generic("Pazienti", rec_id, {"Disdetto": False}) 
+                            st.rerun()
+
+            if visite_imminenti.empty and visite_passate.empty and len(da_richiamare) == 0:
+                st.success("✅ Tutto regolare. Nessun avviso.")
+
+        with c_right:
+            st.subheader("📈 Analisi Aree")
+            df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
+            
+            all_areas = []
+            if 'Area' in df_attivi.columns:
+                for item in df_attivi['Area'].dropna():
+                    if isinstance(item, list): all_areas.extend(item)
+                    elif isinstance(item, str): all_areas.extend([p.strip() for p in item.split(',')])
+                    else: all_areas.append(str(item))
+            
+            if all_areas:
+                counts = pd.Series(all_areas).value_counts().reset_index()
+                counts.columns = ['Area', 'Pazienti']
                 
-                if all_areas:
-                    counts = pd.Series(all_areas).value_counts().reset_index()
-                    counts.columns = ['Area', 'Pazienti']
-                    domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
-                    range_ = ["#33A1C9", "#F1C40F", "#2ECC71", "#9B59B6", "#E74C3C", "#7F8C8D"]
-                    
-                    chart = alt.Chart(counts).mark_bar(cornerRadius=4, height=20).encode(
-                        x=alt.X('Pazienti', axis=None), 
-                        y=alt.Y('Area', sort='-x', title=None, axis=alt.Axis(domain=False, ticks=False, labelColor="#CCC")),
-                        color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None),
-                        tooltip=['Area', 'Pazienti']
-                    ).properties(height=300).configure_view(strokeWidth=0)
-                    st.altair_chart(chart, use_container_width=True)
-
-        # CASO B: HAI CLICCATO UNA CARD (Mostro la tabella dettagliata)
-        else:
-            df_show = pd.DataFrame()
-            cols_to_show = ['Nome', 'Cognome', 'Area']
-            
-            if st.session_state['dash_view'] == 'attivi':
-                st.subheader("👥 Lista Pazienti Attivi")
-                df_show = df_attivi
-            
-            elif st.session_state['dash_view'] == 'disdetti':
-                st.subheader("📉 Lista Pazienti Disdetti")
-                df_show = df_disdetti
-                cols_to_show.append('Data_Disdetta')
-            
-            elif st.session_state['dash_view'] == 'recall':
-                st.subheader("📞 Lista Recall (Disdetti > 10gg)")
-                df_show = da_richiamare
-                cols_to_show.append('Data_Disdetta')
-            
-            elif st.session_state['dash_view'] == 'visite':
-                st.subheader("🩺 Lista Visite Imminenti")
-                df_show = visite_imminenti
-                cols_to_show.append('Data_Visita')
-
-            if not df_show.empty:
-                # Mostra tabella pulita
-                valid_cols = [c for c in cols_to_show if c in df_show.columns]
-                st.dataframe(
-                    df_show[valid_cols], 
-                    use_container_width=True, 
-                    hide_index=True,
-                    column_config={
-                        "Data_Disdetta": st.column_config.DateColumn("Disdetta il", format="DD/MM/YYYY"),
-                        "Data_Visita": st.column_config.DateColumn("Visita il", format="DD/MM/YYYY")
-                    }
-                )
+                # COLORI ORIGINALI
+                domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
+                range_ = ["#33A1C9", "#F1C40F", "#2ECC71", "#9B59B6", "#E74C3C", "#7F8C8D"]
+                
+                chart = alt.Chart(counts).mark_bar(cornerRadius=5).encode(
+                    x=alt.X('Pazienti', title=None), 
+                    y=alt.Y('Area', sort='-x', title=None),
+                    color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None),
+                    tooltip=['Area', 'Pazienti']
+                ).properties(height=350).configure_axis(grid=False).configure_view(strokeWidth=0)
+                
+                st.altair_chart(chart, use_container_width=True)
             else:
-                st.info("Nessun paziente in questa categoria.")
+                st.info("Il grafico apparirà popolando le Aree.")
+
 # =========================================================
 # SEZIONE 2: PAZIENTI
 # =========================================================
