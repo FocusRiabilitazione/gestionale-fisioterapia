@@ -9,7 +9,7 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE (BIG ICONS UPDATE)
+# 0. CONFIGURAZIONE & STILE (ICONE GRANDI + PULSANTI ATTIVI)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -44,95 +44,75 @@ st.markdown("""
     h2, h3, h4 { color: #FFF !important; font-weight: 600; }
 
     /* ============================================================
-       KPI CARDS: FORZATURA STILE SU PULSANTI
+       KPI CARDS (I 4 PULSANTI IN ALTO)
        ============================================================ */
     
-    /* Stile Base per i bottoni nelle colonne della dashboard */
+    /* Contenitore Bottone */
     div[data-testid="column"] button {
-        background-color: #1e232e !important; /* Sfondo scuro card */
+        background-color: #1e232e !important;
         border: 1px solid rgba(255,255,255,0.1) !important;
         border-radius: 16px !important;
-        height: 130px !important; /* Altezza aumentata per icone più grandi */
+        height: 140px !important; /* Altezza aumentata */
         width: 100% !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.2) !important;
-        color: white !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
+        transition: transform 0.2s !important;
     }
-
-    /* Testo interno (Icona e Numero) - MODIFICATO PER ESSERE PIÙ GRANDE */
-    div[data-testid="column"] button p {
-        font-size: 36px !important; /* AUMENTATO DA 26px a 36px */
-        font-weight: 800 !important;
-        line-height: 1.2 !important;
-        margin: 0 !important;
-    }
-
-    /* Hover generico */
+    
+    /* Hover */
     div[data-testid="column"] button:hover {
         transform: translateY(-5px) !important;
         background-color: #252a36 !important;
+        border-color: rgba(255,255,255,0.3) !important;
     }
 
-    /* --- COLORI SPECIFICI PER OGNI CARD (1,2,3,4) --- */
+    /* TESTO DENTRO I PULSANTI (Icona + Numero) */
+    /* Targettiamo specificamente il paragrafo dentro il markdown del bottone */
+    div[data-testid="column"] button div[data-testid="stMarkdownContainer"] p {
+        font-size: 42px !important; /* GRANDISSIMO */
+        font-weight: 800 !important;
+        line-height: 1.1 !important;
+        margin-bottom: 0px !important;
+        color: #FFFFFF !important;
+    }
 
-    /* 1. ATTIVI (BLU) */
-    div[data-testid="column"]:nth-of-type(1) button {
-        border-left: 6px solid #4299e1 !important;
-    }
-    div[data-testid="column"]:nth-of-type(1) button:hover {
-        border-color: #4299e1 !important;
-        box-shadow: 0 0 25px rgba(66, 153, 225, 0.4) !important;
-    }
-    div[data-testid="column"]:nth-of-type(1) button p { color: #90cdf4 !important; }
-
-    /* 2. DISDETTI (ROSSO) */
-    div[data-testid="column"]:nth-of-type(2) button {
-        border-left: 6px solid #e53e3e !important;
-    }
-    div[data-testid="column"]:nth-of-type(2) button:hover {
-        border-color: #e53e3e !important;
-        box-shadow: 0 0 25px rgba(229, 62, 62, 0.4) !important;
-    }
-    div[data-testid="column"]:nth-of-type(2) button p { color: #feb2b2 !important; }
-
-    /* 3. RECALL (ARANCIO) */
-    div[data-testid="column"]:nth-of-type(3) button {
-        border-left: 6px solid #ed8936 !important;
-    }
-    div[data-testid="column"]:nth-of-type(3) button:hover {
-        border-color: #ed8936 !important;
-        box-shadow: 0 0 25px rgba(237, 137, 54, 0.4) !important;
-    }
-    div[data-testid="column"]:nth-of-type(3) button p { color: #fbd38d !important; }
-
-    /* 4. VISITE (VERDE/TEAL) */
-    div[data-testid="column"]:nth-of-type(4) button {
-        border-left: 6px solid #38b2ac !important;
-    }
-    div[data-testid="column"]:nth-of-type(4) button:hover {
-        border-color: #38b2ac !important;
-        box-shadow: 0 0 25px rgba(56, 178, 172, 0.4) !important;
-    }
-    div[data-testid="column"]:nth-of-type(4) button p { color: #81e6d9 !important; }
+    /* COLORI BORDI LATERALI */
+    div[data-testid="column"]:nth-of-type(1) button { border-left: 6px solid #4299e1 !important; } /* Blu */
+    div[data-testid="column"]:nth-of-type(2) button { border-left: 6px solid #e53e3e !important; } /* Rosso */
+    div[data-testid="column"]:nth-of-type(3) button { border-left: 6px solid #ed8936 !important; } /* Arancio */
+    div[data-testid="column"]:nth-of-type(4) button { border-left: 6px solid #38b2ac !important; } /* Verde */
 
 
-    /* --- PULSANTI AZIONE PICCOLI (Rientrato/Fatto) --- */
+    /* ============================================================
+       PULSANTI AZIONE (PICCOLI) - Per "Rientrato", "Fatto"
+       ============================================================ */
+    /* Resettiamo lo stile per i bottoni che NON sono le card principali */
+    
+    /* Pulsanti dentro ai container degli avvisi */
     div[data-testid="stVerticalBlock"] div[data-testid="column"] button {
         height: auto !important;
         background: linear-gradient(135deg, #3182ce, #2b6cb0) !important;
         border: none !important;
-        border-left: none !important;
-        font-size: 14px !important;
-        padding: 5px 10px !important;
+        border-left: none !important; 
+        border-radius: 8px !important;
+        padding: 5px 15px !important;
         box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
     }
-    div[data-testid="stVerticalBlock"] div[data-testid="column"] button p {
+    
+    /* Testo dei pulsanti piccoli */
+    div[data-testid="stVerticalBlock"] div[data-testid="column"] button div[data-testid="stMarkdownContainer"] p {
         font-size: 14px !important;
-        color: white !important;
         font-weight: 600 !important;
+        color: white !important;
+    }
+
+    /* --- TABELLE TRASPARENTI --- */
+    div[data-testid="stDataFrame"] {
+        background-color: transparent !important;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+    }
+    div[data-testid="stDataFrame"] div[data-testid="stTable"] {
+        background-color: transparent !important;
     }
 
     /* --- NAVIGAZIONE --- */
@@ -158,12 +138,7 @@ st.markdown("""
     }
     div.row-widget.stRadio div[role="radiogroup"] > label > div:first-child { display: none; }
 
-    /* --- COMPONENTI --- */
-    div[data-testid="stDataFrame"] {
-        background-color: rgba(20, 25, 35, 0.6);
-        border: var(--glass-border);
-        border-radius: 12px;
-    }
+    /* INPUT & ALERT BOX */
     input, select, textarea {
         background-color: rgba(13, 17, 23, 0.8) !important;
         border: 1px solid rgba(255, 255, 255, 0.15) !important;
@@ -176,11 +151,15 @@ st.markdown("""
         color: white;
     }
     hr { border-color: rgba(255,255,255,0.1); opacity: 0.5; }
-
-    /* Alert Box */
+    
     .alert-box {
         padding: 15px; border-radius: 12px; margin-bottom: 10px;
         border-left: 4px solid; background: rgba(255,255,255,0.03);
+    }
+    
+    div[data-testid="stVerticalBlock"] > div[style*="border"] {
+        background-color: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.08);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -345,7 +324,7 @@ with st.sidebar:
         label_visibility="collapsed"
     )
     st.divider()
-    st.markdown("<div style='text-align:center; color:#64748b; font-size:11px;'>Focus App v3.2 - Interactive</div>", unsafe_allow_html=True)
+    st.caption("Focus App v3.8 - Perfected")
 
 # =========================================================
 # SEZIONE 1: DASHBOARD
@@ -354,7 +333,6 @@ if menu == "⚡ Dashboard":
     st.title("⚡ Dashboard")
     st.write("")
 
-    # Stato del filtro dashboard
     if 'dash_filter' not in st.session_state: st.session_state.dash_filter = None
 
     df = get_data("Pazienti")
@@ -384,33 +362,27 @@ if menu == "⚡ Dashboard":
         sette_giorni_fa = oggi - pd.Timedelta(days=7)
         visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
 
-        # 1. RIGA KPI (PULSANTI INTERATTIVI)
+        # 1. RIGA KPI (ICONE GIGANTI 40px+)
         col1, col2, col3, col4 = st.columns(4)
         
-        # Helper per formattare il testo del bottone con icona piccola
-        def btn_label(icon, val, lbl):
-            return f"{icon}  {val}\n{lbl}"
+        # Testo formattato con Icona e A capo
+        def btn_txt(ico, num, txt): return f"{ico}  {num}\n\n{txt}"
 
-        # Pulsanti che settano il filtro
         with col1:
-            if st.button(btn_label("👥", cnt_attivi, "ATTIVI"), key="kpi_attivi"):
-                st.session_state.dash_filter = "Attivi"
+            if st.button(btn_txt("👥", cnt_attivi, "ATTIVI"), key="kpi_attivi"): st.session_state.dash_filter = "Attivi"
         with col2:
-            if st.button(btn_label("📉", len(df_disdetti), "DISDETTI"), key="kpi_disdetti"):
-                st.session_state.dash_filter = "Disdetti"
+            if st.button(btn_txt("📉", len(df_disdetti), "DISDETTI"), key="kpi_disdetti"): st.session_state.dash_filter = "Disdetti"
         with col3:
-            if st.button(btn_label("📞", len(da_richiamare), "RECALL"), key="kpi_recall"):
-                st.session_state.dash_filter = "Recall"
+            if st.button(btn_txt("📞", len(da_richiamare), "RECALL"), key="kpi_recall"): st.session_state.dash_filter = "Recall"
         with col4:
-            if st.button(btn_label("🩺", len(visite_imminenti), "VISITE"), key="kpi_visite"):
-                st.session_state.dash_filter = "Visite"
+            if st.button(btn_txt("🩺", len(visite_imminenti), "VISITE"), key="kpi_visite"): st.session_state.dash_filter = "Visite"
 
         st.write("")
 
-        # 2. LISTA COMPARSA (SE FILTRO ATTIVO)
+        # 2. LISTA COMPARSA
         if st.session_state.dash_filter:
             with st.container(border=True):
-                c_head, c_x = st.columns([8, 1])
+                c_head, c_x = st.columns([9, 1])
                 c_head.subheader(f"📋 Lista: {st.session_state.dash_filter}")
                 if c_x.button("❌", key="close_list"):
                     st.session_state.dash_filter = None
@@ -433,45 +405,54 @@ if menu == "⚡ Dashboard":
                         height=250
                     )
                 else:
-                    st.info("Nessun paziente trovato in questa categoria.")
+                    st.info("Nessun dato.")
             st.divider()
 
         # 3. SEZIONE PRINCIPALE
         c_left, c_right = st.columns([1, 1.6], gap="large")
 
         with c_left:
-            st.markdown("### 🔔 Avvisi")
-            has_alerts = False
+            st.subheader("🔔 Avvisi Operativi")
+            
+            # VISITE IMMINENTI
             if not visite_imminenti.empty:
-                has_alerts = True
                 st.markdown(f"""<div class="alert-box" style='border-color:#38b2ac'>
                     <strong style='color:#38b2ac'>👨‍⚕️ Visite Imminenti ({len(visite_imminenti)})</strong><br>
                     {'<br>'.join([f"• {row['Nome']} {row['Cognome']} ({row['Data_Visita'].strftime('%d/%m')})" for i, row in visite_imminenti.iterrows()])}
                     </div>""", unsafe_allow_html=True)
 
+            # VISITE SCADUTE (Pulsanti Ripristinati)
             if not visite_passate.empty:
-                has_alerts = True
-                st.markdown(f"""<div class="alert-box" style='border-color:#e53e3e'>
+                st.markdown(f"""<div class="alert-box" style='border-color:#e53e3e; margin-bottom:5px;'>
                     <strong style='color:#e53e3e'>⚠️ Visite Scadute</strong>
                     </div>""", unsafe_allow_html=True)
+                
                 with st.container(border=True):
                     for i, row in visite_passate.iterrows():
                         rec_id = row['id']
                         c1, c2 = st.columns([3, 1])
-                        c1.caption(f"{row['Nome']} {row['Cognome']}")
+                        c1.caption(f"**{row['Nome']} {row['Cognome']}**")
                         if c2.button("Rientrato", key=f"rientro_{rec_id}"):
                             update_generic("Pazienti", rec_id, {"Visita_Esterna": False, "Data_Visita": None})
                             st.rerun()
 
+            # RECALL (Pulsanti Ripristinati)
             if len(da_richiamare) > 0:
-                has_alerts = True
-                st.markdown(f"""<div class="alert-box" style='border-color:#ed8936'>
-                    <strong style='color:#ed8936'>📞 Recall Necessari ({len(da_richiamare)})</strong><br>
-                    {'<br>'.join([f"• {row['Nome']} {row['Cognome']}" for i, row in da_richiamare.iterrows()])}
+                st.markdown(f"""<div class="alert-box" style='border-color:#ed8936; margin-bottom:5px; margin-top:15px;'>
+                    <strong style='color:#ed8936'>📞 Recall Necessari ({len(da_richiamare)})</strong>
                     </div>""", unsafe_allow_html=True)
+                
+                with st.container(border=True):
+                    for i, row in da_richiamare.iterrows():
+                        rec_id = row['id']
+                        c1, c2 = st.columns([3, 1])
+                        c1.caption(f"**{row['Nome']} {row['Cognome']}**")
+                        if c2.button("Fatto", key=f"recall_{rec_id}"):
+                            update_generic("Pazienti", rec_id, {"Disdetto": False}) 
+                            st.rerun()
 
-            if not has_alerts:
-                st.success("✅ Nessun avviso urgente.")
+            if not has_alerts and visite_imminenti.empty:
+                st.success("✅ Tutto regolare. Nessun avviso.")
 
         with c_right:
             st.markdown("### 📈 Performance Aree")
@@ -488,10 +469,8 @@ if menu == "⚡ Dashboard":
                 counts = pd.Series(all_areas).value_counts().reset_index()
                 counts.columns = ['Area', 'Pazienti']
                 
-                # --- COLORI ORIGINALI RIPRISTINATI ---
                 domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
                 range_ = ["#33A1C9", "#F1C40F", "#2ECC71", "#9B59B6", "#E74C3C", "#7F8C8D"]
-                # -------------------------------------
                 
                 chart = alt.Chart(counts).mark_bar(cornerRadius=6, height=25).encode(
                     x=alt.X('Pazienti', axis=None), 
