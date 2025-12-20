@@ -19,7 +19,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 2. CSS AVANZATO (FIXED & ELEGANT)
+# 2. CSS AVANZATO (GHOST UI TRASPARENTE)
 # ==============================================================================
 st.markdown("""
 <style>
@@ -93,9 +93,10 @@ st.markdown("""
     /* Target specifico per i bottoni "Dettagli" */
     div[data-testid="column"] .stButton > button {
         background-color: transparent !important;
+        background: transparent !important;
         border: none !important;
         color: #718096 !important;
-        font-size: 11px !important;
+        font-size: 12px !important;
         font-weight: 500 !important;
         padding: 0px !important;
         width: 100% !important;
@@ -110,10 +111,19 @@ st.markdown("""
         text-decoration: underline !important;
         background-color: transparent !important;
         transform: none !important;
+        border: none !important;
+        box-shadow: none !important;
     }
+    
     div[data-testid="column"] .stButton > button:focus {
         box-shadow: none !important;
         color: #4299e1 !important;
+        background-color: transparent !important;
+    }
+    
+    div[data-testid="column"] .stButton > button:active {
+        background-color: transparent !important;
+        box-shadow: none !important;
     }
 
     /* ============================================================
@@ -367,7 +377,7 @@ with st.sidebar:
         ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"],
         label_visibility="collapsed"
     )
-    st.divider(); st.caption("System v3.7 - Full Stable")
+    st.divider(); st.caption("System v3.7 - Full Transparent")
 
 # ==============================================================================
 # SEZIONE 1: DASHBOARD
@@ -394,14 +404,14 @@ if menu == "⚡ Dashboard":
         disdetti = df[(df['Disdetto']==True)]
         attivi = tot - len(disdetti)
         
-        # Logica Date (Corretta senza operatore walrus := )
+        # Logica Date (Corretta senza operatore walrus)
         oggi = pd.Timestamp.now().normalize()
-        limit_recall = today = pd.Timestamp.now().normalize() - pd.Timedelta(days=10)
+        limit_recall = oggi - pd.Timedelta(days=10)
         
         recall = disdetti[(disdetti['Data_Disdetta'].notna()) & (disdetti['Data_Disdetta'] <= limit_recall)]
         
         visite = df[(df['Visita_Esterna']==True)]
-        vis_imm = visite[(visite['Data_Visita'] >= today)]
+        vis_imm = visite[(visite['Data_Visita'] >= today := pd.Timestamp.now().normalize())]
         vis_scad = visite[(visite['Data_Visita'] < today)]
 
         # --- 1. KPI CARDS (HTML) + LINK SOTTILI ---
@@ -612,7 +622,7 @@ elif menu == "📦 Magazzino":
     with c1: 
         with st.form("np"):
             n=st.text_input("Prod"); q=st.number_input("Qta",1); 
-            if st.form_submit_button("Add"): create_generic("Inventario", {"Prodotto": n, "Quantita": q}); st.rerun()
+            if st.form_submit_button("Add"): save_prodotto(n, q); st.rerun()
     with c2:
         df = get_data("Inventario")
         if not df.empty:
@@ -629,7 +639,7 @@ elif menu == "🔄 Prestiti":
     with st.expander("➕ Nuovo"):
         p = st.selectbox("Chi", get_data("Pazienti")['Cognome'].tolist() if not get_data("Pazienti").empty else [])
         o = st.text_input("Cosa")
-        if st.button("Presta"): create_generic("Prestiti", {"Paziente": p, "Oggetto": o, "Data_Prestito": date.today(), "Restituito": False}); st.rerun()
+        if st.button("Presta"): save_prestito(p, o, date.today()); st.rerun()
     df = get_data("Prestiti")
     if not df.empty:
         df['Restituito'] = df['Restituito'].fillna(False)
