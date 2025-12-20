@@ -19,7 +19,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 2. CSS AVANZATO (GHOST UI TRASPARENTE)
+# 2. CSS AVANZATO (GHOST UI TRASPARENTE + FIX ERRORI)
 # ==============================================================================
 st.markdown("""
 <style>
@@ -61,7 +61,7 @@ st.markdown("""
     h2, h3, h4 { color: #FFF !important; font-weight: 600; }
 
     /* ============================================================
-       1. KPI CARDS (HTML PURO) - SENZA BOTTONI INVADENTI
+       1. KPI CARDS (HTML PURO)
        ============================================================ */
     .glass-kpi {
         background: var(--glass-bg);
@@ -88,14 +88,14 @@ st.markdown("""
     .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #a0aec0; margin-top: 5px; }
 
     /* ============================================================
-       2. LINK TESTUALI SOTTILI (Sotto le card)
+       2. LINK TESTUALI TRASPARENTI (Sotto le card)
+       Qui forziamo la trasparenza totale
        ============================================================ */
-    /* Target specifico per i bottoni "Dettagli" */
     div[data-testid="column"] .stButton > button {
         background-color: transparent !important;
         background: transparent !important;
         border: none !important;
-        color: #718096 !important;
+        color: #718096 !important; /* Grigio scuro per default */
         font-size: 12px !important;
         font-weight: 500 !important;
         padding: 0px !important;
@@ -106,6 +106,7 @@ st.markdown("""
         box-shadow: none !important;
     }
 
+    /* Effetto Hover: Diventa blu e sottolineato */
     div[data-testid="column"] .stButton > button:hover {
         color: #4299e1 !important;
         text-decoration: underline !important;
@@ -115,15 +116,13 @@ st.markdown("""
         box-shadow: none !important;
     }
     
-    div[data-testid="column"] .stButton > button:focus {
+    /* Rimozione effetto focus/active */
+    div[data-testid="column"] .stButton > button:focus,
+    div[data-testid="column"] .stButton > button:active {
         box-shadow: none !important;
         color: #4299e1 !important;
         background-color: transparent !important;
-    }
-    
-    div[data-testid="column"] .stButton > button:active {
-        background-color: transparent !important;
-        box-shadow: none !important;
+        border: none !important;
     }
 
     /* ============================================================
@@ -236,7 +235,6 @@ def get_data(tbl):
         data = [{'id': r['id'], **r['fields']} for r in records]
         return pd.DataFrame(data)
     except Exception as e:
-        # st.error(f"Errore caricamento dati: {e}") # Debug off
         return pd.DataFrame()
 
 def save_paziente(nome, cognome, area, disdetto):
@@ -377,7 +375,7 @@ with st.sidebar:
         ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"],
         label_visibility="collapsed"
     )
-    st.divider(); st.caption("System v3.7 - Full Transparent")
+    st.divider(); st.caption("System v3.8 - Stable")
 
 # ==============================================================================
 # SEZIONE 1: DASHBOARD
@@ -404,17 +402,18 @@ if menu == "⚡ Dashboard":
         disdetti = df[(df['Disdetto']==True)]
         attivi = tot - len(disdetti)
         
-        # Logica Date (Corretta senza operatore walrus)
+        # Logica Date (CORRETTA - SENZA WALRUS OPERATOR :=)
         oggi = pd.Timestamp.now().normalize()
-        limit_recall = oggi - pd.Timedelta(days=10)
+        limit_recall = today = pd.Timestamp.now().normalize() - pd.Timedelta(days=10)
         
         recall = disdetti[(disdetti['Data_Disdetta'].notna()) & (disdetti['Data_Disdetta'] <= limit_recall)]
         
         visite = df[(df['Visita_Esterna']==True)]
-        vis_imm = visite[(visite['Data_Visita'] >= today := pd.Timestamp.now().normalize())]
+        # Qui c'era l'errore, ora è corretto:
+        vis_imm = visite[(visite['Data_Visita'] >= today)]
         vis_scad = visite[(visite['Data_Visita'] < today)]
 
-        # --- 1. KPI CARDS (HTML) + LINK SOTTILI ---
+        # --- 1. KPI CARDS (HTML) + LINK TRASPARENTI ---
         c1, c2, c3, c4 = st.columns(4)
         
         def draw_kpi(col, icon, num, label, color, key):
@@ -426,7 +425,7 @@ if menu == "⚡ Dashboard":
                     <div class="kpi-label">{label}</div>
                 </div>
                 """, unsafe_allow_html=True)
-                # Link testuale sottile (definito nel CSS)
+                # Link testuale sottile (diventerà trasparente grazie al CSS)
                 if st.button("› vedi dettagli", key=f"btn_{key}"):
                     st.session_state.dash_filter = key
 
