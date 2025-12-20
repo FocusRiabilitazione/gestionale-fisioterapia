@@ -9,94 +9,135 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE (DARK I-TECH PRO)
+# 0. CONFIGURAZIONE & ULTIMATE DESIGN (CSS AVANZATO)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio", page_icon="🏥", layout="wide")
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
     
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
     }
 
     .stApp {
-        background-color: #0E1117;
+        background-color: #050505; /* Nero Profondo Premium */
         color: #FAFAFA;
     }
     
+    /* --- 1. SIDEBAR PREMIUM --- */
     section[data-testid="stSidebar"] {
-        background-color: #111319;
-        border-right: 1px solid #2B2D31;
+        background-color: #0E0E0E;
+        border-right: 1px solid #1F1F1F;
     }
-
+    
+    /* Bottoni Navigazione */
     div.row-widget.stRadio > div { background-color: transparent; }
     div.row-widget.stRadio > div[role="radiogroup"] > label {
-        background-color: #1E2129;
-        padding: 10px 15px;
-        margin-bottom: 4px;
+        background-color: transparent;
+        padding: 12px 15px;
+        margin-bottom: 2px;
         border-radius: 8px;
-        border: 1px solid #2B2D31;
-        color: #E0E0E0;
-        transition: all 0.2s ease;
+        border: 1px solid transparent;
+        color: #888;
+        transition: all 0.3s ease;
     }
     div.row-widget.stRadio > div[role="radiogroup"] > label:hover {
-        background-color: #262933;
-        border-color: #FF4B2B;
-        color: white;
+        background-color: #1A1A1A;
+        color: #FFF;
+    }
+    /* Stato Attivo (Selezionato) */
+    div.row-widget.stRadio > div[role="radiogroup"] > label[data-checked="true"] {
+        background-color: #1A1A1A;
+        border: 1px solid #333;
+        color: #FFF;
+        font-weight: 600;
     }
     div.row-widget.stRadio div[role="radiogroup"] > label > div:first-child { display: none; }
 
-    div[data-testid="stMetric"] {
-        background-color: #1E2129;
-        border: 1px solid #2B2D31;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    /* --- 2. CUSTOM KPI CARDS (HTML/CSS) --- */
+    .kpi-card {
+        background-color: #121212;
+        border: 1px solid #252525;
+        border-radius: 16px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        height: 100%;
     }
-    div[data-testid="stMetric"]:hover { border-color: #FF4B2B; }
-    div[data-testid="stMetricLabel"] { color: #9CA3AF; font-size: 0.85rem; }
-    div[data-testid="stMetricValue"] { color: #FFFFFF; }
+    .kpi-card:hover {
+        transform: translateY(-5px);
+        border-color: #FF4B2B;
+        box-shadow: 0 10px 30px -10px rgba(255, 75, 43, 0.3);
+    }
+    .kpi-icon {
+        font-size: 24px;
+        margin-bottom: 10px;
+        display: inline-block;
+        padding: 10px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.05);
+    }
+    .kpi-value {
+        font-size: 32px;
+        font-weight: 700;
+        color: #FFF;
+        margin: 5px 0;
+    }
+    .kpi-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #666;
+        font-weight: 600;
+    }
 
+    /* --- 3. PULSANTI GRADIENTE --- */
     div.stButton > button {
         background: linear-gradient(135deg, #FF4B2B 0%, #FF416C 100%);
         color: white;
         border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 6px;
+        padding: 0.6rem 1.2rem;
+        border-radius: 8px;
         font-weight: 600;
         letter-spacing: 0.5px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        box-shadow: 0 4px 15px rgba(255, 65, 108, 0.3);
+        transition: all 0.3s ease;
     }
     div.stButton > button:hover {
-        box-shadow: 0 0 12px rgba(255, 65, 108, 0.5);
+        transform: scale(1.02);
+        box-shadow: 0 6px 20px rgba(255, 65, 108, 0.5);
         color: white;
     }
 
+    /* --- 4. TABELLE E INPUT --- */
     div[data-testid="stDataFrame"] {
-        background-color: #1E2129;
-        border-radius: 8px;
-        border: 1px solid #2B2D31;
+        background-color: #121212;
+        border-radius: 12px;
+        border: 1px solid #252525;
     }
-
     .streamlit-expanderHeader {
-        background-color: #1E2129;
+        background-color: #121212;
         border-radius: 8px;
-        color: white;
-        border: 1px solid #2B2D31;
+        color: #EEE;
+        border: 1px solid #252525;
     }
     input, select, textarea {
-        background-color: #16181D !important;
+        background-color: #0A0A0A !important;
         color: white !important;
-        border: 1px solid #2B2D31 !important;
-        border-radius: 6px;
+        border: 1px solid #333 !important;
+        border-radius: 8px;
+        padding: 10px;
     }
-    h1, h2, h3 {
-        color: #FFFFFF !important;
-        font-weight: 700;
-    }
-    hr { border-color: #2B2D31; }
+    
+    /* Titoli */
+    h1 { font-size: 2.5rem; font-weight: 800; letter-spacing: -1px; }
+    h2 { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 20px; }
+    h3 { font-size: 1.3rem; font-weight: 600; color: #CCC; }
+    
+    hr { border-color: #222; margin: 30px 0; }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -168,31 +209,20 @@ def save_preventivo_temp(paziente, dettagli_str, totale, note):
     get_data.clear()
     table.create(record, typecast=True)
 
-# === PDF CON EURO SIMBOLO ===
 def create_pdf(paziente, righe_preventivo, totale, note=""):
-    # SIMBOLO EURO PER FPDF (chr(128) in windows-1252)
     euro = chr(128)
-    
     class PDF(FPDF):
         def header(self):
-            # 1. LOGO CENTRATO
             if os.path.exists("logo.png"):
                 try: self.image('logo.png', 75, 10, 60)
                 except: pass
-            
-            # Spazio sotto il logo
             self.set_y(32)
-
-            # 2. TITOLO PULITO
             self.set_font('Arial', 'B', 12)
             self.set_text_color(80, 80, 80)
             self.cell(0, 10, 'PREVENTIVO PERCORSO RIABILITATIVO', 0, 1, 'C')
-            
-            # Linea
             self.set_draw_color(200, 200, 200)
             self.line(20, self.get_y(), 190, self.get_y())
             self.ln(8)
-
         def footer(self):
             self.set_y(-15); self.set_font('Arial', 'I', 8)
             self.set_text_color(128)
@@ -200,8 +230,6 @@ def create_pdf(paziente, righe_preventivo, totale, note=""):
 
     pdf = PDF()
     pdf.add_page()
-    
-    # INFO PAZIENTE
     pdf.set_text_color(0)
     pdf.set_font('Arial', 'B', 12)
     pdf.cell(95, 8, f'Paziente: {paziente}', 0, 0, 'L')
@@ -209,72 +237,56 @@ def create_pdf(paziente, righe_preventivo, totale, note=""):
     pdf.cell(95, 8, f'Data: {date.today().strftime("%d/%m/%Y")}', 0, 1, 'R')
     pdf.ln(8)
     
-    # DESCRIZIONE
     if note and len(note) > 5:
         pdf.set_font('Arial', 'BI', 11)
         pdf.cell(0, 8, 'Obiettivi e Descrizione del Percorso:', 0, 1)
         pdf.set_font('Arial', 'I', 11)
         pdf.set_text_color(60, 60, 60)
-        # Sostituisco eventuali € scritti a mano con il codice giusto
         clean_note = note.replace("€", euro).encode('latin-1', 'replace').decode('latin-1')
         pdf.multi_cell(0, 6, clean_note)
         pdf.ln(10)
     
-    # TABELLA PREZZI
     pdf.set_text_color(255, 255, 255)
     pdf.set_fill_color(50, 50, 50)
     pdf.set_font('Arial', 'B', 11)
-    
     pdf.cell(110, 10, ' Trattamento', 0, 0, 'L', 1) 
     pdf.cell(30, 10, 'Q.ta', 0, 0, 'C', 1)
     pdf.cell(50, 10, 'Importo ', 0, 1, 'R', 1)
     
-    pdf.set_text_color(0)
-    pdf.set_font('Arial', '', 11)
-    
+    pdf.set_text_color(0); pdf.set_font('Arial', '', 11)
     for riga in righe_preventivo:
         nome = str(riga.get('nome', '-'))[:55]
         qty = str(riga.get('qty', '0'))
         tot_riga = str(riga.get('tot', '0'))
-        
         pdf.cell(110, 10, f" {nome}", 'B') 
         pdf.cell(30, 10, qty, 'B', 0, 'C')
-        pdf.cell(50, 10, f"{tot_riga} {euro} ", 'B', 1, 'R') # EURO QUI
-        
+        pdf.cell(50, 10, f"{tot_riga} {euro} ", 'B', 1, 'R')
     pdf.ln(5)
     
-    # TOTALE
     pdf.set_font('Arial', 'B', 14)
     pdf.cell(140, 12, 'TOTALE COMPLESSIVO:', 0, 0, 'R')
     pdf.set_fill_color(240, 240, 240)
-    pdf.cell(50, 12, f'{totale} {euro}', 1, 1, 'R', 1) # EURO QUI
+    pdf.cell(50, 12, f'{totale} {euro}', 1, 1, 'R', 1)
     pdf.ln(10)
 
-    # RATE
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(0, 8, 'PIANO DI PAGAMENTO CONCORDATO:', 0, 1)
     pdf.set_font('Arial', '', 10)
     pdf.set_draw_color(180, 180, 180)
-    
-    # EURO ANCHE NELLE RATE
     pdf.cell(15, 8, f'1) {euro}', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
     pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
-    
     pdf.cell(15, 8, f'2) {euro}', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
     pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
-    
     pdf.cell(15, 8, f'3) {euro}', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
     pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
     pdf.ln(15)
 
-    # FIRMA
     y_pos = pdf.get_y()
     pdf.set_font('Arial', '', 11)
     pdf.set_xy(110, y_pos)
     pdf.cell(80, 6, 'Firma per accettazione:', 0, 1, 'L')
     pdf.set_xy(110, y_pos + 15)
     pdf.cell(80, 0, '', 'T')
-    
     return pdf.output(dest='S').encode('latin-1')
 
 # --- 3. INTERFACCIA GRAFICA ---
@@ -282,20 +294,26 @@ def create_pdf(paziente, righe_preventivo, totale, note=""):
 with st.sidebar:
     try: st.image("logo.png", use_container_width=True)
     except: st.title("Focus Rehab")
-    st.markdown("### Navigazione")
-    menu = st.radio("", ["⚡ Dashboard", "🗂️ Anagrafica", "💳 Preventivi", "🧬 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
+    st.write("")
+    menu = st.radio(
+        "Menu", 
+        ["⚡ Dashboard", "🗂️ Anagrafica", "💳 Preventivi", "🧬 Magazzino", "🔄 Prestiti", "📅 Scadenze"],
+        label_visibility="collapsed"
+    )
     st.divider()
-    st.caption("Focus App v2.7 - Euro Fix")
+    st.caption("Focus App v3.0 - Ultimate")
 
 # =========================================================
-# SEZIONE 1: DASHBOARD
+# SEZIONE 1: DASHBOARD ULTIMATE
 # =========================================================
 if menu == "⚡ Dashboard":
     st.title("⚡ Dashboard")
-    st.markdown("Panoramica attività")
     st.write("")
+
     df = get_data("Pazienti")
+    
     if not df.empty:
+        # Calcoli
         for col in ['Disdetto', 'Visita_Esterna']:
             if col not in df.columns: df[col] = False
             df[col] = df[col].fillna(False)
@@ -303,51 +321,103 @@ if menu == "⚡ Dashboard":
             if col not in df.columns: df[col] = None
             df[col] = pd.to_datetime(df[col], errors='coerce')
         if 'Area' not in df.columns: df['Area'] = None
-        totali = len(df); df_disdetti = df[(df['Disdetto']==True)|(df['Disdetto']==1)]; cnt_attivi = totali - len(df_disdetti)
-        oggi = pd.Timestamp.now().normalize(); limite_recall = oggi - pd.Timedelta(days=10)
-        da_richiamare = df_disdetti[(df_disdetti['Data_Disdetta'].notna())&(df_disdetti['Data_Disdetta']<=limite_recall)]
-        df_visite = df[(df['Visita_Esterna']==True)|(df['Visita_Esterna']==1)]; domani = oggi + pd.Timedelta(days=1)
-        visite_imminenti = df_visite[(df_visite['Data_Visita'].notna())&(df_visite['Data_Visita']>=oggi)&(df_visite['Data_Visita']<=domani)]
+
+        totali = len(df)
+        df_disdetti = df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ]
+        cnt_attivi = totali - len(df_disdetti)
         
+        oggi = pd.Timestamp.now().normalize()
+        limite_recall = oggi - pd.Timedelta(days=10)
+        da_richiamare = df_disdetti[ (df_disdetti['Data_Disdetta'].notna()) & (df_disdetti['Data_Disdetta'] <= limite_recall) ]
+        
+        df_visite = df[ (df['Visita_Esterna'] == True) | (df['Visita_Esterna'] == 1) ]
+        domani = oggi + pd.Timedelta(days=1)
+        visite_imminenti = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] >= oggi) & (df_visite['Data_Visita'] <= domani) ]
+        
+        sette_giorni_fa = oggi - pd.Timedelta(days=7)
+        visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
+
+        # 1. RIGA KPI (Cards Custom HTML)
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Pazienti Attivi", cnt_attivi)
-        col2.metric("Disdetti Storico", len(df_disdetti))
-        col3.metric("Recall", len(da_richiamare), delta_color="inverse")
-        col4.metric("Visite Mediche", len(visite_imminenti))
-        st.write("")
         
+        def card(icon, val, label, color="#FFF"):
+            return f"""
+            <div class="kpi-card">
+                <div class="kpi-icon" style="color: {color};">
+                    {icon}
+                </div>
+                <div class="kpi-value">{val}</div>
+                <div class="kpi-label">{label}</div>
+            </div>
+            """
+
+        with col1: st.markdown(card("👥", cnt_attivi, "Pazienti Attivi", "#4ECDC4"), unsafe_allow_html=True)
+        with col2: st.markdown(card("📉", len(df_disdetti), "Disdetti Totali", "#FF6B6B"), unsafe_allow_html=True)
+        with col3: st.markdown(card("📞", len(da_richiamare), "Recall", "#F7B731"), unsafe_allow_html=True)
+        with col4: st.markdown(card("🩺", len(visite_imminenti), "Visite Mediche", "#A3CB38"), unsafe_allow_html=True)
+
+        st.write(""); st.write("")
+
+        # 2. SEZIONE PRINCIPALE (Griglia 2 Colonne)
         c_left, c_right = st.columns([1, 1.5], gap="large")
+
         with c_left:
-            st.subheader("Avvisi")
+            st.markdown("### 🔔 Avvisi")
             if not visite_imminenti.empty:
                 with st.container(border=True):
-                    st.warning(f"👨‍⚕️ **Visite ({len(visite_imminenti)})**")
-                    for i, row in visite_imminenti.iterrows(): st.write(f"• **{row['Nome']} {row['Cognome']}** ({row['Data_Visita'].strftime('%d/%m')})")
-            elif len(da_richiamare) > 0:
+                    st.markdown(f"<div style='color:#A3CB38; font-weight:bold'>👨‍⚕️ Visite Imminenti ({len(visite_imminenti)})</div>", unsafe_allow_html=True)
+                    for i, row in visite_imminenti.iterrows():
+                        st.caption(f"{row['Nome']} {row['Cognome']} • {row['Data_Visita'].strftime('%d/%m')}")
+
+            if not visite_passate.empty:
                 with st.container(border=True):
-                    st.info(f"📞 **Recall ({len(da_richiamare)})**")
-                    for i, row in da_richiamare.iterrows(): st.caption(f"• {row['Nome']} {row['Cognome']}")
-            else: st.success("Tutto regolare.")
+                    st.markdown(f"<div style='color:#FF6B6B; font-weight:bold'>⚠️ Visite Passate</div>", unsafe_allow_html=True)
+                    for i, row in visite_passate.iterrows():
+                        rec_id = row['id']
+                        c1, c2 = st.columns([3, 1])
+                        c1.caption(f"{row['Nome']} {row['Cognome']}")
+                        if c2.button("Rientrato", key=f"rientro_{rec_id}"):
+                            update_generic("Pazienti", rec_id, {"Visita_Esterna": False, "Data_Visita": None})
+                            st.rerun()
+
+            if len(da_richiamare) > 0:
+                with st.container(border=True):
+                    st.markdown(f"<div style='color:#F7B731; font-weight:bold'>📞 Da Richiamare ({len(da_richiamare)})</div>", unsafe_allow_html=True)
+                    for i, row in da_richiamare.iterrows():
+                        st.caption(f"{row['Nome']} {row['Cognome']}")
+
+            if visite_imminenti.empty and visite_passate.empty and len(da_richiamare) == 0:
+                st.success("Tutto regolare. Nessun avviso.")
 
         with c_right:
-            st.subheader("Aree di Competenza")
-            df_attivi = df[(df['Disdetto']==False)|(df['Disdetto']==0)]
+            st.markdown("### 📈 Performance Aree")
+            df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
+            
             all_areas = []
             if 'Area' in df_attivi.columns:
                 for item in df_attivi['Area'].dropna():
                     if isinstance(item, list): all_areas.extend(item)
                     elif isinstance(item, str): all_areas.extend([p.strip() for p in item.split(',')])
                     else: all_areas.append(str(item))
+            
             if all_areas:
-                counts = pd.Series(all_areas).value_counts().reset_index(); counts.columns = ['Area', 'Pazienti']
+                counts = pd.Series(all_areas).value_counts().reset_index()
+                counts.columns = ['Area', 'Pazienti']
+                
                 domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
                 range_ = ["#33A1C9", "#F1C40F", "#2ECC71", "#9B59B6", "#E74C3C", "#7F8C8D"]
-                chart = alt.Chart(counts).mark_bar(cornerRadius=5).encode(
-                    x=alt.X('Pazienti', title=None), y=alt.Y('Area', sort='-x', title=None),
-                    color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None), tooltip=['Area', 'Pazienti']
-                ).properties(height=350).configure_axis(grid=False, labelColor='white', titleColor='white').configure_view(strokeWidth=0)
+                
+                # ULTIMATE MINIMAL CHART
+                chart = alt.Chart(counts).mark_bar(cornerRadius=4, height=20).encode(
+                    x=alt.X('Pazienti', axis=None), # Via asse X
+                    y=alt.Y('Area', sort='-x', title=None, axis=alt.Axis(domain=False, ticks=False, labelColor="#CCC")), # Minimal Y
+                    color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None),
+                    tooltip=['Area', 'Pazienti']
+                ).properties(height=300).configure_view(strokeWidth=0)
+                
                 st.altair_chart(chart, use_container_width=True)
-            else: st.info("Dati insufficienti.")
+            else:
+                st.info("I dati sulle aree saranno visualizzati qui.")
 
 # =========================================================
 # SEZIONE 2: PAZIENTI
@@ -355,15 +425,23 @@ if menu == "⚡ Dashboard":
 elif menu == "🗂️ Anagrafica":
     st.title("🗂️ Anagrafica Pazienti")
     lista_aree = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
+    
     with st.container(border=True):
         st.subheader("➕ Nuovo Paziente")
         with st.form("form_paziente", clear_on_submit=True):
-            c1, c2, c3 = st.columns([2, 2, 1]); c1.text_input("Nome", key="new_name"); c2.text_input("Cognome", key="new_surname"); c3.multiselect("Area", lista_aree, key="new_area")
+            c1, c2, c3 = st.columns([2, 2, 1])
+            c1.text_input("Nome", key="new_name")
+            c2.text_input("Cognome", key="new_surname")
+            c3.multiselect("Area", lista_aree, key="new_area")
             if st.form_submit_button("Salva Paziente", use_container_width=True):
                 if st.session_state.new_name and st.session_state.new_surname:
                     area_s = ", ".join(st.session_state.new_area)
-                    save_paziente(st.session_state.new_name, st.session_state.new_surname, area_s, False); st.success("Salvato!"); st.rerun()
-    st.write(""); df_original = get_data("Pazienti")
+                    save_paziente(st.session_state.new_name, st.session_state.new_surname, area_s, False)
+                    st.success("Salvato!"); st.rerun()
+    
+    st.write("")
+    df_original = get_data("Pazienti")
+    
     if not df_original.empty:
         for c in ['Disdetto', 'Visita_Esterna', 'Dimissione']:
             if c not in df_original.columns: df_original[c] = False
@@ -371,31 +449,58 @@ elif menu == "🗂️ Anagrafica":
         for c in ['Data_Disdetta', 'Data_Visita']:
             if c not in df_original.columns: df_original[c] = None
             df_original[c] = pd.to_datetime(df_original[c], errors='coerce')
-        if 'Area' in df_original.columns: df_original['Area'] = df_original['Area'].apply(lambda x: x[0] if isinstance(x, list) and len(x)>0 else (str(x) if x else "")).str.strip() 
+        if 'Area' in df_original.columns:
+             df_original['Area'] = df_original['Area'].apply(lambda x: x[0] if isinstance(x, list) and len(x)>0 else (str(x) if x else "")).str.strip() 
         df_original['Area'] = df_original['Area'].astype("category")
-        col_search, _ = st.columns([1, 2]); 
+
+        col_search, _ = st.columns([1, 2])
         with col_search: search = st.text_input("🔍 Cerca...", placeholder="Cognome...")
         df_filt = df_original[df_original['Cognome'].astype(str).str.contains(search, case=False, na=False)] if search else df_original
-        cols_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'Data_Disdetta', 'Visita_Esterna', 'Data_Visita', 'Dimissione', 'id']; valid_cols = [c for c in cols_show if c in df_filt.columns]
-        edited = st.data_editor(df_filt[valid_cols], column_config={"Disdetto": st.column_config.CheckboxColumn("Disdetto", width="small"), "Data_Disdetta": st.column_config.DateColumn("Data Disd.", format="DD/MM/YYYY"), "Visita_Esterna": st.column_config.CheckboxColumn("Visita Ext.", width="small"), "Data_Visita": st.column_config.DateColumn("Data Visita", format="DD/MM/YYYY"), "Dimissione": st.column_config.CheckboxColumn("🗑️", help="Elimina"), "Area": st.column_config.SelectboxColumn("Area", options=lista_aree), "id": None}, disabled=["Nome", "Cognome"], hide_index=True, use_container_width=True, key="editor_main", num_rows="fixed")
+
+        cols_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'Data_Disdetta', 'Visita_Esterna', 'Data_Visita', 'Dimissione', 'id']
+        valid_cols = [c for c in cols_show if c in df_filt.columns]
+
+        edited = st.data_editor(
+            df_filt[valid_cols],
+            column_config={
+                "Disdetto": st.column_config.CheckboxColumn("Disdetto", width="small"),
+                "Data_Disdetta": st.column_config.DateColumn("Data Disd.", format="DD/MM/YYYY"),
+                "Visita_Esterna": st.column_config.CheckboxColumn("Visita Ext.", width="small"),
+                "Data_Visita": st.column_config.DateColumn("Data Visita", format="DD/MM/YYYY"),
+                "Dimissione": st.column_config.CheckboxColumn("🗑️", help="Elimina"),
+                "Area": st.column_config.SelectboxColumn("Area", options=lista_aree),
+                "id": None
+            },
+            disabled=["Nome", "Cognome"], hide_index=True, use_container_width=True, key="editor_main", num_rows="fixed"
+        )
+
         if st.button("💾 Salva Modifiche", type="primary"):
             count_upd = 0; count_del = 0
             for i, row in edited.iterrows():
                 rec_id = row['id']
-                if row.get('Dimissione') == True: delete_generic("Pazienti", rec_id); count_del += 1; continue
-                orig = df_original[df_original['id'] == rec_id].iloc[0]; changes = {}
+                if row.get('Dimissione') == True:
+                    delete_generic("Pazienti", rec_id); count_del += 1; continue
+
+                orig = df_original[df_original['id'] == rec_id].iloc[0]
+                changes = {}
+                
                 if row['Disdetto'] != (orig['Disdetto'] in [True, 1]): changes['Disdetto'] = row['Disdetto']
                 d_dis = row['Data_Disdetta']
-                if row['Disdetto'] and (pd.isna(d_dis) or str(d_dis) == "NaT"): d_dis = pd.Timestamp.now().normalize(); changes['Data_Disdetta'] = d_dis
+                if row['Disdetto'] and (pd.isna(d_dis) or str(d_dis) == "NaT"): 
+                    d_dis = pd.Timestamp.now().normalize(); changes['Data_Disdetta'] = d_dis
                 elif str(d_dis) != str(orig['Data_Disdetta']): changes['Data_Disdetta'] = d_dis
+
                 if row['Visita_Esterna'] != (orig['Visita_Esterna'] in [True, 1]): changes['Visita_Esterna'] = row['Visita_Esterna']
                 if str(row['Data_Visita']) != str(orig['Data_Visita']): changes['Data_Visita'] = row['Data_Visita']
                 if row['Area'] != orig['Area']: changes['Area'] = row['Area']
+
                 if changes: update_generic("Pazienti", rec_id, changes); count_upd += 1
-            if count_upd > 0 or count_del > 0: get_data.clear(); st.toast("Aggiornato!", icon="✅"); st.rerun()
+
+            if count_upd > 0 or count_del > 0:
+                get_data.clear(); st.toast("Aggiornato!", icon="✅"); st.rerun()
 
 # =========================================================
-# SEZIONE 3: PREVENTIVI (MODIFICATA)
+# SEZIONE 3: PREVENTIVI
 # =========================================================
 elif menu == "💳 Preventivi":
     st.title("💳 Preventivi & Proposte")
@@ -420,7 +525,6 @@ elif menu == "💳 Preventivi":
             selected_services_default = []
             default_descrizione = "" 
             
-            # --- SELEZIONE PACCHETTO STANDARD ---
             if not df_std.empty and 'Nome' in df_std.columns:
                 c_filtro, c_pack = st.columns(2)
                 with c_filtro:
@@ -446,7 +550,6 @@ elif menu == "💳 Preventivi":
                                 srv_name, srv_qty = p.split(' x')
                                 selected_services_default.append(srv_name)
                                 st.session_state[f"qty_preload_{srv_name}"] = int(srv_qty)
-            
             st.divider()
 
             nomi_pazienti = ["Nuovo Paziente"]
