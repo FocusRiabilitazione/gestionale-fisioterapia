@@ -9,7 +9,7 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & NEXT-GEN CSS (INTERACTIVE)
+# 0. CONFIGURAZIONE & ULTIMATE NEXT-GEN CSS (FINAL)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -51,13 +51,12 @@ st.markdown("""
     h2, h3, h4 { color: #FFF !important; font-weight: 600; }
 
     /* --- PULSANTI KPI (CARD CLICCABILI) --- */
-    /* Targettiamo i bottoni dentro le colonne della dashboard per farli sembrare card */
     div[data-testid="column"] button {
         background: var(--glass-bg);
         backdrop-filter: blur(10px);
         border: var(--glass-border);
         border-radius: 16px;
-        padding: 15px 10px;
+        padding: 20px 10px; /* Padding ripristinato */
         height: auto;
         width: 100%;
         text-align: center;
@@ -67,38 +66,55 @@ st.markdown("""
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 5px;
+        gap: 8px;
     }
     div[data-testid="column"] button:hover {
         background: rgba(255, 255, 255, 0.08);
-        transform: translateY(-3px);
+        transform: translateY(-4px);
         border-color: rgba(255, 255, 255, 0.2);
-        box-shadow: 0 10px 15px rgba(0,0,0,0.2);
-    }
-    div[data-testid="column"] button:active {
-        transform: scale(0.98);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.25);
     }
     
-    /* Stile del testo dentro il bottone (Icona, Numero, Label) */
+    /* --- ICONE KPI RIPRISTINATE (GRANDI) --- */
+    .kpi-icon-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 50px;  /* RIPRISTINATO */
+        height: 50px; /* RIPRISTINATO */
+        border-radius: 14px;
+        font-size: 26px; /* RIPRISTINATO */
+        margin-bottom: 5px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    /* Stile testo bottone */
     div[data-testid="column"] button p {
         font-size: 1.1rem;
         font-weight: 600;
         line-height: 1.4;
     }
 
-    /* --- PULSANTI STANDARD (Salva, etc) --- */
-    /* Usiamo un selettore più specifico per i bottoni "azione" */
-    div.stButton > button[kind="primary"] {
+    /* --- PULSANTI AZIONE (Action Buttons negli Alert) --- */
+    div.stButton > button {
         background: linear-gradient(135deg, #3182ce, #2b6cb0);
         color: white;
         border: none;
-        border-radius: 10px;
-        padding: 0.6rem 1.5rem;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
         font-weight: 600;
-        box-shadow: 0 4px 15px rgba(49, 130, 206, 0.3);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        transition: all 0.2s;
     }
-    div.stButton > button[kind="primary"]:hover {
-        box-shadow: 0 0 20px rgba(66, 153, 225, 0.5);
+    div.stButton > button:hover {
+        box-shadow: 0 0 15px rgba(66, 153, 225, 0.5);
+        transform: scale(1.02);
+    }
+    /* Pulsante "Action" specifico (più piccolo) */
+    div[data-testid="column"] div.stButton > button {
+        font-size: 0.8rem;
+        padding: 0.3rem 0.8rem;
+        width: 100%;
     }
 
     /* --- NAVIGAZIONE --- */
@@ -124,12 +140,13 @@ st.markdown("""
     }
     div.row-widget.stRadio div[role="radiogroup"] > label > div:first-child { display: none; }
 
-    /* --- COMPONENTI --- */
+    /* --- TABELLE TRASPARENTI --- */
     div[data-testid="stDataFrame"] {
-        background-color: rgba(20, 25, 35, 0.6);
-        border: var(--glass-border);
+        background-color: transparent !important; /* TRASPARENTE */
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 12px;
     }
+    /* Input */
     input, select, textarea {
         background-color: rgba(13, 17, 23, 0.8) !important;
         border: 1px solid rgba(255, 255, 255, 0.15) !important;
@@ -143,10 +160,10 @@ st.markdown("""
     }
     hr { border-color: rgba(255,255,255,0.1); opacity: 0.5; }
 
-    /* Alert Box */
-    .alert-box {
-        padding: 15px; border-radius: 12px; margin-bottom: 10px;
-        border-left: 4px solid; background: rgba(255,255,255,0.03);
+    /* Alert Containers */
+    div[data-testid="stVerticalBlock"] > div[style*="border"] {
+        background-color: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.08);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -311,7 +328,7 @@ with st.sidebar:
         label_visibility="collapsed"
     )
     st.divider()
-    st.markdown("<div style='text-align:center; color:#64748b; font-size:11px;'>Focus App v3.2 - Interactive</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align:center; color:#64748b; font-size:11px;'>Focus App v3.3 - Final</div>", unsafe_allow_html=True)
 
 # =========================================================
 # SEZIONE 1: DASHBOARD
@@ -320,13 +337,11 @@ if menu == "⚡ Dashboard":
     st.title("⚡ Dashboard")
     st.write("")
 
-    # Stato del filtro dashboard
     if 'dash_filter' not in st.session_state: st.session_state.dash_filter = None
 
     df = get_data("Pazienti")
     
     if not df.empty:
-        # Preprocessing
         for col in ['Disdetto', 'Visita_Esterna']:
             if col not in df.columns: df[col] = False
             df[col] = df[col].fillna(False)
@@ -353,11 +368,9 @@ if menu == "⚡ Dashboard":
         # 1. RIGA KPI (PULSANTI INTERATTIVI)
         col1, col2, col3, col4 = st.columns(4)
         
-        # Helper per formattare il testo del bottone con icona piccola
         def btn_label(icon, val, lbl):
             return f"{icon}  {val}\n{lbl}"
 
-        # Pulsanti che settano il filtro
         with col1:
             if st.button(btn_label("👥", cnt_attivi, "ATTIVI"), key="kpi_attivi"):
                 st.session_state.dash_filter = "Attivi"
@@ -373,7 +386,7 @@ if menu == "⚡ Dashboard":
 
         st.write("")
 
-        # 2. LISTA COMPARSA (SE FILTRO ATTIVO)
+        # 2. LISTA COMPARSA
         if st.session_state.dash_filter:
             with st.container(border=True):
                 c_head, c_x = st.columns([8, 1])
@@ -393,6 +406,7 @@ if menu == "⚡ Dashboard":
                     df_show = df_visite
                 
                 if not df_show.empty:
+                    # TABELLA TRASPARENTE
                     st.dataframe(
                         df_show[['Nome', 'Cognome', 'Area', 'Data_Disdetta', 'Data_Visita']],
                         use_container_width=True,
@@ -406,37 +420,50 @@ if menu == "⚡ Dashboard":
         c_left, c_right = st.columns([1, 1.6], gap="large")
 
         with c_left:
-            st.markdown("### 🔔 Avvisi")
-            has_alerts = False
+            st.markdown("### 🔔 Avvisi Operativi")
+            
+            # 1. Visite Imminenti (Alert)
             if not visite_imminenti.empty:
-                has_alerts = True
                 st.markdown(f"""<div class="alert-box" style='border-color:#38b2ac'>
                     <strong style='color:#38b2ac'>👨‍⚕️ Visite Imminenti ({len(visite_imminenti)})</strong><br>
                     {'<br>'.join([f"• {row['Nome']} {row['Cognome']} ({row['Data_Visita'].strftime('%d/%m')})" for i, row in visite_imminenti.iterrows()])}
                     </div>""", unsafe_allow_html=True)
 
+            # 2. Visite Scadute (Con Pulsanti)
             if not visite_passate.empty:
-                has_alerts = True
-                st.markdown(f"""<div class="alert-box" style='border-color:#e53e3e'>
-                    <strong style='color:#e53e3e'>⚠️ Visite Scadute</strong>
+                st.markdown(f"""<div class="alert-box" style='border-color:#e53e3e; margin-bottom:5px;'>
+                    <strong style='color:#e53e3e'>⚠️ Visite Scadute (Richiedono Azione)</strong>
                     </div>""", unsafe_allow_html=True)
+                
                 with st.container(border=True):
                     for i, row in visite_passate.iterrows():
                         rec_id = row['id']
                         c1, c2 = st.columns([3, 1])
-                        c1.caption(f"{row['Nome']} {row['Cognome']}")
+                        c1.markdown(f"**{row['Nome']} {row['Cognome']}**")
+                        # PULSANTE D'AZIONE
                         if c2.button("Rientrato", key=f"rientro_{rec_id}"):
                             update_generic("Pazienti", rec_id, {"Visita_Esterna": False, "Data_Visita": None})
                             st.rerun()
-
+                    
+            # 3. Recall Necessari (Con Pulsanti)
             if len(da_richiamare) > 0:
-                has_alerts = True
-                st.markdown(f"""<div class="alert-box" style='border-color:#ed8936'>
-                    <strong style='color:#ed8936'>📞 Recall Necessari ({len(da_richiamare)})</strong><br>
-                    {'<br>'.join([f"• {row['Nome']} {row['Cognome']}" for i, row in da_richiamare.iterrows()])}
+                st.markdown(f"""<div class="alert-box" style='border-color:#ed8936; margin-bottom:5px; margin-top:15px;'>
+                    <strong style='color:#ed8936'>📞 Recall Necessari (Da contattare)</strong>
                     </div>""", unsafe_allow_html=True)
+                
+                with st.container(border=True):
+                    for i, row in da_richiamare.iterrows():
+                        rec_id = row['id']
+                        c1, c2 = st.columns([3, 1])
+                        c1.markdown(f"**{row['Nome']} {row['Cognome']}**")
+                        # PULSANTE D'AZIONE
+                        if c2.button("✅ Fatto", key=f"recall_done_{rec_id}"):
+                            # Logica: Togliamo il flag disdetto (rientra) oppure aggiorniamo la data per posticipare
+                            update_generic("Pazienti", rec_id, {"Disdetto": False}) 
+                            st.toast(f"{row['Cognome']} riattivato!", icon="✅")
+                            st.rerun()
 
-            if not has_alerts:
+            if visite_imminenti.empty and visite_passate.empty and len(da_richiamare) == 0:
                 st.success("✅ Nessun avviso urgente.")
 
         with c_right:
