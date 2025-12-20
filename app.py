@@ -9,16 +9,16 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & ULTIMATE NEXT-GEN CSS
+# 0. CONFIGURAZIONE & NEXT-GEN CSS (INTERACTIVE)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
     
     :root {
-        --glass-bg: rgba(255, 255, 255, 0.03);
+        --glass-bg: rgba(255, 255, 255, 0.04);
         --glass-border: 1px solid rgba(255, 255, 255, 0.08);
         --neon-blue: #4299e1;
     }
@@ -42,91 +42,63 @@ st.markdown("""
     
     /* TITOLI */
     h1 {
-        background: linear-gradient(90deg, #FFF, #A0AEC0);
+        background: linear-gradient(90deg, #FFF, #cbd5e0);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-weight: 800 !important;
         letter-spacing: -0.5px;
     }
-    h2, h3, h4, h5 {
-        color: #FFF !important;
-        font-weight: 600;
-    }
+    h2, h3, h4 { color: #FFF !important; font-weight: 600; }
 
-    /* --- CUSTOM KPI CARDS (ICONE RIMPICCIOLITE) --- */
-    .glass-kpi {
+    /* --- PULSANTI KPI (CARD CLICCABILI) --- */
+    /* Targettiamo i bottoni dentro le colonne della dashboard per farli sembrare card */
+    div[data-testid="column"] button {
         background: var(--glass-bg);
         backdrop-filter: blur(10px);
         border: var(--glass-border);
         border-radius: 16px;
-        padding: 20px; /* Ridotto padding */
+        padding: 15px 10px;
+        height: auto;
+        width: 100%;
         text-align: center;
-        transition: transform 0.3s ease;
-        margin-bottom: 10px;
-    }
-    .glass-kpi:hover {
-        transform: translateY(-3px);
-        border-color: rgba(255, 255, 255, 0.2);
-    }
-    /* ICONA PIÙ PICCOLA */
-    .kpi-icon-wrapper {
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        width: 40px;  /* Ridotto da 50 */
-        height: 40px; /* Ridotto da 50 */
-        border-radius: 12px;
-        font-size: 20px; /* Ridotto da 24 */
-        margin-bottom: 10px;
-        margin-left: auto;
-        margin-right: auto;
+        gap: 5px;
     }
-    .kpi-value {
-        font-size: 32px; /* Ridotto leggermente */
-        font-weight: 800;
-        color: #fff;
-        line-height: 1.2;
+    div[data-testid="column"] button:hover {
+        background: rgba(255, 255, 255, 0.08);
+        transform: translateY(-3px);
+        border-color: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 10px 15px rgba(0,0,0,0.2);
     }
-    .kpi-label {
-        font-size: 12px;
-        color: #94a3b8;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+    div[data-testid="column"] button:active {
+        transform: scale(0.98);
     }
-    .glow-bar {
-        height: 3px;
-        width: 40%;
-        margin: 10px auto 0 auto;
-        border-radius: 2px;
+    
+    /* Stile del testo dentro il bottone (Icona, Numero, Label) */
+    div[data-testid="column"] button p {
+        font-size: 1.1rem;
+        font-weight: 600;
+        line-height: 1.4;
     }
 
-    /* --- PULSANTI --- */
-    div.stButton > button {
+    /* --- PULSANTI STANDARD (Salva, etc) --- */
+    /* Usiamo un selettore più specifico per i bottoni "azione" */
+    div.stButton > button[kind="primary"] {
         background: linear-gradient(135deg, #3182ce, #2b6cb0);
         color: white;
         border: none;
-        padding: 0.6rem 1.2rem;
         border-radius: 10px;
+        padding: 0.6rem 1.5rem;
         font-weight: 600;
-        transition: all 0.3s ease;
-        width: 100%; /* Pulsanti full width nelle colonne */
+        box-shadow: 0 4px 15px rgba(49, 130, 206, 0.3);
     }
-    div.stButton > button:hover {
-        box-shadow: 0 0 15px rgba(66, 153, 225, 0.4);
-        color: white;
-    }
-    
-    /* Pulsante secondario (es. Vedi Lista) */
-    div[data-testid="column"] div.stButton > button {
-        background: rgba(255,255,255,0.05);
-        border: 1px solid rgba(255,255,255,0.1);
-        font-size: 0.85rem;
-        padding: 0.4rem 1rem;
-    }
-    div[data-testid="column"] div.stButton > button:hover {
-        background: rgba(255,255,255,0.1);
-        border-color: rgba(255,255,255,0.3);
+    div.stButton > button[kind="primary"]:hover {
+        box-shadow: 0 0 20px rgba(66, 153, 225, 0.5);
     }
 
     /* --- NAVIGAZIONE --- */
@@ -339,18 +311,17 @@ with st.sidebar:
         label_visibility="collapsed"
     )
     st.divider()
-    st.markdown("<div style='text-align:center; color:#64748b; font-size:11px;'>Focus App v3.1</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align:center; color:#64748b; font-size:11px;'>Focus App v3.2 - Interactive</div>", unsafe_allow_html=True)
 
 # =========================================================
-# SEZIONE 1: DASHBOARD (CON FILTRI ATTIVI)
+# SEZIONE 1: DASHBOARD
 # =========================================================
 if menu == "⚡ Dashboard":
     st.title("⚡ Dashboard")
     st.write("")
 
-    # Inizializza stato filtro
-    if 'kpi_filter' not in st.session_state:
-        st.session_state.kpi_filter = "None"
+    # Stato del filtro dashboard
+    if 'dash_filter' not in st.session_state: st.session_state.dash_filter = None
 
     df = get_data("Pazienti")
     
@@ -379,72 +350,59 @@ if menu == "⚡ Dashboard":
         sette_giorni_fa = oggi - pd.Timedelta(days=7)
         visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
 
-        # 1. RIGA KPI CARD
+        # 1. RIGA KPI (PULSANTI INTERATTIVI)
         col1, col2, col3, col4 = st.columns(4)
         
-        def glass_card(icon, val, label, color):
-            rgba_color = f"{color}33" 
-            return f"""
-            <div class="glass-kpi">
-                <div class="kpi-icon-wrapper" style="background: {rgba_color}; color: {color};">
-                    {icon}
-                </div>
-                <div class="kpi-value">{val}</div>
-                <div class="kpi-label">{label}</div>
-                <div class="glow-bar" style="background: {color}; box-shadow: 0 0 10px {color};"></div>
-            </div>
-            """
+        # Helper per formattare il testo del bottone con icona piccola
+        def btn_label(icon, val, lbl):
+            return f"{icon}  {val}\n{lbl}"
 
-        # Logica Pulsanti Filtro
-        with col1: 
-            st.markdown(glass_card("👥", cnt_attivi, "Attivi", "#4299e1"), unsafe_allow_html=True)
-            if st.button("📂 Vedi Lista", key="btn_attivi"): st.session_state.kpi_filter = "Attivi"
-        
-        with col2: 
-            st.markdown(glass_card("📉", len(df_disdetti), "Disdetti", "#e53e3e"), unsafe_allow_html=True)
-            if st.button("📂 Vedi Lista", key="btn_disdetti"): st.session_state.kpi_filter = "Disdetti"
-        
-        with col3: 
-            st.markdown(glass_card("💡", len(da_richiamare), "Recall", "#ed8936"), unsafe_allow_html=True)
-            if st.button("📂 Vedi Lista", key="btn_recall"): st.session_state.kpi_filter = "Recall"
-        
-        with col4: 
-            st.markdown(glass_card("🩺", len(visite_imminenti), "Visite", "#38b2ac"), unsafe_allow_html=True)
-            if st.button("📂 Vedi Lista", key="btn_visite"): st.session_state.kpi_filter = "Visite"
+        # Pulsanti che settano il filtro
+        with col1:
+            if st.button(btn_label("👥", cnt_attivi, "ATTIVI"), key="kpi_attivi"):
+                st.session_state.dash_filter = "Attivi"
+        with col2:
+            if st.button(btn_label("📉", len(df_disdetti), "DISDETTI"), key="kpi_disdetti"):
+                st.session_state.dash_filter = "Disdetti"
+        with col3:
+            if st.button(btn_label("📞", len(da_richiamare), "RECALL"), key="kpi_recall"):
+                st.session_state.dash_filter = "Recall"
+        with col4:
+            if st.button(btn_label("🩺", len(visite_imminenti), "VISITE"), key="kpi_visite"):
+                st.session_state.dash_filter = "Visite"
 
         st.write("")
 
-        # 2. SEZIONE LISTA FILTRATA (APPARE SOLO SE CLICCATO)
-        if st.session_state.kpi_filter != "None":
+        # 2. LISTA COMPARSA (SE FILTRO ATTIVO)
+        if st.session_state.dash_filter:
+            with st.container(border=True):
+                c_head, c_x = st.columns([8, 1])
+                c_head.subheader(f"📋 Lista: {st.session_state.dash_filter}")
+                if c_x.button("❌", key="close_list"):
+                    st.session_state.dash_filter = None
+                    st.rerun()
+                
+                df_show = pd.DataFrame()
+                if st.session_state.dash_filter == "Attivi":
+                    df_show = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
+                elif st.session_state.dash_filter == "Disdetti":
+                    df_show = df_disdetti
+                elif st.session_state.dash_filter == "Recall":
+                    df_show = da_richiamare
+                elif st.session_state.dash_filter == "Visite":
+                    df_show = df_visite
+                
+                if not df_show.empty:
+                    st.dataframe(
+                        df_show[['Nome', 'Cognome', 'Area', 'Data_Disdetta', 'Data_Visita']],
+                        use_container_width=True,
+                        height=250
+                    )
+                else:
+                    st.info("Nessun paziente trovato in questa categoria.")
             st.divider()
-            c_head, c_close = st.columns([4, 1])
-            with c_head: st.subheader(f"📋 Dettaglio: {st.session_state.kpi_filter}")
-            with c_close: 
-                if st.button("❌ Chiudi Lista"): st.session_state.kpi_filter = "None"; st.rerun()
-            
-            df_show = pd.DataFrame()
-            if st.session_state.kpi_filter == "Attivi":
-                df_show = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
-            elif st.session_state.kpi_filter == "Disdetti":
-                df_show = df_disdetti
-            elif st.session_state.kpi_filter == "Recall":
-                df_show = da_richiamare
-            elif st.session_state.kpi_filter == "Visite":
-                df_show = df_visite
 
-            if not df_show.empty:
-                st.dataframe(
-                    df_show[['Nome', 'Cognome', 'Area', 'Data_Disdetta', 'Data_Visita']],
-                    use_container_width=True,
-                    height=300
-                )
-            else:
-                st.info("Nessun paziente in questa lista.")
-            st.divider()
-
-        st.write("")
-
-        # 3. SEZIONE PRINCIPALE (Avvisi + Grafico)
+        # 3. SEZIONE PRINCIPALE
         c_left, c_right = st.columns([1, 1.6], gap="large")
 
         with c_left:
