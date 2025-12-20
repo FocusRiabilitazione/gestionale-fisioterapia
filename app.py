@@ -1,7 +1,6 @@
 import streamlit as st
 from pyairtable import Api
 import pandas as pd
-from requests.exceptions import HTTPError
 import altair as alt
 from datetime import date, timedelta
 from fpdf import FPDF
@@ -9,7 +8,7 @@ import io
 import os
 
 # =========================================================
-# 1. CONFIGURAZIONE & CSS "STRATEGIC"
+# 1. CONFIGURAZIONE & CSS "STRATEGIC FIX"
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -44,12 +43,12 @@ st.markdown("""
     h2, h3, h4 { color: #FFF !important; font-weight: 600; }
 
     /* ============================================================
-       1. KPI CARDS (I 4 PULSANTI IN ALTO) -> Stile "Secondary"
-       Li rendiamo GIGANTI e SCURI
+       1. KPI CARDS -> STILE "SECONDARY" (Bottoni Normali)
+       Li trasformiamo in CARD GIGANTI
        ============================================================ */
     
-    /* Contenitore */
-    button[kind="secondary"] {
+    /* Seleziona i bottoni "normali" dentro le colonne della dashboard */
+    div[data-testid="column"] button[kind="secondary"] {
         background-color: #1e232e !important;
         border: 1px solid rgba(255,255,255,0.1) !important;
         border-radius: 16px !important;
@@ -65,9 +64,9 @@ st.markdown("""
         align-items: center !important;
     }
 
-    /* Testo (Icona + Numero) */
-    button[kind="secondary"] p {
-        font-size: 40px !important; /* TESTO GIGANTE */
+    /* Testo Gigante (Icona + Numero) */
+    div[data-testid="column"] button[kind="secondary"] p {
+        font-size: 42px !important; /* TESTO GIGANTE */
         font-weight: 800 !important;
         line-height: 1.2 !important;
         color: white !important;
@@ -75,22 +74,22 @@ st.markdown("""
     }
 
     /* Hover */
-    button[kind="secondary"]:hover {
+    div[data-testid="column"] button[kind="secondary"]:hover {
         transform: translateY(-5px) !important;
         background-color: #2a2f3d !important;
         border-color: rgba(255,255,255,0.3) !important;
     }
 
-    /* Bordi Colorati specifici per posizione (1=Blu, 2=Rosso, 3=Arancio, 4=Verde) */
-    div[data-testid="column"]:nth-of-type(1) button[kind="secondary"] { border-left: 8px solid #4299e1 !important; }
-    div[data-testid="column"]:nth-of-type(2) button[kind="secondary"] { border-left: 8px solid #e53e3e !important; }
-    div[data-testid="column"]:nth-of-type(3) button[kind="secondary"] { border-left: 8px solid #ed8936 !important; }
-    div[data-testid="column"]:nth-of-type(4) button[kind="secondary"] { border-left: 8px solid #38b2ac !important; }
+    /* Bordi Colorati specifici per le 4 posizioni in alto */
+    div[data-testid="column"]:nth-of-type(1) button[kind="secondary"] { border-left: 8px solid #4299e1 !important; } /* Blu */
+    div[data-testid="column"]:nth-of-type(2) button[kind="secondary"] { border-left: 8px solid #e53e3e !important; } /* Rosso */
+    div[data-testid="column"]:nth-of-type(3) button[kind="secondary"] { border-left: 8px solid #ed8936 !important; } /* Arancio */
+    div[data-testid="column"]:nth-of-type(4) button[kind="secondary"] { border-left: 8px solid #38b2ac !important; } /* Verde */
 
 
     /* ============================================================
-       2. PULSANTI AZIONE (Rientrato/Fatto/Salva) -> Stile "Primary"
-       Li rendiamo PICCOLI e COMPATTI
+       2. PULSANTI AZIONE -> STILE "PRIMARY" (Bottoni Evidenziati)
+       Li manteniamo PICCOLI e COMPATTI per gli avvisi
        ============================================================ */
     
     button[kind="primary"] {
@@ -131,6 +130,7 @@ st.markdown("""
     }
 
     /* Navigazione */
+    div.row-widget.stRadio > div { background-color: transparent; }
     div.row-widget.stRadio > div[role="radiogroup"] > label {
         background-color: transparent;
         color: #94a3b8;
@@ -149,6 +149,7 @@ st.markdown("""
         border: 1px solid #4299e1;
         font-weight: 600;
     }
+    div.row-widget.stRadio div[role="radiogroup"] > label > div:first-child { display: none; }
 
     /* Input Fields */
     input, select, textarea {
@@ -163,12 +164,12 @@ st.markdown("""
         padding: 12px; 
         border-radius: 8px; 
         margin-bottom: 15px;
-        border-left: 4px solid; 
         background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
     }
-    .info { border-color: #38b2ac; }
-    .warn { border-color: #ed8936; }
-    .err { border-color: #e53e3e; }
+    .info { border-left: 4px solid #38b2ac; }
+    .warn { border-left: 4px solid #ed8936; }
+    .err { border-left: 4px solid #e53e3e; }
     .alert-title { font-weight: 800; font-size: 1.1em; display: block; margin-bottom: 5px;}
 
 </style>
@@ -198,38 +199,30 @@ def get_data(table_name):
 
 def save_paziente(nome, cognome, area, disdetto):
     table = api.table(BASE_ID, "Pazienti")
-    record = {"Nome": nome, "Cognome": cognome, "Area": area, "Disdetto": disdetto}
+    table.create({"Nome": nome, "Cognome": cognome, "Area": area, "Disdetto": disdetto}, typecast=True)
     get_data.clear()
-    table.create(record, typecast=True)
 
-def update_generic(table_name, record_id, dati_aggiornati):
-    table = api.table(BASE_ID, table_name)
-    fields_to_send = {}
-    for k, v in dati_aggiornati.items():
+def update_generic(table_name, record_id, changes):
+    clean = {}
+    for k, v in changes.items():
         if "Data" in k: 
-            if pd.isna(v) or str(v) == "NaT" or v == "": fields_to_send[k] = None
-            else: fields_to_send[k] = v.strftime('%Y-%m-%d') if hasattr(v, 'strftime') else str(v)
-        else: fields_to_send[k] = v
-    table.update(record_id, fields_to_send, typecast=True)
+            if pd.isna(v) or str(v)=="NaT": clean[k] = None
+            else: clean[k] = v.strftime('%Y-%m-%d')
+        else: clean[k] = v
+    api.table(BASE_ID, table_name).update(record_id, clean, typecast=True)
     get_data.clear()
 
 def delete_generic(table_name, record_id):
-    table = api.table(BASE_ID, table_name)
-    table.delete(record_id)
+    api.table(BASE_ID, table_name).delete(record_id)
     get_data.clear()
 
-def save_prestito(paziente, oggetto, data_prestito):
-    table = api.table(BASE_ID, "Prestiti")
-    data_str = data_prestito.strftime('%Y-%m-%d') if hasattr(data_prestito, 'strftime') else str(data_prestito)
-    record = {"Paziente": paziente, "Oggetto": oggetto, "Data_Prestito": data_str, "Restituito": False}
+def save_prestito(p, o, d):
+    api.table(BASE_ID, "Prestiti").create({"Paziente": p, "Oggetto": o, "Data_Prestito": str(d), "Restituito": False}, typecast=True)
     get_data.clear()
-    table.create(record, typecast=True)
 
-def save_prodotto(prodotto, quantita):
-    table = api.table(BASE_ID, "Inventario")
-    record = {"Prodotto": prodotto, "Quantita": quantita}
+def save_prodotto(p, q):
+    api.table(BASE_ID, "Inventario").create({"Prodotto": p, "Quantita": q}, typecast=True)
     get_data.clear()
-    table.create(record, typecast=True)
 
 def save_preventivo_temp(paziente, dettagli_str, totale, note):
     table = api.table(BASE_ID, "Preventivi_Salvati")
@@ -248,8 +241,8 @@ def create_pdf(paziente, righe_preventivo, totale, note=""):
                 try: self.image('logo.png', 75, 10, 60)
                 except: pass
             self.set_y(35); self.set_font('Arial', 'B', 12); self.set_text_color(80)
-            self.cell(0, 10, 'PREVENTIVO PERCORSO RIABILITATIVO', 0, 1, 'C')
-            self.line(20, self.get_y(), 190, self.get_y()); self.ln(8)
+            self.cell(0, 10, 'PREVENTIVO RIABILITATIVO', 0, 1, 'C')
+            self.line(20, self.get_y(), 190, self.get_y()); self.ln(10)
     pdf = PDF(); pdf.add_page(); pdf.set_text_color(0); pdf.set_font('Arial', '', 12)
     pdf.cell(95, 8, f'Paziente: {paziente}', 0, 1)
     pdf.cell(95, 8, f'Data: {date.today().strftime("%d/%m/%Y")}', 0, 1); pdf.ln(8)
@@ -270,7 +263,7 @@ with st.sidebar:
     try: st.image("logo.png", use_container_width=True)
     except: st.title("Focus Rehab")
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("Version 30 - Final Full Code")
+    st.divider(); st.caption("v4.2 Full Code")
 
 # =========================================================
 # SEZIONE 1: DASHBOARD
@@ -282,8 +275,12 @@ if menu == "⚡ Dashboard":
     df = get_data("Pazienti")
     if not df.empty:
         # Preprocessing
-        for c in ['Disdetto','Visita_Esterna']: df[c] = df[c].fillna(False)
-        for c in ['Data_Disdetta','Data_Visita']: df[c] = pd.to_datetime(df[c], errors='coerce')
+        for c in ['Disdetto','Visita_Esterna']: 
+            if c not in df.columns: df[c] = False
+            df[c] = df[c].fillna(False)
+        for c in ['Data_Disdetta','Data_Visita']: 
+            if c not in df.columns: df[c] = None
+            df[c] = pd.to_datetime(df[c], errors='coerce')
         if 'Area' not in df.columns: df['Area'] = None
 
         totali = len(df)
@@ -298,10 +295,10 @@ if menu == "⚡ Dashboard":
         visite_scadute = df_visite[(df_visite['Data_Visita'] < today)]
 
         # 1. KPI CARDS GIGANTI (TYPE="SECONDARY")
+        # Il CSS rende i pulsanti "secondary" GIGANTI
         c1, c2, c3, c4 = st.columns(4)
         def kpi(i, n, t): return f"{i}  {n}\n\n{t}"
         
-        # Usiamo type="secondary" per attivare il CSS "Gigante"
         with c1: 
             if st.button(kpi("👥", cnt_attivi, "ATTIVI"), key="k1", type="secondary"): st.session_state.dash_filter = "Attivi"
         with c2: 
@@ -318,6 +315,7 @@ if menu == "⚡ Dashboard":
             with st.container(border=True):
                 cl, cr = st.columns([9,1])
                 cl.subheader(f"📋 {st.session_state.dash_filter}")
+                # Il CSS rende i pulsanti "primary" PICCOLI
                 if cr.button("❌", key="close", type="primary"): st.session_state.dash_filter = None; st.rerun()
                 
                 d_show = df[(df['Disdetto']==False)] if st.session_state.dash_filter == "Attivi" else (df_disdetti if st.session_state.dash_filter == "Disdetti" else (da_richiamare if st.session_state.dash_filter == "Recall" else visite_imminenti))
@@ -331,14 +329,14 @@ if menu == "⚡ Dashboard":
         with col_L:
             st.subheader("🔔 Avvisi Operativi")
             
-            # Visite Scadute (Richiedono azione)
+            # Visite Scadute
             if not visite_scadute.empty:
                 st.markdown('<div class="alert-box err"><span class="alert-title" style="color:#e53e3e">⚠️ Visite Scadute</span></div>', unsafe_allow_html=True)
                 for i, r in visite_scadute.iterrows():
                     with st.container(border=True):
                         cn, cb = st.columns([2, 1])
                         cn.write(f"**{r['Nome']} {r['Cognome']}**")
-                        # Usiamo type="primary" per attivare il CSS "Piccolo"
+                        # Pulsante PRIMARY -> Piccolo
                         if cb.button("Rientrato", key=f"v_{r['id']}", type="primary"):
                             update_generic("Pazienti", r['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
 
@@ -349,10 +347,11 @@ if menu == "⚡ Dashboard":
                     with st.container(border=True):
                         cn, cb = st.columns([2, 1])
                         cn.write(f"**{r['Nome']} {r['Cognome']}**")
+                        # Pulsante PRIMARY -> Piccolo
                         if cb.button("Fatto", key=f"r_{r['id']}", type="primary"):
                             update_generic("Pazienti", r['id'], {"Disdetto": False}); st.rerun()
 
-            # Visite Imminenti (Solo info)
+            # Visite Imminenti
             if not visite_imminenti.empty:
                 st.markdown('<div class="alert-box info"><span class="alert-title" style="color:#38b2ac">👨‍⚕️ Visite Imminenti</span></div>', unsafe_allow_html=True)
                 for i, r in visite_imminenti.iterrows(): st.caption(f"• {r['Nome']} {r['Cognome']} ({r['Data_Visita'].strftime('%d/%m')})")
@@ -395,8 +394,12 @@ elif menu == "👥 Pazienti":
     st.write("")
     df = get_data("Pazienti")
     if not df.empty:
+        for c in ['Disdetto','Visita_Esterna','Data_Disdetta','Data_Visita']:
+            if c not in df.columns: df[c] = None
+        
         df['Disdetto'] = df['Disdetto'].fillna(False); df['Visita_Esterna'] = df['Visita_Esterna'].fillna(False)
-        df['Data_Disdetta'] = pd.to_datetime(df['Data_Disdetta'], errors='coerce'); df['Data_Visita'] = pd.to_datetime(df['Data_Visita'], errors='coerce')
+        df['Data_Disdetta'] = pd.to_datetime(df['Data_Disdetta'], errors='coerce')
+        df['Data_Visita'] = pd.to_datetime(df['Data_Visita'], errors='coerce')
         if 'Area' in df.columns: df['Area'] = df['Area'].apply(lambda x: x[0] if isinstance(x, list) and len(x)>0 else (str(x) if x else "")).str.strip()
         
         search = st.text_input("🔍 Cerca...", placeholder="Cognome...")
@@ -435,12 +438,12 @@ elif menu == "👥 Pazienti":
 elif menu == "💳 Preventivi":
     st.title("Preventivi")
     t1, t2 = st.tabs(["📝 Generatore", "📂 Archivio"])
-    df_s = get_data("Servizi"); df_p = get_data("Pazienti"); df_std = get_data("Preventivi_Standard")
+    df_s = get_data("Servizi"); df_p = get_data("Pazienti")
     
     with t1:
         c_p, c_s = st.columns([1, 2])
         paz_s = c_p.selectbox("Paziente", sorted([f"{r['Cognome']} {r['Nome']}" for i,r in df_p.iterrows()])) if not df_p.empty else None
-        listino = {str(r['Servizio']): float(r['Prezzo'] or 0) for i,r in df_s.iterrows()}
+        listino = {str(r['Servizio']): float(r.get('Prezzo', 0) or 0) for i,r in df_s.iterrows()}
         serv_s = c_s.multiselect("Servizi", sorted(list(listino.keys())))
         note = st.text_area("Note Percorso")
         
@@ -468,7 +471,6 @@ elif menu == "💳 Preventivi":
                     c1, c2, c3 = st.columns([3,1,1])
                     c1.write(f"**{r['Paziente']}**"); c1.caption(f"{r['Data_Creazione']} - {r['Totale']}€")
                     
-                    # Ricostruzione righe per PDF
                     righe_pdf = []
                     if not pd.isna(r['Dettagli']):
                         for item in r['Dettagli'].split(" | "):
@@ -476,8 +478,8 @@ elif menu == "💳 Preventivi":
                             if len(parts)==2: righe_pdf.append({"nome":parts[0], "qty":parts[1], "tot":"-"})
                     
                     pdf = create_pdf(r['Paziente'], righe_pdf, r['Totale'], str(r.get('Note','')))
-                    c2.download_button("📄 PDF", pdf, f"Prev_{r['id']}.pdf", use_container_width=True)
-                    if c3.button("🗑️", key=f"del_{r['id']}", use_container_width=True):
+                    c2.download_button("📄 PDF", pdf, f"Prev_{r['id']}.pdf", use_container_width=True, type="primary")
+                    if c3.button("🗑️", key=f"del_{r['id']}", type="primary", use_container_width=True):
                         delete_generic("Preventivi_Salvati", r['id']); st.rerun()
 
 # =========================================================
@@ -509,7 +511,7 @@ elif menu == "🔄 Prestiti":
             c1, c2 = st.columns(2)
             p = c1.selectbox("Chi?", df_p['Cognome'].tolist() if not df_p.empty else [])
             o = c2.selectbox("Cosa?", df_i['Prodotto'].tolist() if not df_i.empty else [])
-            if st.form_submit_button("Salva"): save_prestito(p, o, date.today()); st.rerun()
+            if st.form_submit_button("Salva", type="primary"): save_prestito(p, o, date.today()); st.rerun()
     
     df = get_data("Prestiti")
     if not df.empty:
