@@ -9,7 +9,7 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & ULTIMATE NEXT-GEN CSS
+# 0. CONFIGURAZIONE & STILE (BASE + GHOST BUTTONS)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -48,111 +48,60 @@ st.markdown("""
         font-weight: 800 !important;
         letter-spacing: -0.5px;
     }
-    h2, h3, h4, h5 {
-        color: #FFF !important;
-        font-weight: 600;
-    }
+    h2, h3, h4, h5 { color: #FFF !important; font-weight: 600; }
 
-    /* --- CUSTOM KPI CARDS (ICONE RIMPICCIOLITE) --- */
+    /* --- 1. NUOVE KPI CARDS (VISUALI) --- */
     .glass-kpi {
         background: var(--glass-bg);
         backdrop-filter: blur(10px);
         border: var(--glass-border);
         border-radius: 16px;
-        padding: 20px; /* Ridotto padding */
+        padding: 15px;
         text-align: center;
-        transition: transform 0.3s ease;
-        margin-bottom: 10px;
-    }
-    .glass-kpi:hover {
-        transform: translateY(-3px);
-        border-color: rgba(255, 255, 255, 0.2);
-    }
-    /* ICONA PIÙ PICCOLA */
-    .kpi-icon-wrapper {
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        width: 40px;  /* Ridotto da 50 */
-        height: 40px; /* Ridotto da 50 */
-        border-radius: 12px;
-        font-size: 20px; /* Ridotto da 24 */
-        margin-bottom: 10px;
-        margin-left: auto;
-        margin-right: auto;
+        height: 130px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        margin-bottom: 8px; /* Spazio per il bottone sotto */
     }
-    .kpi-value {
-        font-size: 32px; /* Ridotto leggermente */
-        font-weight: 800;
-        color: #fff;
-        line-height: 1.2;
-    }
-    .kpi-label {
-        font-size: 12px;
-        color: #94a3b8;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    .glow-bar {
-        height: 3px;
-        width: 40%;
-        margin: 10px auto 0 auto;
-        border-radius: 2px;
+    .kpi-icon { font-size: 26px; margin-bottom: 5px; }
+    .kpi-value { font-size: 30px; font-weight: 800; color: white; line-height: 1.1; }
+    .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #a0aec0; margin-top: 5px; }
+
+    /* --- 2. PULSANTI "GHOST" (Sotto le card) --- */
+    /* Target specifico: pulsanti nelle colonne principali della dashboard */
+    div[data-testid="column"] .stButton > button {
+        background-color: transparent !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        color: #a0aec0 !important;
+        border-radius: 10px !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
+        padding: 4px 0 !important;
+        width: 100% !important;
+        transition: all 0.2s ease !important;
     }
 
-    /* --- PULSANTI --- */
-    div.stButton > button {
-        background: linear-gradient(135deg, #3182ce, #2b6cb0);
-        color: white;
-        border: none;
-        padding: 0.6rem 1.2rem;
-        border-radius: 10px;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        width: 100%; /* Pulsanti full width nelle colonne */
-    }
-    div.stButton > button:hover {
-        box-shadow: 0 0 15px rgba(66, 153, 225, 0.4);
-        color: white;
-    }
-    
-    /* Pulsante secondario (es. Vedi Lista) */
-    div[data-testid="column"] div.stButton > button {
-        background: rgba(255,255,255,0.05);
-        border: 1px solid rgba(255,255,255,0.1);
-        font-size: 0.85rem;
-        padding: 0.4rem 1rem;
-    }
-    div[data-testid="column"] div.stButton > button:hover {
-        background: rgba(255,255,255,0.1);
-        border-color: rgba(255,255,255,0.3);
+    div[data-testid="column"] .stButton > button:hover {
+        border-color: #4299e1 !important;
+        color: white !important;
+        background-color: rgba(66, 153, 225, 0.1) !important;
+        transform: translateY(-2px);
     }
 
-    /* --- NAVIGAZIONE --- */
-    div.row-widget.stRadio > div { background-color: transparent; }
-    div.row-widget.stRadio > div[role="radiogroup"] > label {
-        background-color: transparent;
-        padding: 10px 15px;
-        margin-bottom: 5px;
-        border-radius: 10px;
-        color: #94a3b8;
-        border: 1px solid transparent;
-        transition: all 0.2s;
+    /* --- 3. PULSANTI AZIONE STANDARD (Salva/Fatto/Rientrato) --- */
+    /* Target: pulsanti dentro i blocchi verticali (es. liste avvisi) */
+    div[data-testid="stVerticalBlock"] .stButton > button {
+        background: linear-gradient(135deg, #3182ce, #2b6cb0) !important;
+        border: none !important;
+        color: white !important;
+        padding: 0.5rem 1rem !important;
+        font-weight: 600 !important;
     }
-    div.row-widget.stRadio > div[role="radiogroup"] > label:hover {
-        color: #fff;
-        background: rgba(255,255,255,0.03);
-    }
-    div.row-widget.stRadio > div[role="radiogroup"] > label[data-checked="true"] {
-        background: rgba(66, 153, 225, 0.15);
-        border: 1px solid var(--neon-blue);
-        color: #fff;
-        font-weight: 600;
-    }
-    div.row-widget.stRadio div[role="radiogroup"] > label > div:first-child { display: none; }
 
-    /* --- COMPONENTI --- */
+    /* --- ALTRI ELEMENTI --- */
     div[data-testid="stDataFrame"] {
         background-color: rgba(20, 25, 35, 0.6);
         border: var(--glass-border);
@@ -169,9 +118,6 @@ st.markdown("""
         border-radius: 8px;
         color: white;
     }
-    hr { border-color: rgba(255,255,255,0.1); opacity: 0.5; }
-
-    /* Alert Box */
     .alert-box {
         padding: 15px; border-radius: 12px; margin-bottom: 10px;
         border-left: 4px solid; background: rgba(255,255,255,0.03);
@@ -339,10 +285,10 @@ with st.sidebar:
         label_visibility="collapsed"
     )
     st.divider()
-    st.markdown("<div style='text-align:center; color:#64748b; font-size:11px;'>Focus App v3.1</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align:center; color:#64748b; font-size:11px;'>Focus App v3.3 - Enhanced</div>", unsafe_allow_html=True)
 
 # =========================================================
-# SEZIONE 1: DASHBOARD (CON FILTRI ATTIVI)
+# SEZIONE 1: DASHBOARD (NUOVO DESIGN KPI)
 # =========================================================
 if menu == "⚡ Dashboard":
     st.title("⚡ Dashboard")
@@ -379,48 +325,36 @@ if menu == "⚡ Dashboard":
         sette_giorni_fa = oggi - pd.Timedelta(days=7)
         visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
 
-        # 1. RIGA KPI CARD
+        # 1. RIGA KPI (CARD + BOTTONI GHOST)
         col1, col2, col3, col4 = st.columns(4)
         
-        def glass_card(icon, val, label, color):
-            rgba_color = f"{color}33" 
-            return f"""
-            <div class="glass-kpi">
-                <div class="kpi-icon-wrapper" style="background: {rgba_color}; color: {color};">
-                    {icon}
+        def draw_kpi(col, icon, num, label, color, filter_key):
+            with col:
+                st.markdown(f"""
+                <div class="glass-kpi" style="border-bottom: 4px solid {color};">
+                    <div class="kpi-icon" style="color:{color}">{icon}</div>
+                    <div class="kpi-value">{num}</div>
+                    <div class="kpi-label">{label}</div>
                 </div>
-                <div class="kpi-value">{val}</div>
-                <div class="kpi-label">{label}</div>
-                <div class="glow-bar" style="background: {color}; box-shadow: 0 0 10px {color};"></div>
-            </div>
-            """
+                """, unsafe_allow_html=True)
+                # PULSANTE MINIMAL GHOST
+                if st.button("🔽 Dettagli", key=f"btn_{filter_key}"):
+                    st.session_state.kpi_filter = filter_key
 
-        # Logica Pulsanti Filtro
-        with col1: 
-            st.markdown(glass_card("👥", cnt_attivi, "Attivi", "#4299e1"), unsafe_allow_html=True)
-            if st.button("📂 Vedi Lista", key="btn_attivi"): st.session_state.kpi_filter = "Attivi"
-        
-        with col2: 
-            st.markdown(glass_card("📉", len(df_disdetti), "Disdetti", "#e53e3e"), unsafe_allow_html=True)
-            if st.button("📂 Vedi Lista", key="btn_disdetti"): st.session_state.kpi_filter = "Disdetti"
-        
-        with col3: 
-            st.markdown(glass_card("💡", len(da_richiamare), "Recall", "#ed8936"), unsafe_allow_html=True)
-            if st.button("📂 Vedi Lista", key="btn_recall"): st.session_state.kpi_filter = "Recall"
-        
-        with col4: 
-            st.markdown(glass_card("🩺", len(visite_imminenti), "Visite", "#38b2ac"), unsafe_allow_html=True)
-            if st.button("📂 Vedi Lista", key="btn_visite"): st.session_state.kpi_filter = "Visite"
+        draw_kpi(col1, "👥", cnt_attivi, "Attivi", "#4299e1", "Attivi")
+        draw_kpi(col2, "📉", len(df_disdetti), "Disdetti", "#e53e3e", "Disdetti")
+        draw_kpi(col3, "💡", len(da_richiamare), "Recall", "#ed8936", "Recall")
+        draw_kpi(col4, "🩺", len(visite_imminenti), "Visite", "#38b2ac", "Visite")
 
         st.write("")
 
-        # 2. SEZIONE LISTA FILTRATA (APPARE SOLO SE CLICCATO)
+        # 2. SEZIONE LISTA FILTRATA
         if st.session_state.kpi_filter != "None":
             st.divider()
             c_head, c_close = st.columns([4, 1])
             with c_head: st.subheader(f"📋 Dettaglio: {st.session_state.kpi_filter}")
             with c_close: 
-                if st.button("❌ Chiudi Lista"): st.session_state.kpi_filter = "None"; st.rerun()
+                if st.button("❌ Chiudi"): st.session_state.kpi_filter = "None"; st.rerun()
             
             df_show = pd.DataFrame()
             if st.session_state.kpi_filter == "Attivi":
@@ -444,7 +378,7 @@ if menu == "⚡ Dashboard":
 
         st.write("")
 
-        # 3. SEZIONE PRINCIPALE (Avvisi + Grafico)
+        # 3. SEZIONE PRINCIPALE
         c_left, c_right = st.columns([1, 1.6], gap="large")
 
         with c_left:
@@ -477,8 +411,17 @@ if menu == "⚡ Dashboard":
                     <strong style='color:#ed8936'>📞 Recall Necessari ({len(da_richiamare)})</strong><br>
                     {'<br>'.join([f"• {row['Nome']} {row['Cognome']}" for i, row in da_richiamare.iterrows()])}
                     </div>""", unsafe_allow_html=True)
+                # Aggiungo bottoni azione per recall come richiesto nella base precedente
+                with st.container(border=True):
+                    for i, row in da_richiamare.iterrows():
+                        rec_id = row['id']
+                        c1, c2 = st.columns([3, 1])
+                        c1.caption(f"{row['Nome']} {row['Cognome']}")
+                        if c2.button("Fatto", key=f"rec_done_{rec_id}"):
+                            update_generic("Pazienti", rec_id, {"Disdetto": False}) 
+                            st.rerun()
 
-            if not has_alerts:
+            if not has_alerts and visite_imminenti.empty and visite_passate.empty and len(da_richiamare) == 0:
                 st.success("✅ Nessun avviso urgente.")
 
         with c_right:
@@ -496,10 +439,8 @@ if menu == "⚡ Dashboard":
                 counts = pd.Series(all_areas).value_counts().reset_index()
                 counts.columns = ['Area', 'Pazienti']
                 
-                # --- COLORI ORIGINALI RIPRISTINATI ---
                 domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
-                range_ = ["#33A1C9", "#F1C40F", "#2ECC71", "#9B59B6", "#E74C3C", "#7F8C8D"]
-                # -------------------------------------
+                range_ = ["#4299e1", "#ed8936", "#38b2ac", "#9f7aea", "#f56565", "#a0aec0"]
                 
                 chart = alt.Chart(counts).mark_bar(cornerRadius=6, height=25).encode(
                     x=alt.X('Pazienti', axis=None), 
@@ -729,7 +670,7 @@ elif menu == "💳 Preventivi":
         else: st.info("Nessun preventivo salvato.")
 
 # =========================================================
-# SEZIONE 4: INVENTARIO
+# SEZIONE 4: MAGAZZINO
 # =========================================================
 elif menu == "📦 Magazzino":
     st.title("Magazzino & Materiali")
