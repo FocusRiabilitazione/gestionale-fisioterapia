@@ -18,20 +18,16 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 2. CSS AVANZATO (GHOST UI + GLASSMORPHISM)
+# 2. CSS AVANZATO (GHOST UI + GLASSMORPHISM SCURO)
 # ==============================================================================
 st.markdown("""
 <style>
-    /* Importazione Font */
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
     
     :root {
         --glass-bg: rgba(255, 255, 255, 0.03);
         --glass-border: 1px solid rgba(255, 255, 255, 0.08);
         --neon-blue: #4299e1;
-        --neon-red: #e53e3e;
-        --neon-orange: #ed8936;
-        --neon-green: #38b2ac;
     }
 
     html, body, [class*="css"] {
@@ -61,7 +57,7 @@ st.markdown("""
     }
     h2, h3, h4 { color: #FFF !important; font-weight: 600; }
 
-    /* --- 1. KPI CARDS (HTML PURO - SOLO VISIVO) --- */
+    /* --- 1. KPI CARDS (HTML PURO) --- */
     .glass-kpi {
         background: var(--glass-bg);
         border: var(--glass-border);
@@ -74,7 +70,7 @@ st.markdown("""
         justify-content: center;
         height: 140px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        margin-bottom: 5px; /* Spazio per il bottone sotto */
+        margin-bottom: 5px;
         transition: transform 0.3s ease;
     }
     .glass-kpi:hover {
@@ -86,7 +82,6 @@ st.markdown("""
     .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #a0aec0; margin-top: 5px; }
 
     /* --- 2. PULSANTI "GHOST" (SOTTO LE CARD) --- */
-    /* Selettore specifico per i bottoni nelle colonne della dashboard */
     div[data-testid="column"] .stButton > button {
         background-color: transparent !important;
         border: 1px solid rgba(255, 255, 255, 0.15) !important;
@@ -105,11 +100,9 @@ st.markdown("""
         color: white !important;
         background-color: rgba(66, 153, 225, 0.15) !important;
         transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(66, 153, 225, 0.2) !important;
     }
 
-    /* --- 3. PULSANTI AZIONE STANDARD (SALVA, FATTO, RIENTRATO) --- */
-    /* Selettore per bottoni nei blocchi verticali (liste avvisi, form) */
+    /* --- 3. PULSANTI AZIONE STANDARD --- */
     div[data-testid="stVerticalBlock"] .stButton > button {
         background: linear-gradient(135deg, #3182ce, #2b6cb0) !important;
         border: none !important;
@@ -117,14 +110,9 @@ st.markdown("""
         padding: 0.6rem 1.2rem !important;
         font-weight: 600 !important;
         border-radius: 8px !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.2) !important;
-    }
-    div[data-testid="stVerticalBlock"] .stButton > button:hover {
-        box-shadow: 0 6px 12px rgba(0,0,0,0.3) !important;
-        transform: scale(1.02) !important;
     }
 
-    /* --- TABELLE TRASPARENTI --- */
+    /* --- TABELLE --- */
     div[data-testid="stDataFrame"] {
         background-color: transparent !important;
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -141,9 +129,7 @@ st.markdown("""
         margin-bottom: 12px;
         border-left: 4px solid; 
         background: rgba(255,255,255,0.03);
-        border-top: 1px solid rgba(255,255,255,0.05);
-        border-right: 1px solid rgba(255,255,255,0.05);
-        border-bottom: 1px solid rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.05);
     }
     
     /* INPUT FIELDS */
@@ -169,19 +155,17 @@ try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except:
-    # Fallback per ambiente locale senza secrets
     API_KEY = "key"
     BASE_ID = "id"
 
 api = Api(API_KEY)
 
 # ==============================================================================
-# 4. FUNZIONI (CRUD & PDF - COMPLETE)
+# 4. FUNZIONI (CORRETTE E REINSERITE)
 # ==============================================================================
 
 @st.cache_data(ttl=60)
 def get_data(tbl):
-    """Scarica i dati dalla tabella specificata."""
     try:
         records = api.table(BASE_ID, tbl).all()
         return pd.DataFrame([{'id': r['id'], **r['fields']} for r in records]) if records else pd.DataFrame()
@@ -189,21 +173,43 @@ def get_data(tbl):
         return pd.DataFrame()
 
 def save_paziente(nome, cognome, area, disdetto):
-    """Salva un nuovo paziente."""
     try:
         api.table(BASE_ID, "Pazienti").create({
-            "Nome": nome, 
-            "Cognome": cognome, 
-            "Area": area, 
-            "Disdetto": disdetto,
-            "Data_Inserimento": str(date.today())
+            "Nome": nome, "Cognome": cognome, "Area": area, "Disdetto": disdetto, "Data_Inserimento": str(date.today())
+        }, typecast=True)
+        get_data.clear()
+        return True
+    except: return False
+
+# FUNZIONE MANCANTE REINSERITA
+def save_preventivo_temp(paziente, dettagli_str, totale, note):
+    try:
+        api.table(BASE_ID, "Preventivi_Salvati").create({
+            "Paziente": paziente, "Dettagli": dettagli_str, "Totale": totale, "Note": note, "Data_Creazione": str(date.today())
+        }, typecast=True)
+        get_data.clear()
+        return True
+    except: return False
+
+# FUNZIONE MANCANTE REINSERITA
+def save_prodotto(prodotto, quantita):
+    try:
+        api.table(BASE_ID, "Inventario").create({"Prodotto": prodotto, "Quantita": quantita}, typecast=True)
+        get_data.clear()
+        return True
+    except: return False
+
+# FUNZIONE MANCANTE REINSERITA
+def save_prestito(paziente, oggetto, data_prestito):
+    try:
+        api.table(BASE_ID, "Prestiti").create({
+            "Paziente": paziente, "Oggetto": oggetto, "Data_Prestito": str(data_prestito), "Restituito": False
         }, typecast=True)
         get_data.clear()
         return True
     except: return False
 
 def update_generic(tbl, rid, data):
-    """Aggiorna un record generico con gestione date."""
     try:
         clean = {k: (v.strftime('%Y-%m-%d') if hasattr(v, 'strftime') else v) for k,v in data.items()}
         api.table(BASE_ID, tbl).update(rid, clean, typecast=True)
@@ -211,16 +217,7 @@ def update_generic(tbl, rid, data):
         return True
     except: return False
 
-def create_generic(tbl, data):
-    """Crea un record generico."""
-    try:
-        api.table(BASE_ID, tbl).create(data, typecast=True)
-        get_data.clear()
-        return True
-    except: return False
-
 def delete_generic(tbl, rid):
-    """Elimina un record."""
     try:
         api.table(BASE_ID, tbl).delete(rid)
         get_data.clear()
@@ -228,7 +225,6 @@ def delete_generic(tbl, rid):
     except: return False
 
 def create_pdf(paz, righe, tot, note=""):
-    """Genera il PDF del preventivo."""
     euro = chr(128)
     class PDF(FPDF):
         def header(self):
@@ -272,7 +268,7 @@ with st.sidebar:
     except: st.title("Focus Rehab")
     st.write("")
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v35 - Full Stack")
+    st.divider(); st.caption("App v36 - Fixed Full")
 
 # ==============================================================================
 # SEZIONE 1: DASHBOARD
@@ -285,7 +281,6 @@ if menu == "⚡ Dashboard":
     
     df = get_data("Pazienti")
     if not df.empty:
-        # Preprocessing robusto
         for c in ['Disdetto','Visita_Esterna']: 
             if c not in df.columns: df[c] = False
             df[c] = df[c].fillna(False)
@@ -305,7 +300,7 @@ if menu == "⚡ Dashboard":
         vis_imm = visite[(visite['Data_Visita'] >= today := pd.Timestamp.now().normalize())]
         vis_scad = visite[(visite['Data_Visita'] < today)]
 
-        # --- 1. KPI CARDS HTML + GHOST BUTTONS ---
+        # KPI CARDS + GHOST BUTTONS
         c1, c2, c3, c4 = st.columns(4)
         
         def draw_kpi(col, icon, num, label, color, key):
@@ -317,7 +312,6 @@ if menu == "⚡ Dashboard":
                     <div class="kpi-label">{label}</div>
                 </div>
                 """, unsafe_allow_html=True)
-                # IL PULSANTE "GHOST"
                 if st.button("🔽 Dettagli", key=f"btn_{key}"):
                     st.session_state.dash_filter = key
 
@@ -328,7 +322,6 @@ if menu == "⚡ Dashboard":
 
         st.write("")
 
-        # --- 2. LISTA COMPARSA ---
         if st.session_state.dash_filter:
             with st.container(border=True):
                 cl, cr = st.columns([9,1])
@@ -336,26 +329,20 @@ if menu == "⚡ Dashboard":
                 if cr.button("❌ Chiudi"): st.session_state.dash_filter = None; st.rerun()
                 
                 d_show = df[(df['Disdetto']==False)] if st.session_state.dash_filter == "Attivi" else (disdetti if st.session_state.dash_filter == "Disdetti" else (recall if st.session_state.dash_filter == "Recall" else vis_imm))
-                
-                if not d_show.empty: 
-                    st.dataframe(d_show[['Nome','Cognome','Area','Data_Disdetta','Data_Visita']], use_container_width=True, height=250)
-                else: 
-                    st.info("Nessun dato in questa categoria.")
+                if not d_show.empty: st.dataframe(d_show[['Nome','Cognome','Area','Data_Disdetta','Data_Visita']], use_container_width=True, height=250)
+                else: st.info("Nessun dato.")
             st.divider()
 
-        # --- 3. AVVISI & GRAFICI ---
         col_L, col_R = st.columns([1, 1.5], gap="large")
         
         with col_L:
             st.subheader("🔔 Avvisi")
-            
             if not vis_scad.empty:
                 st.markdown(f"<div class='alert-box' style='border-color:#e53e3e; color:#e53e3e'><strong>⚠️ Visite Scadute ({len(vis_scad)})</strong></div>", unsafe_allow_html=True)
                 for i, r in vis_scad.iterrows():
                     with st.container(border=True):
                         cn, cb = st.columns([2, 1])
                         cn.write(f"**{r['Nome']} {r['Cognome']}**")
-                        # Pulsante Azione Pieno
                         if cb.button("Rientrato", key=f"v_{r['id']}"):
                             update_generic("Pazienti", r['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
 
@@ -365,7 +352,6 @@ if menu == "⚡ Dashboard":
                     with st.container(border=True):
                         cn, cb = st.columns([2, 1])
                         cn.write(f"**{r['Nome']} {r['Cognome']}**")
-                        # Pulsante Azione Pieno
                         if cb.button("Fatto", key=f"r_{r['id']}"):
                             update_generic("Pazienti", r['id'], {"Disdetto": False}); st.rerun()
 
@@ -398,7 +384,6 @@ if menu == "⚡ Dashboard":
 # ==============================================================================
 elif menu == "👥 Pazienti":
     st.title("Anagrafica Pazienti")
-    
     with st.expander("➕ Nuovo Paziente"):
         with st.form("new_p"):
             c1,c2,c3 = st.columns(3)
@@ -409,7 +394,6 @@ elif menu == "👥 Pazienti":
     
     df = get_data("Pazienti")
     if not df.empty:
-        # Preprocessing tabella
         df['Disdetto'] = df['Disdetto'].fillna(False); df['Visita_Esterna'] = df['Visita_Esterna'].fillna(False)
         df['Data_Disdetta'] = pd.to_datetime(df['Data_Disdetta'], errors='coerce')
         df['Data_Visita'] = pd.to_datetime(df['Data_Visita'], errors='coerce')
@@ -435,14 +419,11 @@ elif menu == "👥 Pazienti":
             for i, r in ed.iterrows():
                 orig = df[df['id']==r['id']].iloc[0]
                 chg = {}
-                # Logica Disdetta
                 if r['Disdetto'] != orig['Disdetto']: 
                     chg['Disdetto'] = r['Disdetto']
                     if r['Disdetto'] and pd.isna(r['Data_Disdetta']): chg['Data_Disdetta'] = pd.Timestamp.now()
-                # Logica Date
                 if str(r['Data_Disdetta']) != str(orig['Data_Disdetta']): chg['Data_Disdetta'] = r['Data_Disdetta']
                 if str(r['Data_Visita']) != str(orig['Data_Visita']): chg['Data_Visita'] = r['Data_Visita']
-                # Logica Visita e Area
                 if r['Visita_Esterna'] != orig['Visita_Esterna']: chg['Visita_Esterna'] = r['Visita_Esterna']
                 if r['Area'] != orig['Area']: chg['Area'] = r['Area']
                 
@@ -488,7 +469,6 @@ elif menu == "💳 Preventivi":
                     c1,c2,c3 = st.columns([3,1,1])
                     c1.write(f"**{r['Paziente']}**"); c1.caption(f"{r['Data_Creazione']} - {r['Totale']}€")
                     
-                    # Parsing per ricostruzione PDF
                     righe_pdf = []
                     if not pd.isna(r['Dettagli']):
                         for item in r['Dettagli'].split(" | "):
@@ -508,7 +488,7 @@ elif menu == "📦 Magazzino":
     with c1: 
         with st.form("np"):
             n=st.text_input("Prod"); q=st.number_input("Qta",1); 
-            if st.form_submit_button("Add"): create_generic("Inventario", {"Prodotto": n, "Quantita": q}); st.rerun()
+            if st.form_submit_button("Add"): save_prodotto(n, q); st.rerun()
     with c2:
         df = get_data("Inventario")
         if not df.empty:
@@ -524,7 +504,7 @@ elif menu == "🔄 Prestiti":
     st.title("Prestiti")
     with st.expander("➕ Nuovo"):
         p = st.selectbox("Chi", get_data("Pazienti")['Cognome'].tolist()); o = st.text_input("Cosa")
-        if st.button("Presta"): create_generic("Prestiti", {"Paziente": p, "Oggetto": o, "Data_Prestito": date.today(), "Restituito": False}); st.rerun()
+        if st.button("Presta"): save_prestito(p, o, date.today()); st.rerun()
     df = get_data("Prestiti")
     if not df.empty:
         df['Restituito'] = df['Restituito'].fillna(False)
@@ -544,3 +524,4 @@ elif menu == "📅 Scadenze":
         df['Data_Scadenza'] = pd.to_datetime(df['Data_Scadenza'])
         df = df.sort_values('Data_Scadenza')
         st.dataframe(df, use_container_width=True)
+        
