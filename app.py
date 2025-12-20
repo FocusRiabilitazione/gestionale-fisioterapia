@@ -1,6 +1,7 @@
 import streamlit as st
 from pyairtable import Api
 import pandas as pd
+from requests.exceptions import HTTPError
 import altair as alt
 from datetime import date, timedelta
 from fpdf import FPDF
@@ -8,89 +9,131 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & DESIGN "GLASSMORPHISM" (VERSIONE 20)
+# 0. CONFIGURAZIONE & ULTIMATE NEXT-GEN CSS
 # =========================================================
-st.set_page_config(page_title="Gestionale Fisio", page_icon="🏥", layout="wide")
+st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
     
-    /* SFONDO GLOBALE */
-    .stApp {
-        background: radial-gradient(circle at top left, #1e293b, #0f172a);
+    :root {
+        --glass-bg: rgba(255, 255, 255, 0.03);
+        --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+        --neon-blue: #4299e1;
+    }
+
+    html, body, [class*="css"] {
         font-family: 'Outfit', sans-serif;
-        color: #f8fafc;
+    }
+
+    /* SFONDO */
+    .stApp {
+        background: radial-gradient(circle at top left, #1a202c, #0d1117);
+        color: #e2e8f0;
     }
 
     /* SIDEBAR */
     section[data-testid="stSidebar"] {
-        background-color: rgba(15, 23, 42, 0.95);
-        border-right: 1px solid rgba(255, 255, 255, 0.1);
+        background-color: rgba(13, 17, 23, 0.95);
+        backdrop-filter: blur(12px);
+        border-right: var(--glass-border);
     }
     
     /* TITOLI */
     h1 {
-        background: -webkit-linear-gradient(45deg, #FF4B2B, #FF416C);
+        background: linear-gradient(90deg, #FFF, #A0AEC0);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-weight: 800 !important;
-        letter-spacing: -1px;
-        padding-bottom: 10px;
+        letter-spacing: -0.5px;
     }
-    h2, h3 { color: #e2e8f0 !important; font-weight: 600; }
+    h2, h3, h4, h5 {
+        color: #FFF !important;
+        font-weight: 600;
+    }
 
-    /* --- CARD KPI STATICHE (HTML/CSS) --- */
-    .glass-card {
-        background: rgba(255, 255, 255, 0.03);
+    /* --- CUSTOM KPI CARDS (ICONE RIMPICCIOLITE) --- */
+    .glass-kpi {
+        background: var(--glass-bg);
         backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: var(--glass-border);
         border-radius: 16px;
-        padding: 24px;
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        padding: 20px; /* Ridotto padding */
         text-align: center;
-        height: 100%;
+        transition: transform 0.3s ease;
+        margin-bottom: 10px;
     }
-    .kpi-val {
-        font-size: 36px;
-        font-weight: 700;
-        color: #ffffff;
-        margin: 10px 0;
-        text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+    .glass-kpi:hover {
+        transform: translateY(-3px);
+        border-color: rgba(255, 255, 255, 0.2);
     }
-    .kpi-lbl {
-        font-size: 13px;
-        text-transform: uppercase;
-        letter-spacing: 1.5px;
+    /* ICONA PIÙ PICCOLA */
+    .kpi-icon-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;  /* Ridotto da 50 */
+        height: 40px; /* Ridotto da 50 */
+        border-radius: 12px;
+        font-size: 20px; /* Ridotto da 24 */
+        margin-bottom: 10px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .kpi-value {
+        font-size: 32px; /* Ridotto leggermente */
+        font-weight: 800;
+        color: #fff;
+        line-height: 1.2;
+    }
+    .kpi-label {
+        font-size: 12px;
         color: #94a3b8;
         font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
-    .kpi-icon-box {
-        font-size: 24px;
-        margin-bottom: 8px;
-        display: inline-block;
-        padding: 12px;
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.05);
+    .glow-bar {
+        height: 3px;
+        width: 40%;
+        margin: 10px auto 0 auto;
+        border-radius: 2px;
     }
 
-    /* PULSANTI */
+    /* --- PULSANTI --- */
     div.stButton > button {
-        background: linear-gradient(90deg, #FF4B2B 0%, #FF416C 100%);
+        background: linear-gradient(135deg, #3182ce, #2b6cb0);
         color: white;
         border: none;
-        padding: 0.5rem 1rem;
+        padding: 0.6rem 1.2rem;
         border-radius: 10px;
         font-weight: 600;
-        box-shadow: 0 4px 15px rgba(255, 65, 108, 0.4);
+        transition: all 0.3s ease;
+        width: 100%; /* Pulsanti full width nelle colonne */
+    }
+    div.stButton > button:hover {
+        box-shadow: 0 0 15px rgba(66, 153, 225, 0.4);
+        color: white;
     }
     
-    /* NAVIGAZIONE */
+    /* Pulsante secondario (es. Vedi Lista) */
+    div[data-testid="column"] div.stButton > button {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        font-size: 0.85rem;
+        padding: 0.4rem 1rem;
+    }
+    div[data-testid="column"] div.stButton > button:hover {
+        background: rgba(255,255,255,0.1);
+        border-color: rgba(255,255,255,0.3);
+    }
+
+    /* --- NAVIGAZIONE --- */
     div.row-widget.stRadio > div { background-color: transparent; }
     div.row-widget.stRadio > div[role="radiogroup"] > label {
         background-color: transparent;
-        padding: 10px 20px;
+        padding: 10px 15px;
         margin-bottom: 5px;
         border-radius: 10px;
         color: #94a3b8;
@@ -102,22 +145,22 @@ st.markdown("""
         background: rgba(255,255,255,0.03);
     }
     div.row-widget.stRadio > div[role="radiogroup"] > label[data-checked="true"] {
-        background: rgba(255, 65, 108, 0.1);
-        border: 1px solid rgba(255, 65, 108, 0.3);
-        color: #FF416C;
+        background: rgba(66, 153, 225, 0.15);
+        border: 1px solid var(--neon-blue);
+        color: #fff;
         font-weight: 600;
     }
     div.row-widget.stRadio div[role="radiogroup"] > label > div:first-child { display: none; }
 
-    /* TABELLE */
+    /* --- COMPONENTI --- */
     div[data-testid="stDataFrame"] {
-        background-color: rgba(30, 41, 59, 0.5);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background-color: rgba(20, 25, 35, 0.6);
+        border: var(--glass-border);
         border-radius: 12px;
     }
     input, select, textarea {
-        background-color: rgba(15, 23, 42, 0.8) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        background-color: rgba(13, 17, 23, 0.8) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
         color: white !important;
         border-radius: 8px;
     }
@@ -126,11 +169,17 @@ st.markdown("""
         border-radius: 8px;
         color: white;
     }
-    hr { border-color: rgba(255,255,255,0.1); }
+    hr { border-color: rgba(255,255,255,0.1); opacity: 0.5; }
+
+    /* Alert Box */
+    .alert-box {
+        padding: 15px; border-radius: 12px; margin-bottom: 10px;
+        border-left: 4px solid; background: rgba(255,255,255,0.03);
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- CONFIGURAZIONE CONNESSIONE ---
+# --- 1. CONFIGURAZIONE CONNESSIONE ---
 try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
@@ -140,7 +189,8 @@ except FileNotFoundError:
 
 api = Api(API_KEY)
 
-# --- FUNZIONI ---
+# --- 2. FUNZIONI ---
+
 @st.cache_data(ttl=60)
 def get_data(table_name):
     try:
@@ -255,6 +305,26 @@ def create_pdf(paziente, righe_preventivo, totale, note=""):
     pdf.cell(140, 12, 'TOTALE COMPLESSIVO:', 0, 0, 'R')
     pdf.set_fill_color(240, 240, 240)
     pdf.cell(50, 12, f'{totale} {euro}', 1, 1, 'R', 1)
+    pdf.ln(10)
+
+    pdf.set_font('Arial', 'B', 10)
+    pdf.cell(0, 8, 'PIANO DI PAGAMENTO CONCORDATO:', 0, 1)
+    pdf.set_font('Arial', '', 10)
+    pdf.set_draw_color(180, 180, 180)
+    pdf.cell(15, 8, f'1) {euro}', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
+    pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
+    pdf.cell(15, 8, f'2) {euro}', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
+    pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
+    pdf.cell(15, 8, f'3) {euro}', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
+    pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
+    pdf.ln(15)
+
+    y_pos = pdf.get_y()
+    pdf.set_font('Arial', '', 11)
+    pdf.set_xy(110, y_pos)
+    pdf.cell(80, 6, 'Firma per accettazione:', 0, 1, 'L')
+    pdf.set_xy(110, y_pos + 15)
+    pdf.cell(80, 0, '', 'T')
     return pdf.output(dest='S').encode('latin-1')
 
 # --- 3. INTERFACCIA GRAFICA ---
@@ -265,18 +335,22 @@ with st.sidebar:
     st.write("")
     menu = st.radio(
         "Menu", 
-        ["⚡ Dashboard", "🗂️ Anagrafica", "💳 Preventivi", "🧬 Magazzino", "🔄 Prestiti", "📅 Scadenze"],
+        ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"],
         label_visibility="collapsed"
     )
     st.divider()
-    st.markdown("<div style='text-align:center; color:#64748b; font-size:12px;'>Focus App v3.0 (V20)</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align:center; color:#64748b; font-size:11px;'>Focus App v3.1</div>", unsafe_allow_html=True)
 
 # =========================================================
-# SEZIONE 1: DASHBOARD
+# SEZIONE 1: DASHBOARD (CON FILTRI ATTIVI)
 # =========================================================
 if menu == "⚡ Dashboard":
     st.title("⚡ Dashboard")
     st.write("")
+
+    # Inizializza stato filtro
+    if 'kpi_filter' not in st.session_state:
+        st.session_state.kpi_filter = "None"
 
     df = get_data("Pazienti")
     
@@ -305,42 +379,90 @@ if menu == "⚡ Dashboard":
         sette_giorni_fa = oggi - pd.Timedelta(days=7)
         visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
 
-        # 1. RIGA KPI (Cards Statiche HTML - NON CLICCABILI)
+        # 1. RIGA KPI CARD
         col1, col2, col3, col4 = st.columns(4)
         
         def glass_card(icon, val, label, color):
+            rgba_color = f"{color}33" 
             return f"""
-            <div class="glass-card">
-                <div class="kpi-icon-box" style="color: {color}; border: 1px solid {color}44; background: {color}11;">
+            <div class="glass-kpi">
+                <div class="kpi-icon-wrapper" style="background: {rgba_color}; color: {color};">
                     {icon}
                 </div>
-                <div class="kpi-val">{val}</div>
-                <div class="kpi-lbl">{label}</div>
+                <div class="kpi-value">{val}</div>
+                <div class="kpi-label">{label}</div>
+                <div class="glow-bar" style="background: {color}; box-shadow: 0 0 10px {color};"></div>
             </div>
             """
 
-        with col1: st.markdown(glass_card("👥", cnt_attivi, "Attivi", "#4ECDC4"), unsafe_allow_html=True)
-        with col2: st.markdown(glass_card("📉", len(df_disdetti), "Disdetti", "#FF6B6B"), unsafe_allow_html=True)
-        with col3: st.markdown(glass_card("📞", len(da_richiamare), "Recall", "#F7B731"), unsafe_allow_html=True)
-        with col4: st.markdown(glass_card("🩺", len(visite_imminenti), "Visite", "#A3CB38"), unsafe_allow_html=True)
+        # Logica Pulsanti Filtro
+        with col1: 
+            st.markdown(glass_card("👥", cnt_attivi, "Attivi", "#4299e1"), unsafe_allow_html=True)
+            if st.button("📂 Vedi Lista", key="btn_attivi"): st.session_state.kpi_filter = "Attivi"
+        
+        with col2: 
+            st.markdown(glass_card("📉", len(df_disdetti), "Disdetti", "#e53e3e"), unsafe_allow_html=True)
+            if st.button("📂 Vedi Lista", key="btn_disdetti"): st.session_state.kpi_filter = "Disdetti"
+        
+        with col3: 
+            st.markdown(glass_card("💡", len(da_richiamare), "Recall", "#ed8936"), unsafe_allow_html=True)
+            if st.button("📂 Vedi Lista", key="btn_recall"): st.session_state.kpi_filter = "Recall"
+        
+        with col4: 
+            st.markdown(glass_card("🩺", len(visite_imminenti), "Visite", "#38b2ac"), unsafe_allow_html=True)
+            if st.button("📂 Vedi Lista", key="btn_visite"): st.session_state.kpi_filter = "Visite"
 
-        st.write(""); st.write("")
+        st.write("")
 
-        # 2. AVVISI & GRAFICI
-        c_left, c_right = st.columns([1, 1.5], gap="large")
+        # 2. SEZIONE LISTA FILTRATA (APPARE SOLO SE CLICCATO)
+        if st.session_state.kpi_filter != "None":
+            st.divider()
+            c_head, c_close = st.columns([4, 1])
+            with c_head: st.subheader(f"📋 Dettaglio: {st.session_state.kpi_filter}")
+            with c_close: 
+                if st.button("❌ Chiudi Lista"): st.session_state.kpi_filter = "None"; st.rerun()
+            
+            df_show = pd.DataFrame()
+            if st.session_state.kpi_filter == "Attivi":
+                df_show = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
+            elif st.session_state.kpi_filter == "Disdetti":
+                df_show = df_disdetti
+            elif st.session_state.kpi_filter == "Recall":
+                df_show = da_richiamare
+            elif st.session_state.kpi_filter == "Visite":
+                df_show = df_visite
+
+            if not df_show.empty:
+                st.dataframe(
+                    df_show[['Nome', 'Cognome', 'Area', 'Data_Disdetta', 'Data_Visita']],
+                    use_container_width=True,
+                    height=300
+                )
+            else:
+                st.info("Nessun paziente in questa lista.")
+            st.divider()
+
+        st.write("")
+
+        # 3. SEZIONE PRINCIPALE (Avvisi + Grafico)
+        c_left, c_right = st.columns([1, 1.6], gap="large")
 
         with c_left:
             st.markdown("### 🔔 Avvisi")
-            
+            has_alerts = False
             if not visite_imminenti.empty:
-                with st.container(border=True):
-                    st.markdown(f"<div style='color:#A3CB38; font-weight:bold'>👨‍⚕️ Visite Imminenti ({len(visite_imminenti)})</div>", unsafe_allow_html=True)
-                    for i, row in visite_imminenti.iterrows():
-                        st.caption(f"{row['Nome']} {row['Cognome']} • {row['Data_Visita'].strftime('%d/%m')}")
+                has_alerts = True
+                st.markdown(f"""<div class="alert-box" style='border-color:#38b2ac'>
+                    <strong style='color:#38b2ac'>👨‍⚕️ Visite Imminenti ({len(visite_imminenti)})</strong><br>
+                    {'<br>'.join([f"• {row['Nome']} {row['Cognome']} ({row['Data_Visita'].strftime('%d/%m')})" for i, row in visite_imminenti.iterrows()])}
+                    </div>""", unsafe_allow_html=True)
 
             if not visite_passate.empty:
+                has_alerts = True
+                st.markdown(f"""<div class="alert-box" style='border-color:#e53e3e'>
+                    <strong style='color:#e53e3e'>⚠️ Visite Scadute</strong>
+                    </div>""", unsafe_allow_html=True)
                 with st.container(border=True):
-                    st.markdown(f"<div style='color:#FF6B6B; font-weight:bold'>⚠️ Visite Passate</div>", unsafe_allow_html=True)
                     for i, row in visite_passate.iterrows():
                         rec_id = row['id']
                         c1, c2 = st.columns([3, 1])
@@ -350,13 +472,14 @@ if menu == "⚡ Dashboard":
                             st.rerun()
 
             if len(da_richiamare) > 0:
-                with st.container(border=True):
-                    st.markdown(f"<div style='color:#F7B731; font-weight:bold'>📞 Da Richiamare ({len(da_richiamare)})</div>", unsafe_allow_html=True)
-                    for i, row in da_richiamare.iterrows():
-                        st.caption(f"{row['Nome']} {row['Cognome']}")
+                has_alerts = True
+                st.markdown(f"""<div class="alert-box" style='border-color:#ed8936'>
+                    <strong style='color:#ed8936'>📞 Recall Necessari ({len(da_richiamare)})</strong><br>
+                    {'<br>'.join([f"• {row['Nome']} {row['Cognome']}" for i, row in da_richiamare.iterrows()])}
+                    </div>""", unsafe_allow_html=True)
 
-            if visite_imminenti.empty and visite_passate.empty and len(da_richiamare) == 0:
-                st.success("Tutto regolare. Nessun avviso.")
+            if not has_alerts:
+                st.success("✅ Nessun avviso urgente.")
 
         with c_right:
             st.markdown("### 📈 Performance Aree")
@@ -373,15 +496,17 @@ if menu == "⚡ Dashboard":
                 counts = pd.Series(all_areas).value_counts().reset_index()
                 counts.columns = ['Area', 'Pazienti']
                 
+                # --- COLORI ORIGINALI RIPRISTINATI ---
                 domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
                 range_ = ["#33A1C9", "#F1C40F", "#2ECC71", "#9B59B6", "#E74C3C", "#7F8C8D"]
+                # -------------------------------------
                 
                 chart = alt.Chart(counts).mark_bar(cornerRadius=6, height=25).encode(
                     x=alt.X('Pazienti', axis=None), 
-                    y=alt.Y('Area', sort='-x', title=None, axis=alt.Axis(domain=False, ticks=False, labelColor="#94a3b8", labelFontSize=12)),
+                    y=alt.Y('Area', sort='-x', title=None, axis=alt.Axis(domain=False, ticks=False, labelColor="#cbd5e0", labelFontSize=13)),
                     color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None),
                     tooltip=['Area', 'Pazienti']
-                ).properties(height=320).configure_view(strokeWidth=0).configure_axis(grid=False)
+                ).properties(height=350).configure_view(strokeWidth=0).configure_axis(grid=False)
                 
                 st.altair_chart(chart, use_container_width=True)
             else:
@@ -390,22 +515,22 @@ if menu == "⚡ Dashboard":
 # =========================================================
 # SEZIONE 2: PAZIENTI
 # =========================================================
-elif menu == "🗂️ Anagrafica":
-    st.title("🗂️ Anagrafica Pazienti")
+elif menu == "👥 Pazienti":
+    st.title("Anagrafica Pazienti")
     lista_aree = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
     
     with st.container(border=True):
-        st.subheader("➕ Nuovo Paziente")
+        st.subheader("➕ Aggiungi Paziente")
         with st.form("form_paziente", clear_on_submit=True):
             c1, c2, c3 = st.columns([2, 2, 1])
-            c1.text_input("Nome", key="new_name")
-            c2.text_input("Cognome", key="new_surname")
+            c1.text_input("Nome", key="new_name", placeholder="Es. Mario")
+            c2.text_input("Cognome", key="new_surname", placeholder="Es. Rossi")
             c3.multiselect("Area", lista_aree, key="new_area")
-            if st.form_submit_button("Salva Paziente", use_container_width=True):
+            if st.form_submit_button("Salva Paziente", use_container_width=True, type="primary"):
                 if st.session_state.new_name and st.session_state.new_surname:
                     area_s = ", ".join(st.session_state.new_area)
                     save_paziente(st.session_state.new_name, st.session_state.new_surname, area_s, False)
-                    st.success("Salvato!"); st.rerun()
+                    st.success("Paziente salvato con successo!"); st.rerun()
     
     st.write("")
     df_original = get_data("Pazienti")
@@ -422,7 +547,7 @@ elif menu == "🗂️ Anagrafica":
         df_original['Area'] = df_original['Area'].astype("category")
 
         col_search, _ = st.columns([1, 2])
-        with col_search: search = st.text_input("🔍 Cerca...", placeholder="Cognome...")
+        with col_search: search = st.text_input("🔍 Cerca Paziente", placeholder="Digita il cognome...")
         df_filt = df_original[df_original['Cognome'].astype(str).str.contains(search, case=False, na=False)] if search else df_original
 
         cols_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'Data_Disdetta', 'Visita_Esterna', 'Data_Visita', 'Dimissione', 'id']
@@ -431,18 +556,18 @@ elif menu == "🗂️ Anagrafica":
         edited = st.data_editor(
             df_filt[valid_cols],
             column_config={
-                "Disdetto": st.column_config.CheckboxColumn("Disdetto", width="small"),
+                "Disdetto": st.column_config.CheckboxColumn("Disd.", width="small", help="Segna come disdetto"),
                 "Data_Disdetta": st.column_config.DateColumn("Data Disd.", format="DD/MM/YYYY"),
-                "Visita_Esterna": st.column_config.CheckboxColumn("Visita Ext.", width="small"),
+                "Visita_Esterna": st.column_config.CheckboxColumn("Visita Ext.", width="small", help="Inviato a visita medica"),
                 "Data_Visita": st.column_config.DateColumn("Data Visita", format="DD/MM/YYYY"),
-                "Dimissione": st.column_config.CheckboxColumn("🗑️", help="Elimina"),
-                "Area": st.column_config.SelectboxColumn("Area", options=lista_aree),
+                "Dimissione": st.column_config.CheckboxColumn("🗑️", width="small", help="Elimina definitivamente"),
+                "Area": st.column_config.SelectboxColumn("Area Principale", options=lista_aree),
                 "id": None
             },
-            disabled=["Nome", "Cognome"], hide_index=True, use_container_width=True, key="editor_main", num_rows="fixed"
+            disabled=["Nome", "Cognome"], hide_index=True, use_container_width=True, key="editor_main", num_rows="fixed", height=500
         )
 
-        if st.button("💾 Salva Modifiche", type="primary"):
+        if st.button("💾 Salva Modifiche Tabella", type="primary", use_container_width=True):
             count_upd = 0; count_del = 0
             for i, row in edited.iterrows():
                 rec_id = row['id']
@@ -465,31 +590,31 @@ elif menu == "🗂️ Anagrafica":
                 if changes: update_generic("Pazienti", rec_id, changes); count_upd += 1
 
             if count_upd > 0 or count_del > 0:
-                get_data.clear(); st.toast("Aggiornato!", icon="✅"); st.rerun()
+                get_data.clear(); st.toast("Database aggiornato con successo!", icon="✅"); st.rerun()
 
 # =========================================================
 # SEZIONE 3: PREVENTIVI
 # =========================================================
 elif menu == "💳 Preventivi":
-    st.title("💳 Preventivi & Proposte")
-    tab1, tab2 = st.tabs(["📝 Generatore", "📂 Archivio"])
+    st.title("Preventivi & Proposte")
+    tab1, tab2 = st.tabs(["📝 Generatore", "📂 Archivio Salvati"])
     df_srv = get_data("Servizi")
     df_paz = get_data("Pazienti")
     df_std = get_data("Preventivi_Standard")
 
     with tab1:
-        with st.expander("📋 Vedi Listino Prezzi", expanded=False):
+        with st.expander("📋 Listino Prezzi Attuale", expanded=False):
             if not df_srv.empty and 'Area' in df_srv.columns:
                 aree_uniche = df_srv['Area'].dropna().unique(); cols = st.columns(3)
                 for i, area in enumerate(aree_uniche):
                     with cols[i % 3]:
-                        st.markdown(f"**📍 {area}**")
+                        st.markdown(f"<strong style='color:var(--neon-blue)'>📍 {area}</strong>", unsafe_allow_html=True)
                         items = df_srv[df_srv['Area'] == area]
                         for _, r in items.iterrows(): prz = f"{r['Prezzo']}€" if 'Prezzo' in r else "-"; st.caption(f"{r['Servizio']}: **{prz}**")
             else: st.warning("Configura la colonna 'Area' in Servizi.")
 
         with st.container(border=True):
-            st.subheader("Nuovo Preventivo")
+            st.subheader("Creazione Nuovo Preventivo")
             selected_services_default = []
             default_descrizione = "" 
             
@@ -520,7 +645,7 @@ elif menu == "💳 Preventivi":
                                 st.session_state[f"qty_preload_{srv_name}"] = int(srv_qty)
             st.divider()
 
-            nomi_pazienti = ["Nuovo Paziente"]
+            nomi_pazienti = ["Seleziona Paziente..."]
             if not df_paz.empty:
                 nomi_pazienti += sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows() if r.get('Cognome')])
             
@@ -549,13 +674,14 @@ elif menu == "💳 Preventivi":
                     with c2: qty = st.number_input(f"Q.tà", 1, 50, def_qty, key=f"q_{s}", label_visibility="collapsed")
                     with c3: 
                         costo = listino_dict[s] * qty
-                        st.markdown(f"**{costo} €**")
+                        st.markdown(f"<div style='text-align:right; font-weight:bold'>{costo} €</div>", unsafe_allow_html=True)
                     totale += costo
                     righe_preventivo.append({"nome": s, "qty": qty, "tot": costo})
                 
                 st.divider()
                 col_tot, col_btn = st.columns([2, 1])
-                with col_tot: st.metric("TOTALE PREVENTIVO", f"{totale} €")
+                with col_tot: 
+                    st.markdown(f"<div style='font-size: 24px; font-weight: 800; color: var(--neon-blue);'>TOTALE: {totale} €</div>", unsafe_allow_html=True)
                 with col_btn:
                     st.write("") 
                     if st.button("💾 Salva e Genera PDF", type="primary", use_container_width=True):
@@ -605,22 +731,22 @@ elif menu == "💳 Preventivi":
 # =========================================================
 # SEZIONE 4: INVENTARIO
 # =========================================================
-elif menu == "🧬 Magazzino":
-    st.title("🧬 Magazzino")
+elif menu == "📦 Magazzino":
+    st.title("Magazzino & Materiali")
     col_add, col_tab = st.columns([1, 2], gap="large")
     with col_add:
         with st.container(border=True):
             st.subheader("Nuovo Prodotto")
             with st.form("add_prod"):
-                new_prod = st.text_input("Nome"); new_qty = st.number_input("Quantità", 0, 1000, 1)
-                if st.form_submit_button("Aggiungi", use_container_width=True): save_prodotto(new_prod, new_qty); st.rerun()
+                new_prod = st.text_input("Nome Prodotto"); new_qty = st.number_input("Quantità Iniziale", 0, 1000, 1)
+                if st.form_submit_button("Aggiungi al Magazzino", use_container_width=True, type="primary"): save_prodotto(new_prod, new_qty); st.rerun()
     with col_tab:
         df_inv = get_data("Inventario")
         if not df_inv.empty:
+            st.subheader("Giacenze Attuali")
             if 'Prodotto' in df_inv.columns: df_inv = df_inv.sort_values('Prodotto')
-            edited_inv = st.data_editor(df_inv[['Prodotto', 'Quantita', 'id']], column_config={"Prodotto": st.column_config.TextColumn("Prodotto", disabled=True), "Quantita": st.column_config.NumberColumn("Quantità", min_value=0, step=1), "id": None}, hide_index=True, use_container_width=True)
-            st.caption("Modifica quantità e clicca Aggiorna.")
-            if st.button("🔄 Aggiorna Stock", type="primary"):
+            edited_inv = st.data_editor(df_inv[['Prodotto', 'Quantita', 'id']], column_config={"Prodotto": st.column_config.TextColumn("Prodotto", disabled=True), "Quantita": st.column_config.NumberColumn("Q.tà Disponibile", min_value=0, step=1), "id": None}, hide_index=True, use_container_width=True, height=400)
+            if st.button("🔄 Aggiorna Giacenze", type="primary", use_container_width=True):
                 cnt = 0
                 for i, row in edited_inv.iterrows():
                     rec_id = row['id']; orig_qty = df_inv[df_inv['id']==rec_id].iloc[0]['Quantita']
@@ -639,8 +765,10 @@ elif menu == "🔄 Prestiti":
         nomi_prodotti = sorted([r['Prodotto'] for i, r in df_inv.iterrows() if r.get('Prodotto')]) if not df_inv.empty else []
         with st.form("form_prestito"):
             c1, c2, c3 = st.columns(3); paz_scelto = c1.selectbox("Chi?", nomi_pazienti); prod_scelto = c2.selectbox("Cosa?", nomi_prodotti); data_prestito = c3.date_input("Quando?", date.today())
-            if st.form_submit_button("Registra Prestito", use_container_width=True): save_prestito(paz_scelto, prod_scelto, data_prestito); st.success("Registrato!"); st.rerun()
-    st.subheader("Attualmente fuori"); df_pres = get_data("Prestiti")
+            if st.form_submit_button("Registra Prestito", use_container_width=True, type="primary"): save_prestito(paz_scelto, prod_scelto, data_prestito); st.success("Registrato!"); st.rerun()
+    
+    st.write(""); st.subheader("Materiali Attualmente Fuori")
+    df_pres = get_data("Prestiti")
     if not df_pres.empty:
         if 'Restituito' not in df_pres.columns: df_pres['Restituito'] = False
         df_pres['Restituito'] = df_pres['Restituito'].fillna(False)
@@ -648,8 +776,8 @@ elif menu == "🔄 Prestiti":
         df_pres['Data_Prestito'] = pd.to_datetime(df_pres['Data_Prestito'], errors='coerce')
         active_loans = df_pres[df_pres['Restituito'] != True].copy()
         if not active_loans.empty:
-            edited_loans = st.data_editor(active_loans[['Paziente', 'Oggetto', 'Data_Prestito', 'Restituito', 'id']], column_config={"Paziente": st.column_config.TextColumn("Paziente", disabled=True), "Oggetto": st.column_config.TextColumn("Oggetto", disabled=True), "Data_Prestito": st.column_config.DateColumn("Data", format="DD/MM/YYYY", disabled=True), "Restituito": st.column_config.CheckboxColumn("Rientrato?", help="Spunta se restituito"), "id": None}, hide_index=True, use_container_width=True)
-            if st.button("💾 Conferma Restituzioni", type="primary"):
+            edited_loans = st.data_editor(active_loans[['Paziente', 'Oggetto', 'Data_Prestito', 'Restituito', 'id']], column_config={"Paziente": st.column_config.TextColumn("Paziente", disabled=True), "Oggetto": st.column_config.TextColumn("Oggetto", disabled=True), "Data_Prestito": st.column_config.DateColumn("Data", format="DD/MM/YYYY", disabled=True), "Restituito": st.column_config.CheckboxColumn("Rientrato?", help="Spunta per confermare il rientro"), "id": None}, hide_index=True, use_container_width=True)
+            if st.button("💾 Conferma Restituzioni Selezionate", type="primary", use_container_width=True):
                 cnt = 0
                 for i, row in edited_loans.iterrows():
                     if row['Restituito'] == True: update_generic("Prestiti", row['id'], {"Restituito": True}); cnt += 1
@@ -664,6 +792,6 @@ elif menu == "📅 Scadenze":
     df_scad = get_data("Scadenze")
     if not df_scad.empty and 'Data_Scadenza' in df_scad.columns:
         df_scad['Data_Scadenza'] = pd.to_datetime(df_scad['Data_Scadenza'], errors='coerce'); df_scad = df_scad.sort_values("Data_Scadenza")
-        st.dataframe(df_scad, column_config={"Data_Scadenza": st.column_config.DateColumn("Scadenza", format="DD/MM/YYYY"), "Importo": st.column_config.NumberColumn("Importo", format="%d €")}, use_container_width=True)
-    else: st.info("Nessuna scadenza.")
+        st.dataframe(df_scad, column_config={"Data_Scadenza": st.column_config.DateColumn("Scadenza", format="DD/MM/YYYY"), "Importo": st.column_config.NumberColumn("Importo", format="%d €"), "Descrizione": st.column_config.TextColumn("Dettagli")}, use_container_width=True, height=500)
+    else: st.info("Nessuna scadenza prossima.")
         
