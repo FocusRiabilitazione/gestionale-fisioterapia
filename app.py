@@ -9,210 +9,173 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & ULTIMATE NEXT-GEN CSS (GLASSMORPHISM)
+# 0. CONFIGURAZIONE & ULTIMATE NEXT-GEN CSS
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
 st.markdown("""
 <style>
-    /* Importazione Font Moderno 'Outfit' */
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
     
     :root {
-        --primary-glow: 0 0 20px rgba(66, 153, 225, 0.6);
-        --neon-blue: #4299e1;
-        --neon-teal: #38b2ac;
-        --neon-purple: #9f7aea;
-        --neon-orange: #ed8936;
         --glass-bg: rgba(255, 255, 255, 0.03);
         --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+        --neon-blue: #4299e1;
     }
 
     html, body, [class*="css"] {
         font-family: 'Outfit', sans-serif;
     }
 
-    /* SFONDO GLOBALE CON SFUMATURA PROFONDA */
+    /* SFONDO */
     .stApp {
         background: radial-gradient(circle at top left, #1a202c, #0d1117);
         color: #e2e8f0;
     }
 
-    /* --- SIDEBAR STILE VETRO --- */
+    /* SIDEBAR */
     section[data-testid="stSidebar"] {
-        background-color: rgba(13, 17, 23, 0.9);
+        background-color: rgba(13, 17, 23, 0.95);
         backdrop-filter: blur(12px);
         border-right: var(--glass-border);
     }
     
-    /* --- TITOLI CON GRADIENTE --- */
+    /* TITOLI */
     h1 {
         background: linear-gradient(90deg, #FFF, #A0AEC0);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-weight: 800 !important;
         letter-spacing: -0.5px;
-        text-shadow: 0 2px 10px rgba(0,0,0,0.2);
     }
-    h2, h3 {
+    h2, h3, h4, h5 {
         color: #FFF !important;
         font-weight: 600;
     }
 
-    /* --- CUSTOM GLASS KPI CARDS --- */
+    /* --- CUSTOM KPI CARDS (ICONE RIMPICCIOLITE) --- */
     .glass-kpi {
         background: var(--glass-bg);
         backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
         border: var(--glass-border);
-        border-radius: 20px;
-        padding: 25px;
-        position: relative;
-        overflow: hidden;
-        transition: all 0.3s ease;
+        border-radius: 16px;
+        padding: 20px; /* Ridotto padding */
+        text-align: center;
+        transition: transform 0.3s ease;
+        margin-bottom: 10px;
     }
     .glass-kpi:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 30px -5px rgba(0,0,0,0.3);
+        transform: translateY(-3px);
+        border-color: rgba(255, 255, 255, 0.2);
     }
+    /* ICONA PIÙ PICCOLA */
     .kpi-icon-wrapper {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 50px;
-        height: 50px;
-        border-radius: 15px;
-        font-size: 24px;
-        margin-bottom: 15px;
+        width: 40px;  /* Ridotto da 50 */
+        height: 40px; /* Ridotto da 50 */
+        border-radius: 12px;
+        font-size: 20px; /* Ridotto da 24 */
+        margin-bottom: 10px;
+        margin-left: auto;
+        margin-right: auto;
     }
     .kpi-value {
-        font-size: 38px;
+        font-size: 32px; /* Ridotto leggermente */
         font-weight: 800;
         color: #fff;
         line-height: 1.2;
     }
     .kpi-label {
-        font-size: 14px;
-        color: #a0aec0;
+        font-size: 12px;
+        color: #94a3b8;
         font-weight: 500;
         text-transform: uppercase;
         letter-spacing: 1px;
     }
     .glow-bar {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 4px;
+        height: 3px;
+        width: 40%;
+        margin: 10px auto 0 auto;
+        border-radius: 2px;
     }
 
-    /* --- PULSANTI NEON --- */
+    /* --- PULSANTI --- */
     div.stButton > button {
         background: linear-gradient(135deg, #3182ce, #2b6cb0);
         color: white;
         border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 12px;
+        padding: 0.6rem 1.2rem;
+        border-radius: 10px;
         font-weight: 600;
-        letter-spacing: 0.5px;
-        box-shadow: 0 4px 15px rgba(49, 130, 206, 0.3);
         transition: all 0.3s ease;
+        width: 100%; /* Pulsanti full width nelle colonne */
     }
     div.stButton > button:hover {
-        background: linear-gradient(135deg, #4299e1, #3182ce);
-        transform: scale(1.02) translateY(-2px);
-        box-shadow: 0 6px 25px rgba(66, 153, 225, 0.5);
+        box-shadow: 0 0 15px rgba(66, 153, 225, 0.4);
         color: white;
     }
-    /* Pulsante secondario (es. Rientrato) */
-    div.stButton > button:not([kind="primary"]) {
-         background: rgba(255,255,255,0.05);
-         border: 1px solid rgba(255,255,255,0.1);
-         box-shadow: none;
+    
+    /* Pulsante secondario (es. Vedi Lista) */
+    div[data-testid="column"] div.stButton > button {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        font-size: 0.85rem;
+        padding: 0.4rem 1rem;
     }
-    div.stButton > button:not([kind="primary"]):hover {
-         background: rgba(255,255,255,0.1);
-         border: 1px solid rgba(255,255,255,0.3);
-         box-shadow: none;
+    div[data-testid="column"] div.stButton > button:hover {
+        background: rgba(255,255,255,0.1);
+        border-color: rgba(255,255,255,0.3);
     }
 
-
-    /* --- NAVIGAZIONE LATERALE (Stile "Pillole") --- */
+    /* --- NAVIGAZIONE --- */
     div.row-widget.stRadio > div { background-color: transparent; }
     div.row-widget.stRadio > div[role="radiogroup"] > label {
         background-color: transparent;
-        padding: 12px 18px;
-        margin-bottom: 8px;
-        border-radius: 12px;
-        color: #a0aec0;
+        padding: 10px 15px;
+        margin-bottom: 5px;
+        border-radius: 10px;
+        color: #94a3b8;
         border: 1px solid transparent;
-        transition: all 0.3s ease;
-        font-weight: 500;
+        transition: all 0.2s;
     }
     div.row-widget.stRadio > div[role="radiogroup"] > label:hover {
         color: #fff;
-        background: rgba(255,255,255,0.05);
+        background: rgba(255,255,255,0.03);
     }
-    /* Stato Attivo */
     div.row-widget.stRadio > div[role="radiogroup"] > label[data-checked="true"] {
         background: rgba(66, 153, 225, 0.15);
         border: 1px solid var(--neon-blue);
         color: #fff;
-        font-weight: 700;
-        box-shadow: var(--primary-glow);
+        font-weight: 600;
     }
     div.row-widget.stRadio div[role="radiogroup"] > label > div:first-child { display: none; }
 
-    /* --- TABELLE, INPUT E CONTENITORI --- */
-    /* Contenitori generici (es. st.container(border=True)) */
-    div[data-testid="stVerticalBlock"] > div[style*="border"] {
-        background-color: var(--glass-bg);
-        backdrop-filter: blur(10px);
-        border: var(--glass-border) !important;
-        border-radius: 16px;
-    }
-
-    /* Dataframe */
+    /* --- COMPONENTI --- */
     div[data-testid="stDataFrame"] {
         background-color: rgba(20, 25, 35, 0.6);
         border: var(--glass-border);
-        border-radius: 16px;
-        overflow: hidden;
+        border-radius: 12px;
     }
-    
-    /* Input fields */
     input, select, textarea {
         background-color: rgba(13, 17, 23, 0.8) !important;
         border: 1px solid rgba(255, 255, 255, 0.15) !important;
         color: white !important;
-        border-radius: 10px;
-        padding: 10px 12px;
+        border-radius: 8px;
     }
-    input:focus, select:focus, textarea:focus {
-        border-color: var(--neon-blue) !important;
-        box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2) !important;
-    }
-
-    /* Expander */
     .streamlit-expanderHeader {
-        background-color: var(--glass-bg);
-        border-radius: 12px;
-        color: #FFF;
-        border: var(--glass-border);
+        background-color: rgba(255,255,255,0.02);
+        border-radius: 8px;
+        color: white;
     }
-    
-    /* Divisore */
     hr { border-color: rgba(255,255,255,0.1); opacity: 0.5; }
-    
-    /* Allarmi colorati */
+
+    /* Alert Box */
     .alert-box {
         padding: 15px; border-radius: 12px; margin-bottom: 10px;
-        border-left: 4px solid; backdrop-filter: blur(5px);
+        border-left: 4px solid; background: rgba(255,255,255,0.03);
     }
-    .alert-warn { background: rgba(237, 137, 54, 0.1); border-color: #ed8936; }
-    .alert-err { background: rgba(229, 62, 62, 0.1); border-color: #e53e3e; }
-    .alert-info { background: rgba(66, 153, 225, 0.1); border-color: #4299e1; }
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -226,7 +189,7 @@ except FileNotFoundError:
 
 api = Api(API_KEY)
 
-# --- 2. FUNZIONI (Logica invariata) ---
+# --- 2. FUNZIONI ---
 
 @st.cache_data(ttl=60)
 def get_data(table_name):
@@ -370,21 +333,24 @@ with st.sidebar:
     try: st.image("logo.png", use_container_width=True)
     except: st.title("Focus Rehab")
     st.write("")
-    # Navigazione con icone migliori
     menu = st.radio(
-        "NAVIGAZIONE", 
-        ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "🗓️ Scadenze"],
+        "Menu", 
+        ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"],
         label_visibility="collapsed"
     )
     st.divider()
-    st.markdown("<div style='text-align:center; color:#718096; font-size:11px; font-weight:500;'>Focus Pro v4.0 - Ultimate UI</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align:center; color:#64748b; font-size:11px;'>Focus App v3.1</div>", unsafe_allow_html=True)
 
 # =========================================================
-# SEZIONE 1: DASHBOARD ULTIMATE
+# SEZIONE 1: DASHBOARD (CON FILTRI ATTIVI)
 # =========================================================
 if menu == "⚡ Dashboard":
-    st.title("Panoramica Studio")
+    st.title("⚡ Dashboard")
     st.write("")
+
+    # Inizializza stato filtro
+    if 'kpi_filter' not in st.session_state:
+        st.session_state.kpi_filter = "None"
 
     df = get_data("Pazienti")
     
@@ -413,45 +379,89 @@ if menu == "⚡ Dashboard":
         sette_giorni_fa = oggi - pd.Timedelta(days=7)
         visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
 
-        # 1. RIGA KPI (ULTIMATE GLASS CARDS)
+        # 1. RIGA KPI CARD
         col1, col2, col3, col4 = st.columns(4)
         
-        def ultimate_card(icon, val, label, color_hex):
-            rgba_color = f"{color_hex}33" # 20% opacity
+        def glass_card(icon, val, label, color):
+            rgba_color = f"{color}33" 
             return f"""
             <div class="glass-kpi">
-                <div class="kpi-icon-wrapper" style="background: {rgba_color}; color: {color_hex};">
+                <div class="kpi-icon-wrapper" style="background: {rgba_color}; color: {color};">
                     {icon}
                 </div>
                 <div class="kpi-value">{val}</div>
                 <div class="kpi-label">{label}</div>
-                <div class="glow-bar" style="background: {color_hex}; box-shadow: 0 0 15px {color_hex};"></div>
+                <div class="glow-bar" style="background: {color}; box-shadow: 0 0 10px {color};"></div>
             </div>
             """
 
-        with col1: st.markdown(ultimate_card("👥", cnt_attivi, "Pazienti Attivi", "#4299e1"), unsafe_allow_html=True) # Blue
-        with col2: st.markdown(ultimate_card("📉", len(df_disdetti), "Totale Disdette", "#e53e3e"), unsafe_allow_html=True) # Red
-        with col3: st.markdown(ultimate_card("💡", len(da_richiamare), "Da Richiamare", "#ed8936"), unsafe_allow_html=True) # Orange
-        with col4: st.markdown(ultimate_card("🩺", len(visite_imminenti), "Visite Mediche", "#38b2ac"), unsafe_allow_html=True) # Teal
+        # Logica Pulsanti Filtro
+        with col1: 
+            st.markdown(glass_card("👥", cnt_attivi, "Attivi", "#4299e1"), unsafe_allow_html=True)
+            if st.button("📂 Vedi Lista", key="btn_attivi"): st.session_state.kpi_filter = "Attivi"
+        
+        with col2: 
+            st.markdown(glass_card("📉", len(df_disdetti), "Disdetti", "#e53e3e"), unsafe_allow_html=True)
+            if st.button("📂 Vedi Lista", key="btn_disdetti"): st.session_state.kpi_filter = "Disdetti"
+        
+        with col3: 
+            st.markdown(glass_card("💡", len(da_richiamare), "Recall", "#ed8936"), unsafe_allow_html=True)
+            if st.button("📂 Vedi Lista", key="btn_recall"): st.session_state.kpi_filter = "Recall"
+        
+        with col4: 
+            st.markdown(glass_card("🩺", len(visite_imminenti), "Visite", "#38b2ac"), unsafe_allow_html=True)
+            if st.button("📂 Vedi Lista", key="btn_visite"): st.session_state.kpi_filter = "Visite"
 
-        st.write(""); st.write("")
+        st.write("")
 
-        # 2. SEZIONE CENTRALE
+        # 2. SEZIONE LISTA FILTRATA (APPARE SOLO SE CLICCATO)
+        if st.session_state.kpi_filter != "None":
+            st.divider()
+            c_head, c_close = st.columns([4, 1])
+            with c_head: st.subheader(f"📋 Dettaglio: {st.session_state.kpi_filter}")
+            with c_close: 
+                if st.button("❌ Chiudi Lista"): st.session_state.kpi_filter = "None"; st.rerun()
+            
+            df_show = pd.DataFrame()
+            if st.session_state.kpi_filter == "Attivi":
+                df_show = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
+            elif st.session_state.kpi_filter == "Disdetti":
+                df_show = df_disdetti
+            elif st.session_state.kpi_filter == "Recall":
+                df_show = da_richiamare
+            elif st.session_state.kpi_filter == "Visite":
+                df_show = df_visite
+
+            if not df_show.empty:
+                st.dataframe(
+                    df_show[['Nome', 'Cognome', 'Area', 'Data_Disdetta', 'Data_Visita']],
+                    use_container_width=True,
+                    height=300
+                )
+            else:
+                st.info("Nessun paziente in questa lista.")
+            st.divider()
+
+        st.write("")
+
+        # 3. SEZIONE PRINCIPALE (Avvisi + Grafico)
         c_left, c_right = st.columns([1, 1.6], gap="large")
 
         with c_left:
-            st.subheader("Avvisi Urgenti")
+            st.markdown("### 🔔 Avvisi")
             has_alerts = False
             if not visite_imminenti.empty:
                 has_alerts = True
-                st.markdown(f"""<div class="alert-box alert-info">
-                    <strong style='color:#4299e1'>👨‍⚕️ Visite Imminenti ({len(visite_imminenti)})</strong><br>
+                st.markdown(f"""<div class="alert-box" style='border-color:#38b2ac'>
+                    <strong style='color:#38b2ac'>👨‍⚕️ Visite Imminenti ({len(visite_imminenti)})</strong><br>
                     {'<br>'.join([f"• {row['Nome']} {row['Cognome']} ({row['Data_Visita'].strftime('%d/%m')})" for i, row in visite_imminenti.iterrows()])}
                     </div>""", unsafe_allow_html=True)
 
             if not visite_passate.empty:
                 has_alerts = True
-                st.markdown(f"""<div class="alert-box alert-err"><strong style='color:#e53e3e'>⚠️ Visite Scadute</strong></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="alert-box" style='border-color:#e53e3e'>
+                    <strong style='color:#e53e3e'>⚠️ Visite Scadute</strong>
+                    </div>""", unsafe_allow_html=True)
                 with st.container(border=True):
                     for i, row in visite_passate.iterrows():
                         rec_id = row['id']
@@ -463,16 +473,16 @@ if menu == "⚡ Dashboard":
 
             if len(da_richiamare) > 0:
                 has_alerts = True
-                st.markdown(f"""<div class="alert-box alert-warn">
+                st.markdown(f"""<div class="alert-box" style='border-color:#ed8936'>
                     <strong style='color:#ed8936'>📞 Recall Necessari ({len(da_richiamare)})</strong><br>
                     {'<br>'.join([f"• {row['Nome']} {row['Cognome']}" for i, row in da_richiamare.iterrows()])}
                     </div>""", unsafe_allow_html=True)
 
             if not has_alerts:
-                st.success("✅ Nessun avviso urgente. Tutto in ordine.")
+                st.success("✅ Nessun avviso urgente.")
 
         with c_right:
-            st.subheader("Analisi Aree di Trattamento")
+            st.markdown("### 📈 Performance Aree")
             df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
             
             all_areas = []
@@ -486,11 +496,12 @@ if menu == "⚡ Dashboard":
                 counts = pd.Series(all_areas).value_counts().reset_index()
                 counts.columns = ['Area', 'Pazienti']
                 
-                # Palette Neon
+                # --- COLORI ORIGINALI RIPRISTINATI ---
                 domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
-                range_ = ["#4299e1", "#ed8936", "#38b2ac", "#9f7aea", "#f56565", "#a0aec0"]
+                range_ = ["#33A1C9", "#F1C40F", "#2ECC71", "#9B59B6", "#E74C3C", "#7F8C8D"]
+                # -------------------------------------
                 
-                chart = alt.Chart(counts).mark_bar(cornerRadius=8, height=28).encode(
+                chart = alt.Chart(counts).mark_bar(cornerRadius=6, height=25).encode(
                     x=alt.X('Pazienti', axis=None), 
                     y=alt.Y('Area', sort='-x', title=None, axis=alt.Axis(domain=False, ticks=False, labelColor="#cbd5e0", labelFontSize=13)),
                     color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None),
@@ -499,7 +510,7 @@ if menu == "⚡ Dashboard":
                 
                 st.altair_chart(chart, use_container_width=True)
             else:
-                st.info("Popola le aree dei pazienti per vedere il grafico.")
+                st.info("I dati sulle aree saranno visualizzati qui.")
 
 # =========================================================
 # SEZIONE 2: PAZIENTI
@@ -776,7 +787,7 @@ elif menu == "🔄 Prestiti":
 # =========================================================
 # SEZIONE 6: SCADENZE
 # =========================================================
-elif menu == "🗓️ Scadenze":
+elif menu == "📅 Scadenze":
     st.title("Checklist Scadenze")
     df_scad = get_data("Scadenze")
     if not df_scad.empty and 'Data_Scadenza' in df_scad.columns:
