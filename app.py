@@ -9,76 +9,172 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE (PULITO E PROFESSIONALE)
+# 0. CONFIGURAZIONE & ULTIMATE NEXT-GEN CSS (FINAL)
 # =========================================================
-st.set_page_config(page_title="Gestionale Fisio", page_icon="🏥", layout="wide")
+st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
     
-    html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
+    :root {
+        --glass-bg: rgba(255, 255, 255, 0.04);
+        --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+        --neon-blue: #4299e1;
     }
 
-    /* SFONDO SCURO STANDARD (No gradienti) */
-    .stApp {
-        background-color: #0E1117;
-        color: #FAFAFA;
+    html, body, [class*="css"] {
+        font-family: 'Outfit', sans-serif;
     }
-    
+
+    /* SFONDO */
+    .stApp {
+        background: radial-gradient(circle at top left, #1a202c, #0d1117);
+        color: #e2e8f0;
+    }
+
     /* SIDEBAR */
     section[data-testid="stSidebar"] {
-        background-color: #262730;
-        border-right: 1px solid #333;
-    }
-
-    /* CARD STATISTICHE (Bottoni grandi e puliti) */
-    div[data-testid="column"] button {
-        background-color: #262730;
-        border: 1px solid #41444C;
-        border-radius: 10px;
-        padding: 20px 10px;
-        width: 100%;
-        transition: all 0.2s;
-    }
-    div[data-testid="column"] button:hover {
-        border-color: #FF4B2B;
-        background-color: #30323a;
-        transform: translateY(-2px);
-    }
-    div[data-testid="column"] button p {
-        font-size: 18px !important;
-        font-weight: 600;
-        color: white;
-    }
-
-    /* ALERT BOX */
-    div[data-testid="stContainer"] {
-        background-color: #262730;
-        border-radius: 10px;
-        border: 1px solid #41444C;
-        padding: 10px;
-    }
-
-    /* PULSANTI AZIONE (Piccoli) */
-    div.stButton > button {
-        background: linear-gradient(90deg, #FF4B2B 0%, #FF416C 100%);
-        color: white;
-        border: none;
-        border-radius: 6px;
-        font-weight: 600;
+        background-color: rgba(13, 17, 23, 0.95);
+        backdrop-filter: blur(12px);
+        border-right: var(--glass-border);
     }
     
-    /* TABELLE (Sfondo scuro solido per leggibilità) */
-    div[data-testid="stDataFrame"] {
-        background-color: #262730;
-        border: 1px solid #41444C;
-        border-radius: 8px;
+    /* TITOLI */
+    h1 {
+        background: linear-gradient(90deg, #FFF, #cbd5e0);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800 !important;
+        letter-spacing: -0.5px;
+    }
+    h2, h3, h4 { color: #FFF !important; font-weight: 600; }
+
+    /* --- PULSANTI KPI (CARD CLICCABILI) --- */
+    div[data-testid="column"] button {
+        background: var(--glass-bg);
+        backdrop-filter: blur(10px);
+        border: var(--glass-border);
+        border-radius: 16px;
+        padding: 20px 10px; /* Spaziatura comoda */
+        height: auto;
+        width: 100%;
+        text-align: center;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    div[data-testid="column"] button:hover {
+        background: rgba(255, 255, 255, 0.08);
+        transform: translateY(-4px);
+        border-color: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.25);
+    }
+    
+    /* --- ICONE KPI RIPRISTINATE (GRANDI) --- */
+    .kpi-icon-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 50px;  /* RIPRISTINATO A 50px */
+        height: 50px; /* RIPRISTINATO A 50px */
+        border-radius: 14px;
+        font-size: 26px; /* RIPRISTINATO A 26px */
+        margin-bottom: 5px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    /* Stile testo bottone */
+    div[data-testid="column"] button p {
+        font-size: 1.1rem;
+        font-weight: 600;
+        line-height: 1.4;
     }
 
-    /* TITOLI */
-    h1, h2, h3 { color: white !important; }
+    /* --- PULSANTI AZIONE (Action Buttons negli Alert) --- */
+    div.stButton > button {
+        background: linear-gradient(135deg, #3182ce, #2b6cb0);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        transition: all 0.2s;
+    }
+    div.stButton > button:hover {
+        box-shadow: 0 0 15px rgba(66, 153, 225, 0.5);
+        transform: scale(1.02);
+    }
+    /* Pulsante "Action" specifico (più piccolo dentro le colonne) */
+    div[data-testid="column"] div.stButton > button {
+        font-size: 0.8rem;
+        padding: 0.3rem 0.8rem;
+        width: 100%;
+    }
+
+    /* --- NAVIGAZIONE --- */
+    div.row-widget.stRadio > div { background-color: transparent; }
+    div.row-widget.stRadio > div[role="radiogroup"] > label {
+        background-color: transparent;
+        padding: 10px 15px;
+        margin-bottom: 5px;
+        border-radius: 10px;
+        color: #94a3b8;
+        border: 1px solid transparent;
+        transition: all 0.2s;
+    }
+    div.row-widget.stRadio > div[role="radiogroup"] > label:hover {
+        color: #fff;
+        background: rgba(255,255,255,0.03);
+    }
+    div.row-widget.stRadio > div[role="radiogroup"] > label[data-checked="true"] {
+        background: rgba(66, 153, 225, 0.15);
+        border: 1px solid var(--neon-blue);
+        color: #fff;
+        font-weight: 600;
+    }
+    div.row-widget.stRadio div[role="radiogroup"] > label > div:first-child { display: none; }
+
+    /* --- TABELLE TRASPARENTI --- */
+    div[data-testid="stDataFrame"] {
+        background-color: transparent !important; /* TRASPARENTE */
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+    }
+    div[data-testid="stDataFrame"] div[data-testid="stTable"] {
+        background-color: transparent !important;
+    }
+    
+    /* Input */
+    input, select, textarea {
+        background-color: rgba(13, 17, 23, 0.8) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        color: white !important;
+        border-radius: 8px;
+    }
+    .streamlit-expanderHeader {
+        background-color: rgba(255,255,255,0.02);
+        border-radius: 8px;
+        color: white;
+    }
+    hr { border-color: rgba(255,255,255,0.1); opacity: 0.5; }
+
+    /* Alert Containers */
+    .alert-box {
+        padding: 15px; border-radius: 12px; margin-bottom: 10px;
+        border-left: 4px solid; background: rgba(255,255,255,0.03);
+    }
+    
+    /* Contenitori generici trasparenti */
+    div[data-testid="stVerticalBlock"] > div[style*="border"] {
+        background-color: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.08);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -242,7 +338,7 @@ with st.sidebar:
         label_visibility="collapsed"
     )
     st.divider()
-    st.caption("Focus App v3.4 - Stable")
+    st.caption("Focus App v3.5 - Finalized")
 
 # =========================================================
 # SEZIONE 1: DASHBOARD
@@ -315,6 +411,7 @@ if menu == "⚡ Dashboard":
                     df_show = df_visite
                 
                 if not df_show.empty:
+                    # TABELLA TRASPARENTE
                     st.dataframe(df_show[['Nome', 'Cognome', 'Area', 'Data_Disdetta', 'Data_Visita']], use_container_width=True, height=250)
                 else:
                     st.info("Nessun dato.")
@@ -333,8 +430,11 @@ if menu == "⚡ Dashboard":
                         st.write(f"• **{row['Nome']} {row['Cognome']}** ({row['Data_Visita'].strftime('%d/%m')})")
 
             if not visite_passate.empty:
+                # Ripristinato pulsante azione
+                st.markdown(f"""<div class="alert-box" style='border-color:#e53e3e; margin-bottom:5px;'>
+                    <strong style='color:#e53e3e'>⚠️ Visite Scadute</strong>
+                    </div>""", unsafe_allow_html=True)
                 with st.container(border=True):
-                    st.error(f"📅 **Visite Passate (Attendono rientro)**")
                     for i, row in visite_passate.iterrows():
                         rec_id = row['id']
                         c1, c2 = st.columns([3, 1.5])
@@ -344,8 +444,11 @@ if menu == "⚡ Dashboard":
                             st.rerun()
 
             if len(da_richiamare) > 0:
+                # Ripristinato pulsante azione
+                st.markdown(f"""<div class="alert-box" style='border-color:#ed8936; margin-bottom:5px; margin-top:15px;'>
+                    <strong style='color:#ed8936'>📞 Recall Disdette (>10gg)</strong>
+                    </div>""", unsafe_allow_html=True)
                 with st.container(border=True):
-                    st.info(f"📞 **Recall Disdette (>10gg)**")
                     for i, row in da_richiamare.iterrows():
                         rec_id = row['id']
                         c1, c2 = st.columns([3, 1.5])
