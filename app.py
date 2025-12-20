@@ -9,7 +9,7 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & NEXT-GEN CSS (INTERACTIVE)
+# 0. CONFIGURAZIONE & GLASS UI (RESET DEFINITIVO)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -50,14 +50,14 @@ st.markdown("""
     }
     h2, h3, h4 { color: #FFF !important; font-weight: 600; }
 
-    /* --- PULSANTI KPI (CARD CLICCABILI) --- */
-    /* MODIFICATO: Resi più grandi come richiesto */
+    /* --- KPI BUTTONS (CARD CLICCABILI) --- */
+    /* Modificato: Grandezza Icone RIPRISTINATA */
     div[data-testid="column"] button {
         background: var(--glass-bg);
         backdrop-filter: blur(10px);
         border: var(--glass-border);
-        border-radius: 20px;
-        padding: 30px 15px; /* AUMENTATO PADDING */
+        border-radius: 16px;
+        padding: 20px 10px;
         height: auto;
         width: 100%;
         text-align: center;
@@ -67,47 +67,63 @@ st.markdown("""
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 10px;
+        gap: 10px; /* Più spazio */
     }
     div[data-testid="column"] button:hover {
         background: rgba(255, 255, 255, 0.08);
-        transform: translateY(-5px);
+        transform: translateY(-4px);
         border-color: rgba(255, 255, 255, 0.2);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-    }
-    div[data-testid="column"] button:active {
-        transform: scale(0.98);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.25);
     }
     
-    /* Stile del testo dentro il bottone (Icona, Numero, Label) */
-    /* MODIFICATO: Font più grande */
+    /* ICONA GRANDE (Ripristinata) */
+    .kpi-icon-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 60px;  /* Aumentato */
+        height: 60px; /* Aumentato */
+        border-radius: 16px;
+        font-size: 30px; /* Aumentato */
+        margin-bottom: 5px;
+    }
+    /* TESTO BUTTON */
     div[data-testid="column"] button p {
-        font-size: 1.5rem !important; /* AUMENTATO */
+        font-size: 1.2rem;
         font-weight: 700;
         line-height: 1.4;
     }
 
-    /* --- PULSANTI AZIONE (Action Buttons negli Alert) --- */
+    /* --- TABELLE TRASPARENTI (Richiesta Specifica) --- */
+    div[data-testid="stDataFrame"] {
+        background-color: transparent !important;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+    }
+    div[data-testid="stDataFrame"] div[data-testid="stTable"] {
+        background-color: transparent !important;
+    }
+    
+    /* --- PULSANTI AZIONE (Piccoli nei container) --- */
     div.stButton > button {
         background: linear-gradient(135deg, #3182ce, #2b6cb0);
         color: white;
         border: none;
-        border-radius: 10px;
-        padding: 0.6rem 1.5rem;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
         font-weight: 600;
-        box-shadow: 0 4px 15px rgba(49, 130, 206, 0.3);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         transition: all 0.2s;
     }
     div.stButton > button:hover {
-        box-shadow: 0 0 20px rgba(66, 153, 225, 0.5);
+        box-shadow: 0 0 15px rgba(66, 153, 225, 0.5);
         transform: scale(1.02);
     }
-    
-    /* Pulsanti specifici dentro le colonne (quelli piccoli di azione) */
+    /* Specifico per i pulsanti dentro le colonne (Rientrato, Fatto) */
     div[data-testid="column"] div.stButton > button {
-        padding: 0.4rem 1rem;
-        font-size: 0.9rem !important;
         width: 100%;
+        padding: 0.4rem;
+        font-size: 0.85rem;
     }
 
     /* --- NAVIGAZIONE --- */
@@ -133,12 +149,7 @@ st.markdown("""
     }
     div.row-widget.stRadio div[role="radiogroup"] > label > div:first-child { display: none; }
 
-    /* --- COMPONENTI --- */
-    div[data-testid="stDataFrame"] {
-        background-color: rgba(20, 25, 35, 0.6);
-        border: var(--glass-border);
-        border-radius: 12px;
-    }
+    /* INPUT & CONTAINER */
     input, select, textarea {
         background-color: rgba(13, 17, 23, 0.8) !important;
         border: 1px solid rgba(255, 255, 255, 0.15) !important;
@@ -151,14 +162,8 @@ st.markdown("""
         color: white;
     }
     hr { border-color: rgba(255,255,255,0.1); opacity: 0.5; }
-
-    /* Alert Box */
-    .alert-box {
-        padding: 15px; border-radius: 12px; margin-bottom: 10px;
-        border-left: 4px solid; background: rgba(255,255,255,0.03);
-    }
     
-    /* Contenitori per le liste azioni */
+    /* Contenitori degli alert trasparenti */
     div[data-testid="stVerticalBlock"] > div[style*="border"] {
         background-color: rgba(255,255,255,0.02);
         border: 1px solid rgba(255,255,255,0.08);
@@ -326,7 +331,7 @@ with st.sidebar:
         label_visibility="collapsed"
     )
     st.divider()
-    st.markdown("<div style='text-align:center; color:#64748b; font-size:11px;'>Focus App v3.2 - Interactive</div>", unsafe_allow_html=True)
+    st.caption("Focus App v3.6 - Final Release")
 
 # =========================================================
 # SEZIONE 1: DASHBOARD
@@ -335,7 +340,6 @@ if menu == "⚡ Dashboard":
     st.title("⚡ Dashboard")
     st.write("")
 
-    # Stato del filtro dashboard
     if 'dash_filter' not in st.session_state: st.session_state.dash_filter = None
 
     df = get_data("Pazienti")
@@ -365,25 +369,23 @@ if menu == "⚡ Dashboard":
         sette_giorni_fa = oggi - pd.Timedelta(days=7)
         visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
 
-        # 1. RIGA KPI (PULSANTI INTERATTIVI)
+        # 1. RIGA KPI (PULSANTI CLICCABILI)
         col1, col2, col3, col4 = st.columns(4)
         
-        # Helper per formattare il testo del bottone con icona piccola
         def btn_label(icon, val, lbl):
-            return f"{icon}  {val}\n{lbl}"
+            return f"{icon}  {val}\n\n{lbl}"
 
-        # Pulsanti che settano il filtro
         with col1:
-            if st.button(btn_label("👥", cnt_attivi, "ATTIVI"), key="kpi_attivi"):
+            if st.button(btn_label("👥", cnt_attivi, "PAZIENTI ATTIVI"), key="kpi_attivi"):
                 st.session_state.dash_filter = "Attivi"
         with col2:
-            if st.button(btn_label("📉", len(df_disdetti), "DISDETTI"), key="kpi_disdetti"):
+            if st.button(btn_label("📉", len(df_disdetti), "DISDETTI STORICO"), key="kpi_disdetti"):
                 st.session_state.dash_filter = "Disdetti"
         with col3:
-            if st.button(btn_label("📞", len(da_richiamare), "RECALL"), key="kpi_recall"):
+            if st.button(btn_label("📞", len(da_richiamare), "DA RICHIAMARE"), key="kpi_recall"):
                 st.session_state.dash_filter = "Recall"
         with col4:
-            if st.button(btn_label("🩺", len(visite_imminenti), "VISITE"), key="kpi_visite"):
+            if st.button(btn_label("🩺", len(visite_imminenti), "VISITE MEDICHE"), key="kpi_visite"):
                 st.session_state.dash_filter = "Visite"
 
         st.write("")
@@ -391,7 +393,7 @@ if menu == "⚡ Dashboard":
         # 2. LISTA COMPARSA (SE FILTRO ATTIVO)
         if st.session_state.dash_filter:
             with st.container(border=True):
-                c_head, c_x = st.columns([8, 1])
+                c_head, c_x = st.columns([9, 1])
                 c_head.subheader(f"📋 Lista: {st.session_state.dash_filter}")
                 if c_x.button("❌", key="close_list"):
                     st.session_state.dash_filter = None
@@ -408,73 +410,63 @@ if menu == "⚡ Dashboard":
                     df_show = df_visite
                 
                 if not df_show.empty:
+                    # Tabella Trasparente
                     st.dataframe(
                         df_show[['Nome', 'Cognome', 'Area', 'Data_Disdetta', 'Data_Visita']],
                         use_container_width=True,
                         height=250
                     )
                 else:
-                    st.info("Nessun paziente trovato in questa categoria.")
+                    st.info("Nessun dato.")
             st.divider()
 
-        # 3. SEZIONE PRINCIPALE
+        # 3. SEZIONE ALLARMI E GRAFICI
         c_left, c_right = st.columns([1, 1.6], gap="large")
 
         with c_left:
-            st.markdown("### 🔔 Avvisi")
-            has_alerts = False
+            st.markdown("### 🔔 Avvisi Operativi")
             
-            # --- VISITE IMMINENTI (Solo Alert) ---
+            # --- VISITE IMMINENTI (Solo info) ---
             if not visite_imminenti.empty:
-                has_alerts = True
                 st.markdown(f"""<div class="alert-box" style='border-color:#38b2ac'>
                     <strong style='color:#38b2ac'>👨‍⚕️ Visite Imminenti ({len(visite_imminenti)})</strong><br>
                     {'<br>'.join([f"• {row['Nome']} {row['Cognome']} ({row['Data_Visita'].strftime('%d/%m')})" for i, row in visite_imminenti.iterrows()])}
                     </div>""", unsafe_allow_html=True)
 
-            # --- VISITE SCADUTE (Con Pulsanti Azione) ---
+            # --- VISITE SCADUTE (Con Pulsante RIENTRATO) ---
             if not visite_passate.empty:
-                has_alerts = True
                 st.markdown(f"""<div class="alert-box" style='border-color:#e53e3e'>
-                    <strong style='color:#e53e3e'>⚠️ Visite Scadute</strong>
+                    <strong style='color:#e53e3e'>⚠️ Visite Scadute (Richiedono azione)</strong>
                     </div>""", unsafe_allow_html=True)
                 
-                # Container per la lista interattiva
+                # Lista con pulsanti d'azione
                 with st.container(border=True):
                     for i, row in visite_passate.iterrows():
                         rec_id = row['id']
-                        c1, c2 = st.columns([3, 1])
-                        c1.caption(f"{row['Nome']} {row['Cognome']}")
-                        # PULSANTE RIPRISTINATO
-                        if c2.button("Rientrato", key=f"rientro_{rec_id}"):
+                        c1, c2 = st.columns([3, 1.5])
+                        c1.markdown(f"**{row['Nome']} {row['Cognome']}**")
+                        if c2.button("Rientrato ✅", key=f"rientro_{rec_id}"):
                             update_generic("Pazienti", rec_id, {"Visita_Esterna": False, "Data_Visita": None})
                             st.rerun()
 
-            # --- RECALL (Con Pulsanti Azione) ---
+            # --- RECALL (Con Pulsante FATTO) ---
             if len(da_richiamare) > 0:
-                has_alerts = True
-                st.markdown(f"""<div class="alert-box" style='border-color:#ed8936'>
-                    <strong style='color:#ed8936'>📞 Recall Necessari ({len(da_richiamare)})</strong>
+                st.markdown(f"""<div class="alert-box" style='border-color:#ed8936; margin-top:15px'>
+                    <strong style='color:#ed8936'>📞 Recall Necessari (>10gg)</strong>
                     </div>""", unsafe_allow_html=True)
                 
-                # Container per la lista interattiva
                 with st.container(border=True):
                     for i, row in da_richiamare.iterrows():
                         rec_id = row['id']
-                        c1, c2 = st.columns([3, 1])
-                        c1.caption(f"{row['Nome']} {row['Cognome']}")
-                        # PULSANTE RIPRISTINATO
-                        if c2.button("Fatto", key=f"recall_{rec_id}"):
-                            # Logica: se chiamato e torna, tolgo il flag disdetto? O aggiorno la data?
-                            # Assumo che 'Fatto' significhi che il paziente è gestito (es. rientra o non vuole più essere disturbato)
-                            # Per semplicità qui tolgo il flag disdetto simulando un rientro, 
-                            # oppure potresti voler solo aggiornare la data disdetta.
-                            # Qui lo riattivo come "Recuperato"
+                        c1, c2 = st.columns([3, 1.5])
+                        c1.markdown(f"**{row['Nome']} {row['Cognome']}**")
+                        if c2.button("Fatto ✅", key=f"recall_{rec_id}"):
+                            # Logica: lo rimuove dalla lista recall (togliendo flag disdetto o aggiornando data)
                             update_generic("Pazienti", rec_id, {"Disdetto": False}) 
                             st.rerun()
 
-            if not has_alerts:
-                st.success("✅ Nessun avviso urgente.")
+            if visite_imminenti.empty and visite_passate.empty and len(da_richiamare) == 0:
+                st.success("✅ Tutto regolare. Nessun avviso.")
 
         with c_right:
             st.markdown("### 📈 Performance Aree")
@@ -491,12 +483,11 @@ if menu == "⚡ Dashboard":
                 counts = pd.Series(all_areas).value_counts().reset_index()
                 counts.columns = ['Area', 'Pazienti']
                 
-                # --- COLORI ORIGINALI RIPRISTINATI ---
+                # COLORI ORIGINALI
                 domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
                 range_ = ["#33A1C9", "#F1C40F", "#2ECC71", "#9B59B6", "#E74C3C", "#7F8C8D"]
-                # -------------------------------------
                 
-                chart = alt.Chart(counts).mark_bar(cornerRadius=6, height=25).encode(
+                chart = alt.Chart(counts).mark_bar(cornerRadius=5).encode(
                     x=alt.X('Pazienti', axis=None), 
                     y=alt.Y('Area', sort='-x', title=None, axis=alt.Axis(domain=False, ticks=False, labelColor="#cbd5e0", labelFontSize=13)),
                     color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None),
@@ -518,14 +509,14 @@ elif menu == "👥 Pazienti":
         st.subheader("➕ Aggiungi Paziente")
         with st.form("form_paziente", clear_on_submit=True):
             c1, c2, c3 = st.columns([2, 2, 1])
-            c1.text_input("Nome", key="new_name", placeholder="Es. Mario")
-            c2.text_input("Cognome", key="new_surname", placeholder="Es. Rossi")
+            c1.text_input("Nome", key="new_name")
+            c2.text_input("Cognome", key="new_surname")
             c3.multiselect("Area", lista_aree, key="new_area")
-            if st.form_submit_button("Salva Paziente", use_container_width=True, type="primary"):
+            if st.form_submit_button("Salva Paziente", use_container_width=True):
                 if st.session_state.new_name and st.session_state.new_surname:
                     area_s = ", ".join(st.session_state.new_area)
                     save_paziente(st.session_state.new_name, st.session_state.new_surname, area_s, False)
-                    st.success("Paziente salvato con successo!"); st.rerun()
+                    st.success("Salvato!"); st.rerun()
     
     st.write("")
     df_original = get_data("Pazienti")
