@@ -9,7 +9,7 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & ULTIMATE DESIGN (CSS FIXATO)
+# 0. CONFIGURAZIONE & STILE (BIG ICONS UPDATE)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -17,12 +17,6 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
     
-    :root {
-        --glass-bg: rgba(255, 255, 255, 0.04);
-        --glass-border: 1px solid rgba(255, 255, 255, 0.08);
-        --neon-blue: #4299e1;
-    }
-
     html, body, [class*="css"] {
         font-family: 'Outfit', sans-serif;
     }
@@ -36,8 +30,7 @@ st.markdown("""
     /* SIDEBAR */
     section[data-testid="stSidebar"] {
         background-color: rgba(13, 17, 23, 0.95);
-        backdrop-filter: blur(12px);
-        border-right: var(--glass-border);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
     }
     
     /* TITOLI */
@@ -59,18 +52,22 @@ st.markdown("""
         background-color: #1e232e !important; /* Sfondo scuro card */
         border: 1px solid rgba(255,255,255,0.1) !important;
         border-radius: 16px !important;
-        height: 120px !important; /* Altezza fissa grande */
+        height: 130px !important; /* Altezza aumentata per icone più grandi */
         width: 100% !important;
         transition: all 0.3s ease !important;
         box-shadow: 0 4px 6px rgba(0,0,0,0.2) !important;
         color: white !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
 
-    /* Testo interno (Icona e Numero) */
+    /* Testo interno (Icona e Numero) - MODIFICATO PER ESSERE PIÙ GRANDE */
     div[data-testid="column"] button p {
-        font-size: 26px !important;
-        font-weight: 700 !important;
-        line-height: 1.4 !important;
+        font-size: 36px !important; /* AUMENTATO DA 26px a 36px */
+        font-weight: 800 !important;
+        line-height: 1.2 !important;
+        margin: 0 !important;
     }
 
     /* Hover generico */
@@ -83,58 +80,59 @@ st.markdown("""
 
     /* 1. ATTIVI (BLU) */
     div[data-testid="column"]:nth-of-type(1) button {
-        border-left: 5px solid #4299e1 !important; /* Bordo colorato */
+        border-left: 6px solid #4299e1 !important;
     }
     div[data-testid="column"]:nth-of-type(1) button:hover {
         border-color: #4299e1 !important;
-        box-shadow: 0 0 20px rgba(66, 153, 225, 0.4) !important;
+        box-shadow: 0 0 25px rgba(66, 153, 225, 0.4) !important;
     }
     div[data-testid="column"]:nth-of-type(1) button p { color: #90cdf4 !important; }
 
     /* 2. DISDETTI (ROSSO) */
     div[data-testid="column"]:nth-of-type(2) button {
-        border-left: 5px solid #e53e3e !important;
+        border-left: 6px solid #e53e3e !important;
     }
     div[data-testid="column"]:nth-of-type(2) button:hover {
         border-color: #e53e3e !important;
-        box-shadow: 0 0 20px rgba(229, 62, 62, 0.4) !important;
+        box-shadow: 0 0 25px rgba(229, 62, 62, 0.4) !important;
     }
     div[data-testid="column"]:nth-of-type(2) button p { color: #feb2b2 !important; }
 
     /* 3. RECALL (ARANCIO) */
     div[data-testid="column"]:nth-of-type(3) button {
-        border-left: 5px solid #ed8936 !important;
+        border-left: 6px solid #ed8936 !important;
     }
     div[data-testid="column"]:nth-of-type(3) button:hover {
         border-color: #ed8936 !important;
-        box-shadow: 0 0 20px rgba(237, 137, 54, 0.4) !important;
+        box-shadow: 0 0 25px rgba(237, 137, 54, 0.4) !important;
     }
     div[data-testid="column"]:nth-of-type(3) button p { color: #fbd38d !important; }
 
     /* 4. VISITE (VERDE/TEAL) */
     div[data-testid="column"]:nth-of-type(4) button {
-        border-left: 5px solid #38b2ac !important;
+        border-left: 6px solid #38b2ac !important;
     }
     div[data-testid="column"]:nth-of-type(4) button:hover {
         border-color: #38b2ac !important;
-        box-shadow: 0 0 20px rgba(56, 178, 172, 0.4) !important;
+        box-shadow: 0 0 25px rgba(56, 178, 172, 0.4) !important;
     }
     div[data-testid="column"]:nth-of-type(4) button p { color: #81e6d9 !important; }
 
 
     /* --- PULSANTI AZIONE PICCOLI (Rientrato/Fatto) --- */
-    /* Resettiamo lo stile per i bottoni dentro le liste per non farli diventare giganti */
     div[data-testid="stVerticalBlock"] div[data-testid="column"] button {
         height: auto !important;
         background: linear-gradient(135deg, #3182ce, #2b6cb0) !important;
         border: none !important;
-        border-left: none !important; /* Rimuove bordo colorato */
+        border-left: none !important;
         font-size: 14px !important;
         padding: 5px 10px !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
     }
     div[data-testid="stVerticalBlock"] div[data-testid="column"] button p {
         font-size: 14px !important;
         color: white !important;
+        font-weight: 600 !important;
     }
 
     /* --- NAVIGAZIONE --- */
@@ -471,14 +469,6 @@ if menu == "⚡ Dashboard":
                     <strong style='color:#ed8936'>📞 Recall Necessari ({len(da_richiamare)})</strong><br>
                     {'<br>'.join([f"• {row['Nome']} {row['Cognome']}" for i, row in da_richiamare.iterrows()])}
                     </div>""", unsafe_allow_html=True)
-                with st.container(border=True):
-                    for i, row in da_richiamare.iterrows():
-                        rec_id = row['id']
-                        c1, c2 = st.columns([3, 1])
-                        c1.caption(f"{row['Nome']} {row['Cognome']}")
-                        if c2.button("Fatto", key=f"recall_{rec_id}"):
-                            update_generic("Pazienti", rec_id, {"Disdetto": False})
-                            st.rerun()
 
             if not has_alerts:
                 st.success("✅ Nessun avviso urgente.")
