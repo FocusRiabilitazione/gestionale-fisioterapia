@@ -8,42 +8,50 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & CSS (Versione 22 - Complete Restore)
+# 0. CONFIGURAZIONE & CSS (VERSIONE 22 - RESET FORZATO)
 # =========================================================
-st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
+# Ho cambiato il titolo qui sotto per farti capire se l'aggiornamento è avvenuto
+st.set_page_config(page_title="VERIFICA AGGIORNAMENTO", page_icon="⚠️", layout="wide")
 
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap');
     
+    /* FORZA IL TEMA SCURO A LIVELLO DI ROOT */
+    :root {
+        color-scheme: dark;
+    }
+
     html, body, [class*="css"] {
         font-family: 'Outfit', sans-serif;
     }
 
-    /* SFONDO SCURO PULITO */
+    /* 1. SFONDO (Reset Totale a Scuro) */
     .stApp {
-        background-color: #0e1117;
-        color: #e2e8f0;
+        background-color: #0e1117 !important;
+        color: #e2e8f0 !important;
     }
 
-    /* SIDEBAR */
+    /* 2. SIDEBAR */
     section[data-testid="stSidebar"] {
-        background-color: #161b22;
+        background-color: #161b22 !important;
         border-right: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    /* ============================================================
-       1. KPI CARDS (I 4 PULSANTONI IN ALTO)
-       ============================================================ */
+    /* 3. KPI CARDS (I 4 PULSANTI IN ALTO) - STILE V22 */
     div[data-testid="column"] button {
-        background-color: #1f2937 !important;
+        background-color: #1f2937 !important; 
         border: 1px solid #374151 !important;
         border-radius: 12px !important;
         padding: 20px 10px !important;
-        height: 130px !important;
+        height: 130px !important; 
         width: 100% !important;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
         transition: all 0.2s !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
 
     div[data-testid="column"] button:hover {
@@ -54,22 +62,22 @@ st.markdown("""
 
     /* Testo Grande dentro le Card */
     div[data-testid="column"] button p {
-        font-size: 26px !important;
+        font-size: 28px !important; 
         font-weight: 700 !important;
         color: #f3f4f6 !important;
         margin-bottom: 5px !important;
         line-height: 1.2 !important;
     }
 
-    /* ============================================================
-       2. PULSANTI AZIONE (PICCOLI NEGLI ALERT)
-       ============================================================ */
+    /* 4. PULSANTI AZIONE (PICCOLI NEGLI ALERT) */
+    /* Questo selettore colpisce i bottoni dentro le liste verticali (Avvisi) */
     div[data-testid="stVerticalBlock"] div[data-testid="column"] button {
         height: auto !important;
         background-color: #2563eb !important;
         border: none !important;
         padding: 0.4rem 1rem !important;
         font-size: 14px !important;
+        border-radius: 6px !important;
     }
     
     div[data-testid="stVerticalBlock"] div[data-testid="column"] button p {
@@ -78,61 +86,33 @@ st.markdown("""
         color: white !important;
     }
 
-    /* ============================================================
-       ALTRI ELEMENTI
-       ============================================================ */
-    
-    /* Tabelle Trasparenti */
+    /* 5. TABELLE TRASPARENTI */
     div[data-testid="stDataFrame"] {
         background-color: transparent !important;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
         border-radius: 8px;
     }
     div[data-testid="stDataFrame"] div[data-testid="stTable"] {
         background-color: transparent !important;
     }
 
-    /* Navigazione */
-    div.row-widget.stRadio > div[role="radiogroup"] > label {
-        background-color: transparent;
-        border: 1px solid transparent;
-        padding: 10px;
-        border-radius: 8px;
-        color: #9ca3af;
-        transition: all 0.2s;
-    }
-    div.row-widget.stRadio > div[role="radiogroup"] > label:hover {
-        background-color: rgba(255,255,255,0.05);
-        color: white;
-    }
-    div.row-widget.stRadio > div[role="radiogroup"] > label[data-checked="true"] {
-        background-color: rgba(37, 99, 235, 0.2);
-        border: 1px solid #2563eb;
-        color: white;
-        font-weight: 600;
-    }
-
-    /* Alert Boxes */
+    /* 6. ALERT BOXES */
     .alert-container {
         padding: 15px;
         border-radius: 10px;
         margin-bottom: 15px;
         border-left: 5px solid;
         background-color: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.05);
     }
-    .alert-title { font-weight: bold; font-size: 16px; margin-bottom: 10px; display: block; }
+    .alert-title { font-weight: bold; font-size: 16px; margin-bottom: 5px; display: block; }
     
-    /* Input */
+    /* INPUT FIELDS */
     input, select, textarea {
         background-color: rgba(13, 17, 23, 0.8) !important;
         border: 1px solid rgba(255, 255, 255, 0.15) !important;
         color: white !important;
         border-radius: 8px;
-    }
-    .streamlit-expanderHeader {
-        background-color: rgba(255,255,255,0.02);
-        border-radius: 8px;
-        color: white;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -178,13 +158,12 @@ def delete_generic(table_name, record_id):
     api.table(BASE_ID, table_name).delete(record_id)
     get_data.clear()
 
-def save_prestito(paziente, oggetto, data_prestito):
-    d_str = data_prestito.strftime('%Y-%m-%d')
-    api.table(BASE_ID, "Prestiti").create({"Paziente": paziente, "Oggetto": oggetto, "Data_Prestito": d_str, "Restituito": False}, typecast=True)
+def save_prestito(p, o, d):
+    api.table(BASE_ID, "Prestiti").create({"Paziente": p, "Oggetto": o, "Data_Prestito": str(d), "Restituito": False}, typecast=True)
     get_data.clear()
 
-def save_prodotto(prodotto, quantita):
-    api.table(BASE_ID, "Inventario").create({"Prodotto": prodotto, "Quantita": quantita}, typecast=True)
+def save_prodotto(p, q):
+    api.table(BASE_ID, "Inventario").create({"Prodotto": p, "Quantita": q}, typecast=True)
     get_data.clear()
 
 def save_preventivo_temp(paziente, dettagli_str, totale, note):
@@ -230,13 +209,14 @@ with st.sidebar:
     try: st.image("logo.png", use_container_width=True)
     except: st.title("Focus Rehab")
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("Version 22 - Complete")
+    st.divider(); st.caption("Versione di Ripristino V22")
 
 # =========================================================
 # SEZIONE 1: DASHBOARD
 # =========================================================
 if menu == "⚡ Dashboard":
-    st.title("⚡ Dashboard")
+    # TITOLO DI VERIFICA - SE NON VEDI QUESTO, IL SERVER NON HA AGGIORNATO
+    st.title("⚡ Dashboard (TEST AGGIORNAMENTO)")
     if 'dash_filter' not in st.session_state: st.session_state.dash_filter = None
     
     df = get_data("Pazienti")
@@ -252,9 +232,9 @@ if menu == "⚡ Dashboard":
         vis_imm = vis[(vis['Data_Visita'] >= today := pd.Timestamp.now().normalize())]
         vis_scad = vis[(vis['Data_Visita'] < today)]
 
-        # 1. KPI CARDS
+        # 1. KPI CARDS (Pulsanti)
         c1, c2, c3, c4 = st.columns(4)
-        def kpi(i, n, t): return f"{i} {n}\n\n{t}"
+        def kpi(i, n, t): return f"{i}  {n}\n\n{t}"
         
         with c1: 
             if st.button(kpi("👥", att, "ATTIVI"), key="k1"): st.session_state.dash_filter = "Attivi"
@@ -285,9 +265,9 @@ if menu == "⚡ Dashboard":
         with col_L:
             st.subheader("🔔 Avvisi Operativi")
             
-            # Visite Scadute
+            # Visite Scadute (Pulsanti Rientrato)
             if not vis_scad.empty:
-                st.markdown(f"""<div class="alert-container" style="border-color:#ef4444"><span class="alert-title" style="color:#ef4444">⚠️ Visite Scadute ({len(vis_scad)})</span></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="alert-container" style="border-color:#ef4444; color:#ef4444"><strong>⚠️ Visite Scadute ({len(vis_scad)})</strong></div>""", unsafe_allow_html=True)
                 for i, r in vis_scad.iterrows():
                     with st.container(border=True):
                         cn, cb = st.columns([2, 1])
@@ -295,9 +275,9 @@ if menu == "⚡ Dashboard":
                         if cb.button("Rientrato", key=f"v_{r['id']}"):
                             update_generic("Pazienti", r['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
 
-            # Recall
+            # Recall (Pulsanti Fatto)
             if len(rec) > 0:
-                st.markdown(f"""<div class="alert-container" style="border-color:#f97316"><span class="alert-title" style="color:#f97316">📞 Recall Necessari ({len(rec)})</span></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="alert-container" style="border-color:#f97316; color:#f97316"><strong>📞 Recall Necessari ({len(rec)})</strong></div>""", unsafe_allow_html=True)
                 for i, r in rec.iterrows():
                     with st.container(border=True):
                         cn, cb = st.columns([2, 1])
@@ -305,9 +285,9 @@ if menu == "⚡ Dashboard":
                         if cb.button("Fatto", key=f"r_{r['id']}"):
                             update_generic("Pazienti", r['id'], {"Disdetto": False}); st.rerun()
 
-            # Visite Imminenti
+            # Visite Imminenti (Solo Info)
             if not vis_imm.empty:
-                st.markdown(f"""<div class="alert-container" style="border-color:#3b82f6"><span class="alert-title" style="color:#3b82f6">👨‍⚕️ Visite Imminenti</span></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="alert-container" style="border-color:#3b82f6; color:#3b82f6"><strong>👨‍⚕️ Visite Imminenti ({len(vis_imm)})</strong></div>""", unsafe_allow_html=True)
                 for i, r in vis_imm.iterrows(): st.caption(f"• {r['Nome']} {r['Cognome']} ({r['Data_Visita'].strftime('%d/%m')})")
 
             if vis_scad.empty and len(rec) == 0 and vis_imm.empty: st.success("✅ Tutto regolare.")
