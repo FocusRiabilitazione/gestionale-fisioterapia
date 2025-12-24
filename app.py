@@ -8,7 +8,7 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE (COMPACT LIST DESIGN)
+# 0. CONFIGURAZIONE & STILE (COMPACT + ALIGNED)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -47,6 +47,7 @@ st.markdown("""
     .kpi-label { font-size: 11px; text-transform: uppercase; color: #a0aec0; margin-top: 5px; }
 
     /* --- PULSANTI MODERNI (Dashboard Top) --- */
+    /* Questi sono i pulsanti blu sotto i quadrati KPI */
     div[data-testid="column"] .stButton > button {
         background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
         border: none !important;
@@ -57,26 +58,28 @@ st.markdown("""
         padding: 4px 0 !important;
         box-shadow: 0 4px 6px rgba(66, 153, 225, 0.25) !important;
         transition: transform 0.2s;
+        margin-top: 0px !important;
     }
     div[data-testid="column"] .stButton > button:hover {
         transform: translateY(-2px);
     }
 
     /* --- STILE RIGHE COMPATTE (AVVISI) --- */
-    /* Crea lo sfondo scuro per la riga */
-    div[data-testid="stVerticalBlock"] > div > div[data-testid="stVerticalBlock"] {
-        gap: 0.5rem; /* Riduci spazio tra le righe */
-    }
-    
-    /* CSS per simulare la card compatta attorno alle colonne */
-    .compact-row {
+    /* Container visivo per il nome */
+    .alert-row-name {
         background-color: rgba(255, 255, 255, 0.03);
         border-radius: 8px;
-        padding: 8px 15px;
-        margin-bottom: 5px;
+        padding: 0 15px; /* Padding laterale */
+        height: 42px;    /* Altezza fissa per allineamento */
         display: flex;
-        align-items: center;
+        align-items: center; /* Centra verticalmente il testo */
         border: 1px solid rgba(255, 255, 255, 0.05);
+        font-weight: 600;
+        color: #fff;
+        font-size: 14px;
+        white-space: nowrap; /* Evita a capo */
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     /* Bordi colorati laterali specifici */
@@ -84,23 +87,18 @@ st.markdown("""
     .border-red { border-left: 4px solid #e53e3e !important; }
     .border-blue { border-left: 4px solid #38b2ac !important; }
 
-    /* Testo nome paziente */
-    .patient-name {
-        font-size: 15px;
-        font-weight: 600;
-        color: #fff;
-        margin: 0; padding: 0;
-    }
-
-    /* --- PULSANTI "SLIM" (Dentro le righe avvisi) --- */
-    /* Target specifico per i pulsanti nelle righe avvisi per farli piccoli */
+    /* --- PULSANTI "SLIM" ALLINEATI (Dentro le righe avvisi) --- */
+    /* Trucco CSS per centrare i bottoni con il box del nome */
+    /* Selezioniamo i bottoni dentro le righe orizzontali degli avvisi */
+    
     div[data-testid="stHorizontalBlock"] button {
         padding: 2px 10px !important;
         font-size: 11px !important;
         min-height: 0px !important;
-        height: auto !important;
-        line-height: 1.5 !important;
+        height: 32px !important; /* Altezza fissa bottone */
+        line-height: 1 !important;
         border-radius: 6px !important;
+        margin-top: 6px !important; /* SPINGE GIU IL BOTTONE PER ALLINEARLO AL CENTRO */
     }
     
     /* Colori specifici pulsanti azione */
@@ -195,7 +193,7 @@ with st.sidebar:
     try: st.image("logo.png", use_container_width=True)
     except: st.title("Focus Rehab")
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v46 - Compact Layout")
+    st.divider(); st.caption("App v47 - Perfect Align")
 
 # =========================================================
 # DASHBOARD
@@ -273,66 +271,23 @@ if menu == "⚡ Dashboard":
 
         st.write("")
 
-        # --- 3. AVVISI (COMPACT LAYOUT) ---
+        # --- 3. AVVISI (PERFECTLY ALIGNED) ---
         st.subheader("🔔 Avvisi e Scadenze")
         
-        # Helper per creare le righe compatte
-        def compact_alert_row(rec_id, name, surname, type_alert):
-            # type_alert: 'recall' (orange), 'expired' (red), 'visit' (blue)
-            
-            border_class = f"border-{type_alert}" if type_alert == 'recall' else (f"border-{type_alert}" if type_alert == 'red' else f"border-{type_alert}")
-            
-            # Creiamo un container visivo per la riga
-            with st.container():
-                # CSS Hack per il background della riga specifica
-                st.markdown(f"""
-                <div class="compact-row {border_class}">
-                    <div class="patient-name">{name} {surname}</div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Colonne per i pulsanti (sovrapposte visivamente alla riga tramite layout, o appena sotto molto strette)
-                # Per fare un vero layout "in-line" in Streamlit nativo serve st.columns DENTRO il loop
-                c_name, c_act1, c_act2 = st.columns([3, 1, 1])
-                with c_name:
-                    # Spazio vuoto per allineare col div sopra, o testo se preferiamo non usare HTML
-                    # Usiamo HTML sopra per il bordo, qui usiamo colonne per i bottoni
-                    st.write("") # Spacer
-                
-                with c_act1:
-                    if type_alert == 'recall':
-                        if st.button("✅ Rientrato", key=f"btn_ret_{rec_id}", type="primary"):
-                            update_generic("Pazienti", rec_id, {"Disdetto": False}); st.rerun()
-                    elif type_alert == 'red':
-                        if st.button("✅ Rientrato", key=f"btn_vis_ret_{rec_id}", type="primary"):
-                            update_generic("Pazienti", rec_id, {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
-                
-                with c_act2:
-                    if type_alert == 'recall':
-                        if st.button("📆 +1 Settimana", key=f"btn_post_{rec_id}", type="secondary"):
-                            new_date = pd.Timestamp.now() + timedelta(days=7)
-                            update_generic("Pazienti", rec_id, {"Data_Disdetta": new_date}); st.rerun()
-
         # RECALL (ARANCIO)
         if not da_richiamare.empty:
             st.caption(f"📞 Recall Necessari: {len(da_richiamare)}")
             for i, row in da_richiamare.iterrows():
-                # LAYOUT ORIZZONTALE COMPATTO VERO
-                # Usiamo colonne: [Bordo+Nome (3)] [Btn1 (1)] [Btn2 (1)]
+                # Definiamo colonne con proporzioni specifiche
                 c_info, c_btn1, c_btn2 = st.columns([3, 1, 1], gap="small")
                 with c_info:
-                    st.markdown(f"""
-                    <div style="background:rgba(255,255,255,0.05); padding:8px; border-radius:6px; border-left:4px solid #ed8936; display:flex; align-items:center; height:40px;">
-                        <span style="font-weight:600; color:#fff; font-size:14px;">{row['Nome']} {row['Cognome']}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.markdown(f"""<div class="alert-row-name border-orange">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
                 with c_btn1:
-                    st.write("") # spacer verticale micro
+                    # Il CSS margin-top: 6px allineerà questo bottone al centro del div di sinistra
                     if st.button("✅ Rientrato", key=f"rk_{row['id']}", use_container_width=True, type="primary"):
                         update_generic("Pazienti", row['id'], {"Disdetto": False}); st.rerun()
                 with c_btn2:
-                    st.write("") 
-                    if st.button("📆 +1 Sett", key=f"pk_{row['id']}", use_container_width=True):
+                    if st.button("📆 +1 Sett", key=f"pk_{row['id']}", use_container_width=True, type="secondary"):
                         new_date = row['Data_Disdetta'] + timedelta(days=7)
                         update_generic("Pazienti", row['id'], {"Data_Disdetta": new_date}); st.rerun()
 
@@ -342,13 +297,8 @@ if menu == "⚡ Dashboard":
             for i, row in visite_passate.iterrows():
                 c_info, c_btn1, c_void = st.columns([3, 1, 1], gap="small")
                 with c_info:
-                    st.markdown(f"""
-                    <div style="background:rgba(255,255,255,0.05); padding:8px; border-radius:6px; border-left:4px solid #e53e3e; display:flex; align-items:center; height:40px;">
-                        <span style="font-weight:600; color:#fff; font-size:14px;">{row['Nome']} {row['Cognome']}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.markdown(f"""<div class="alert-row-name border-red">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
                 with c_btn1:
-                    st.write("")
                     if st.button("✅ Rientrato", key=f"vk_{row['id']}", use_container_width=True, type="primary"):
                         update_generic("Pazienti", row['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
 
@@ -356,10 +306,11 @@ if menu == "⚡ Dashboard":
         if not visite_imminenti.empty:
             st.caption(f"👨‍⚕️ Visite Imminenti: {len(visite_imminenti)}")
             for i, row in visite_imminenti.iterrows():
+                # Qui usiamo un layout più semplice perché non ci sono bottoni
                 st.markdown(f"""
-                <div style="background:rgba(255,255,255,0.03); padding:6px 12px; border-radius:6px; border-left:4px solid #38b2ac; margin-bottom:5px;">
-                    <span style="color:#e2e8f0; font-size:13px;">{row['Nome']} {row['Cognome']}</span> 
-                    <span style="float:right; color:#38b2ac; font-weight:bold;">{row['Data_Visita'].strftime('%d/%m')}</span>
+                <div class="alert-row-name border-blue" style="justify-content: space-between;">
+                    <span>{row['Nome']} {row['Cognome']}</span>
+                    <span style="color:#38b2ac; font-size:13px;">{row['Data_Visita'].strftime('%d/%m')}</span>
                 </div>
                 """, unsafe_allow_html=True)
 
