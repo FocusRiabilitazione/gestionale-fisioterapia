@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from pyairtable import Api
 import pandas as pd
 import altair as alt
@@ -210,24 +211,145 @@ def save_prestito(paziente, oggetto, data_prestito):
     try: api.table(BASE_ID, "Prestiti").create({"Paziente": paziente, "Oggetto": oggetto, "Data_Prestito": str(data_prestito), "Restituito": False}, typecast=True); get_data.clear(); return True
     except: return False
 
-def create_pdf(paz, righe, tot, note=""):
-    euro = chr(128)
-    class PDF(FPDF):
-        def header(self):
-            if os.path.exists("logo.png"):
-                try: self.image('logo.png', 75, 10, 60)
-                except: pass
-            self.set_y(35); self.set_font('Arial', 'B', 14); self.set_text_color(50)
-            self.cell(0, 10, 'PREVENTIVO', 0, 1, 'C'); self.ln(10)
-    pdf = PDF(); pdf.add_page(); pdf.set_text_color(0); pdf.set_font('Arial', 'B', 12)
-    pdf.cell(0, 8, f'Paziente: {paz}', 0, 1); pdf.ln(5)
-    if note: pdf.set_font('Arial', 'I', 11); pdf.multi_cell(0, 6, note.replace("€", euro).encode('latin-1','replace').decode('latin-1')); pdf.ln(5)
-    pdf.set_font('Arial', 'B', 11); pdf.set_fill_color(240)
-    pdf.cell(110, 10, 'Trattamento', 1, 0, 'L', 1); pdf.cell(30, 10, 'Q.ta', 1, 0, 'C', 1); pdf.cell(50, 10, 'Importo', 1, 1, 'R', 1)
-    pdf.set_font('Arial', '', 11)
-    for r in righe: pdf.cell(110, 10, f" {str(r['nome'])[:55]}", 1); pdf.cell(30, 10, str(r['qty']), 1, 0, 'C'); pdf.cell(50, 10, f"{r['tot']} {euro}", 1, 1, 'R')
-    pdf.ln(5); pdf.set_font('Arial', 'B', 14); pdf.cell(140, 12, 'TOTALE:', 0, 0, 'R'); pdf.cell(50, 12, f'{tot} {euro}', 1, 1, 'R')
-    return pdf.output(dest='S').encode('latin-1')
+# --- FUNZIONE GENERAZIONE HTML PER STAMPA PERFETTA ---
+def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale_complessivo):
+    # Costruzione righe tabella HTML
+    rows_html = ""
+    for r in righe_preventivo:
+        rows_html += f"""
+        <tr>
+            <td>{r['nome']}</td>
+            <td class="col-qty">{r['qty']}</td>
+            <td class="col-price">{r['tot']} €</td>
+        </tr>
+        """
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="it">
+    <head>
+        <meta charset="UTF-8">
+        <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap" rel="stylesheet">
+        <style>
+            /* STILE GENERALE */
+            body {{ font-family: 'Segoe UI', sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; color: #333; }}
+            
+            /* BOTTONE DOWNLOAD */
+            .action-bar {{ margin-bottom: 20px; display: flex; justify-content: flex-end; }}
+            .btn-download {{
+                background-color: #e74c3c; color: white; border: none; padding: 12px 25px;
+                font-size: 16px; font-weight: bold; border-radius: 5px; cursor: pointer;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: inline-flex; align-items: center; gap: 10px;
+            }}
+            .btn-download:hover {{ background-color: #c0392b; }}
+
+            /* FOGLIO A4 */
+            .sheet-a4 {{
+                background: white; width: 210mm; min-height: 297mm; margin: 0 auto;
+                padding: 20mm; box-shadow: 0 0 15px rgba(0,0,0,0.15); position: relative; box-sizing: border-box;
+            }}
+
+            /* LOGHI E TITOLI */
+            .doc-brand-top {{ font-size: 11px; text-transform: uppercase; color: #666; letter-spacing: 3px; margin-bottom: 5px; }}
+            .doc-brand-main {{ font-size: 22px; font-weight: 800; color: #000; text-transform: uppercase; }}
+            .doc-title-row {{ margin-top: 30px; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 25px; }}
+            .doc-title {{ font-size: 20px; font-weight: 700; color: #2c3e50; text-transform: uppercase; margin: 0; }}
+
+            /* INFO */
+            .info-grid {{ display: flex; justify-content: space-between; margin-bottom: 30px; font-size: 15px; }}
+            .info-label {{ font-weight: 700; color: #000; margin-right: 5px; }}
+
+            /* DESCRIZIONE */
+            .desc-box {{ background-color: #f8f9fa; border-left: 5px solid #2c3e50; padding: 15px; margin-bottom: 30px; }}
+            .desc-title {{ display: block; font-weight: 700; text-transform: uppercase; font-size: 13px; margin-bottom: 8px; color: #333; }}
+            
+            /* TABELLA */
+            table {{ width: 100%; border-collapse: collapse; margin-bottom: 40px; }}
+            th {{ background-color: #ecf0f1; color: #333; font-weight: 700; text-transform: uppercase; font-size: 12px; padding: 12px 10px; text-align: left; border-bottom: 2px solid #bdc3c7; }}
+            td {{ padding: 12px 10px; border-bottom: 1px solid #eee; font-size: 14px; vertical-align: middle; }}
+            .col-qty {{ width: 10%; text-align: center; }}
+            .col-price {{ width: 20%; text-align: right; }}
+            .row-total td {{ border-top: 2px solid #333; font-size: 18px; font-weight: 700; padding-top: 15px; color: #000; }}
+
+            /* PIANO PAGAMENTO */
+            .payment-box {{ border: 1px solid #ccc; padding: 20px; border-radius: 4px; }}
+            .payment-header {{ font-weight: 700; text-transform: uppercase; font-size: 14px; margin-bottom: 15px; }}
+            .pay-row {{ display: flex; gap: 20px; font-size: 14px; margin-bottom: 10px; }}
+            .line-placeholder {{ border-bottom: 1px solid #333; display: inline-block; min-width: 80px; }}
+            .date-placeholder {{ border-bottom: 1px solid #333; display: inline-block; min-width: 120px; }}
+
+            /* FIRMA */
+            .footer-signature {{ margin-top: 50px; display: flex; justify-content: flex-end; }}
+            .sign-block {{ text-align: center; width: 250px; }}
+            .sign-line {{ border-bottom: 1px solid #000; height: 1px; margin-top: 40px; }}
+
+            /* STAMPA */
+            @media print {{
+                @page {{ size: A4; margin: 0; }}
+                body {{ background: none; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; padding: 0; }}
+                .action-bar {{ display: none !important; }}
+                .sheet-a4 {{ box-shadow: none; margin: 0; width: 100%; page-break-after: always; }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="action-bar">
+            <button class="btn-download" onclick="window.print()">📥 STAMPA / SALVA PDF</button>
+        </div>
+
+        <div class="sheet-a4">
+            <div class="doc-header">
+                <div class="doc-brand-top">studio</div>
+                <div class="doc-brand-main">FOCUS RIABILITAZIONE SPECIALISTICA</div>
+            </div>
+
+            <div class="doc-title-row">
+                <h1 class="doc-title">PREVENTIVO PERCORSO RIABILITATIVO</h1>
+            </div>
+
+            <div class="info-grid">
+                <div><span class="info-label">Paziente:</span> {paziente}</div>
+                <div><span class="info-label">Data:</span> {data_oggi}</div>
+            </div>
+
+            <div class="desc-box">
+                <span class="desc-title">Obiettivi e Descrizione del Percorso:</span>
+                <p style="margin:0; font-size:14px;">{note}</p>
+            </div>
+
+            <table>
+                <thead>
+                    <tr><th>Trattamento</th><th class="col-qty">Q.ta</th><th class="col-price">Importo</th></tr>
+                </thead>
+                <tbody>
+                    {rows_html}
+                    <tr class="row-total">
+                        <td colspan="2" style="text-align:right">TOTALE COMPLESSIVO:</td>
+                        <td class="col-price">{totale_complessivo} €</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="payment-box">
+                <div class="payment-header">PIANO DI PAGAMENTO CONCORDATO:</div>
+                <div class="pay-row"><span>1) € <span class="line-placeholder"></span></span><span>entro il <span class="date-placeholder"></span></span></div>
+                <div class="pay-row"><span>2) € <span class="line-placeholder"></span></span><span>entro il <span class="date-placeholder"></span></span></div>
+                <div class="pay-row"><span>3) € <span class="line-placeholder"></span></span><span>entro il <span class="date-placeholder"></span></span></div>
+            </div>
+
+            <div class="footer-signature">
+                <div class="sign-block">
+                    <div style="font-size:14px;">Firma per accettazione:</div>
+                    <div class="sign-line"></div>
+                </div>
+            </div>
+            
+            <div style="position: absolute; bottom: 15mm; left: 20mm; font-size: 11px; color: #999;">Pagina 1</div>
+        </div>
+    </body>
+    </html>
+    """
+    return html_content
 
 # --- 3. INTERFACCIA ---
 with st.sidebar:
@@ -556,16 +678,37 @@ elif menu == "💳 Preventivi":
                     st.markdown(f"<div style='font-size: 24px; font-weight: 800; color: var(--neon-blue);'>TOTALE: {totale} €</div>", unsafe_allow_html=True)
                 with col_btn:
                     st.write("") 
-                    if st.button("💾 Salva e Genera PDF", type="primary", use_container_width=True):
+                    # 1. Pulsante Salva su DB
+                    if st.button("💾 Salva Preventivo", use_container_width=True):
+                         if paziente_scelto == "Seleziona Paziente...":
+                            st.error("Seleziona un paziente!")
+                         else:
+                            dettagli_str = " | ".join([f"{r['nome']} x{r['qty']} ({r['tot']}€)" for r in righe_preventivo])
+                            save_preventivo_temp(paziente_scelto, dettagli_str, totale, note_preventivo)
+                            st.success("Preventivo salvato in archivio!")
+                    
+                    # 2. Pulsante Genera HTML (Nuovo)
+                    if st.button("🖨️ Genera Anteprima Stampa", type="primary", use_container_width=True):
                         if paziente_scelto == "Seleziona Paziente...":
                             st.error("Seleziona un paziente!")
                         else:
-                            dettagli_str = " | ".join([f"{r['nome']} x{r['qty']} ({r['tot']}€)" for r in righe_preventivo])
-                            save_preventivo_temp(paziente_scelto, dettagli_str, totale, note_preventivo)
-                            st.balloons()
-                            for k in list(st.session_state.keys()):
-                                if k.startswith("qty_preload_"): del st.session_state[k]
-                            st.success("Preventivo salvato! Vai nella tab 'Archivio'.")
+                            st.session_state['show_html_preview'] = True
+
+            # ANTEPRIMA HTML
+            if st.session_state.get('show_html_preview'):
+                st.divider()
+                st.subheader("Anteprima di Stampa")
+                html_code = generate_html_preventivo(
+                    paziente=paziente_scelto,
+                    data_oggi=date.today().strftime("%d/%m/%Y"),
+                    note=note_preventivo,
+                    righe_preventivo=righe_preventivo,
+                    totale_complessivo=totale
+                )
+                components.html(html_code, height=1000, scrolling=True)
+                if st.button("❌ Chiudi Anteprima"):
+                    st.session_state['show_html_preview'] = False
+                    st.rerun()
 
     with tab2:
         st.subheader("Archivio Preventivi")
@@ -584,6 +727,7 @@ elif menu == "💳 Preventivi":
                     with c1:
                         st.markdown(f"**{paz}**"); st.caption(f"Emesso: {data_c} • Tot: **{tot} €**")
                     with c2:
+                         # Ricostruzione righe per il bottone di ristampa
                         righe_pdf = []
                         if dett:
                             items = dett.split(" | ")
@@ -592,11 +736,15 @@ elif menu == "💳 Preventivi":
                                     parts = it.split(" x")
                                     nome = parts[0]; rest = parts[1].split(" ("); qty = rest[0]; prz = rest[1].replace("€)", "")
                                     righe_pdf.append({"nome": nome, "qty": qty, "tot": prz})
-                                except: righe_pdf.append({"nome": it, "qty": "-", "tot": "-"})
-                        pdf_bytes = create_pdf(paz, righe_pdf, tot, note_saved)
-                        st.download_button("📄 Scarica PDF", data=pdf_bytes, file_name=f"Prev_{paz}.pdf", mime="application/pdf", key=f"pdf_{rec_id}", use_container_width=True, type="primary")
+                                except: pass
+                        
+                        # Pulsante per aprire l'HTML anche dall'archivio
+                        if st.button("🖨️ Stampa", key=f"print_{rec_id}", use_container_width=True):
+                             html_archive = generate_html_preventivo(paz, data_c, note_saved, righe_pdf, tot)
+                             components.html(html_archive, height=1000, scrolling=True)
+
                     with c3:
-                        if st.button("✅ Archivia/Elimina", key=f"conf_{rec_id}", use_container_width=True):
+                        if st.button("✅ Elimina", key=f"conf_{rec_id}", use_container_width=True):
                             delete_generic("Preventivi_Salvati", rec_id); st.rerun()
         else: st.info("Nessun preventivo salvato.")
 
