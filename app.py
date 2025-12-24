@@ -9,7 +9,7 @@ import os
 import base64
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE
+# 0. CONFIGURAZIONE & STILE (ULTIMATE UI)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -21,7 +21,7 @@ st.markdown("""
         font-family: 'Outfit', sans-serif;
     }
 
-    /* SFONDO SCURO */
+    /* SFONDO PROFONDO */
     .stApp {
         background: radial-gradient(circle at top left, #1a202c, #0d1117);
         color: #e2e8f0;
@@ -34,24 +34,73 @@ st.markdown("""
         backdrop-filter: blur(20px);
     }
 
-    /* KPI CARDS */
+    /* --- TITOLI MODERNI --- */
+    h1 {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 800 !important;
+        background: linear-gradient(120deg, #ffffff, #a0aec0);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: -1px;
+        margin-bottom: 10px;
+    }
+    h2, h3, h4 {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600 !important;
+        color: #f7fafc !important;
+        letter-spacing: 0.5px;
+    }
+
+    /* --- KPI CARDS (CON GLOW EFFECT) --- */
     .glass-kpi {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 20px;
+        border-radius: 20px; /* Più arrotondato */
         padding: 20px;
         text-align: center;
         height: 140px;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         margin-bottom: 10px;
-        transition: transform 0.3s ease;
+        transition: transform 0.3s ease, border-color 0.3s ease;
     }
-    .glass-kpi:hover { transform: translateY(-5px); background: rgba(255, 255, 255, 0.06); }
-    .kpi-icon { font-size: 32px; margin-bottom: 8px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.3)); }
-    .kpi-value { font-size: 36px; font-weight: 800; color: white; line-height: 1; }
+    .glass-kpi:hover {
+        transform: translateY(-5px);
+        background: rgba(255, 255, 255, 0.06);
+    }
+    
+    /* Icone animate e illuminate */
+    .kpi-icon { 
+        font-size: 32px; 
+        margin-bottom: 8px; 
+        transition: transform 0.3s ease;
+        filter: drop-shadow(0 0 5px rgba(255,255,255,0.3));
+    }
+    .glass-kpi:hover .kpi-icon {
+        transform: scale(1.1);
+    }
+
+    .kpi-value { font-size: 36px; font-weight: 800; color: white; line-height: 1; letter-spacing: -1px; }
     .kpi-label { font-size: 11px; text-transform: uppercase; color: #a0aec0; margin-top: 8px; letter-spacing: 1.5px; font-weight: 600; }
 
-    /* ALERT ROWS */
+    /* --- PULSANTI --- */
+    div[data-testid="column"] .stButton > button {
+        background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
+        border: none !important;
+        color: white !important;
+        border-radius: 12px !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        padding: 6px 0 !important;
+        box-shadow: 0 4px 10px rgba(66, 153, 225, 0.3) !important;
+        transition: all 0.3s ease;
+        margin-top: 0px !important;
+    }
+    div[data-testid="column"] .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(66, 153, 225, 0.5) !important;
+    }
+
+    /* --- RIGHE AVVISI --- */
     .alert-row-name {
         background-color: rgba(255, 255, 255, 0.03);
         border-radius: 10px;
@@ -66,10 +115,19 @@ st.markdown("""
     .border-red { border-left: 4px solid #e53e3e !important; }
     .border-blue { border-left: 4px solid #0bc5ea !important; }
 
-    /* UTILS */
+    /* --- PULSANTI AZIONE --- */
+    div[data-testid="stHorizontalBlock"] button {
+        padding: 2px 12px !important; font-size: 11px !important; min-height: 0px !important;
+        height: 32px !important; line-height: 1 !important; border-radius: 8px !important;
+        margin-top: 6px !important; font-weight: 500 !important;
+    }
+    button[kind="primary"] { background: linear-gradient(135deg, #3182ce, #2b6cb0) !important; border: none; color: white; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    button[kind="secondary"] { background: rgba(255, 255, 255, 0.08) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: #cbd5e0; }
+    button[kind="secondary"]:hover { background: rgba(255, 255, 255, 0.15) !important; border-color: #a0aec0 !important; color: white; }
+
+    /* --- ALTRI --- */
     div[data-testid="stDataFrame"] { background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; }
     input, select, textarea { background-color: rgba(13, 17, 23, 0.8) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: white !important; border-radius: 8px; }
-    button[kind="primary"] { background: linear-gradient(135deg, #3182ce, #2b6cb0) !important; border: none; color: white; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -78,8 +136,7 @@ try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except:
-    # Inserisci le tue chiavi qui se non usi secrets.toml
-    API_KEY = "key" 
+    API_KEY = "key"
     BASE_ID = "id"
 
 api = Api(API_KEY)
@@ -133,17 +190,16 @@ def get_base64_image(image_path):
             return base64.b64encode(img_file.read()).decode()
     except: return ""
 
-# --- FUNZIONE HTML PDF (LAYOUT COMPATTO A4) ---
+# --- FUNZIONE HTML PDF (BLACK & WHITE + 1 PAGINA) ---
 def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale_complessivo, logo_b64=None, auto_print=False):
     rows_html = ""
     for r in righe_preventivo:
         rows_html += f"<tr><td>{r['nome']}</td><td class='col-qty'>{r['qty']}</td><td class='col-price'>{r['tot']} €</td></tr>"
     
-    # Header: Logo Centrato o Testo Centrato
+    # Intestazione con Logo Centrato
     if logo_b64:
         header_content = f"<div style='text-align:center;'><img src='data:image/png;base64,{logo_b64}' class='logo-img'></div>"
     else:
-        # Fallback testuale se manca il logo
         header_content = """
         <div class='brand-text-container'>
             <div class='brand-small'>studio</div>
@@ -162,80 +218,76 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
     <head>
         <meta charset="UTF-8">
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700;800&display=swap');
-            body {{ font-family: 'Segoe UI', sans-serif; background: #fff; margin: 0; padding: 0; color: #333; }}
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+            body {{ font-family: 'Roboto', sans-serif; background: #fff; margin: 0; padding: 0; color: #000; }}
             
-            /* BOTTONE DOWNLOAD (Visibile solo in anteprima manuale) */
-            .action-bar {{ margin-bottom: 20px; justify-content: flex-end; {action_bar_style} }}
+            /* BOTTONE DOWNLOAD */
+            .action-bar {{ margin-bottom: 10px; justify-content: flex-end; {action_bar_style} }}
             .btn-download {{
-                background-color: #e74c3c; color: white; border: none; padding: 12px 25px;
-                font-size: 16px; font-weight: bold; border-radius: 5px; cursor: pointer;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: inline-flex; align-items: center; gap: 10px;
+                background-color: #333; color: white; border: none; padding: 10px 20px;
+                font-size: 14px; font-weight: bold; border-radius: 4px; cursor: pointer;
             }}
-            .btn-download:hover {{ background-color: #c0392b; }}
+            .btn-download:hover {{ background-color: #555; }}
 
+            /* FOGLIO A4 - LAYOUT COMPATTO BLACK/GREY */
             .sheet-a4 {{
                 width: 210mm; 
                 min-height: 297mm; 
-                padding: 15mm; /* Margini ridotti per stare in 1 pagina */
+                padding: 10mm 15mm; /* Margini ridotti (Top/Bottom 10mm, L/R 15mm) */
                 margin: 0 auto;
                 background: white; 
                 box-sizing: border-box; 
                 position: relative;
-                box-shadow: 0 0 15px rgba(0,0,0,0.15);
+                box-shadow: 0 0 10px rgba(0,0,0,0.1);
             }}
 
-            /* HEADER CENTRATO - Ridimensionato per compattezza */
-            .logo-img {{ max-width: 180px; height: auto; display: block; margin: 0 auto 10px auto; }}
-            
+            /* Header Centrato */
+            .logo-img {{ max-width: 150px; height: auto; display: block; margin: 0 auto 5px auto; }}
             .brand-text-container {{ text-align: center; margin-bottom: 20px; }}
-            .brand-small {{ font-size: 11px; text-transform: uppercase; letter-spacing: 3px; color: #666; }}
-            .brand-large {{ font-size: 32px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #000; line-height: 1; }}
-            .brand-medium {{ font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #333; margin-top: 5px; }}
+            .doc-brand-main {{ font-size: 26px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; color: #000; }}
 
-            /* TITOLO */
+            /* Titolo */
             .doc-title {{ 
-                font-size: 20px; font-weight: 700; text-transform: uppercase; color: #2c3e50; 
-                border-bottom: 2px solid #2c3e50; padding-bottom: 8px; margin-bottom: 20px; margin-top: 10px;
+                font-size: 18px; font-weight: 700; text-transform: uppercase; color: #000; 
+                border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 15px; margin-top: 10px;
             }}
 
-            /* INFO */
-            .info-box {{ margin-bottom: 20px; font-size: 14px; display: flex; justify-content: space-between; }}
+            /* Info */
+            .info-box {{ margin-bottom: 15px; font-size: 13px; display: flex; justify-content: space-between; }}
             .info-label {{ font-weight: bold; color: #000; margin-right: 5px; }}
 
-            /* OBIETTIVI BOX */
+            /* Obiettivi - Box Grigio */
             .obj-box {{ 
-                background-color: #f8f9fa; border-left: 4px solid #2c3e50; 
-                padding: 12px; margin-bottom: 25px; font-size: 13px; line-height: 1.4;
+                background-color: #f2f2f2; border-left: 4px solid #333; 
+                padding: 10px; margin-bottom: 20px; font-size: 12px; line-height: 1.3;
             }}
-            .obj-title {{ font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 5px; font-size: 12px; color: #333; }}
+            .obj-title {{ font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 3px; font-size: 11px; color: #000; }}
 
-            /* TABELLA COMPATTA */
-            table {{ width: 100%; border-collapse: collapse; margin-bottom: 25px; }}
+            /* Tabella B&W */
+            table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
             th {{ 
-                background-color: #f2f2f2; text-align: left; padding: 8px; 
-                text-transform: uppercase; font-size: 11px; font-weight: bold; border-bottom: 2px solid #ccc; color: #333;
+                background-color: #e0e0e0; text-align: left; padding: 6px 8px; 
+                text-transform: uppercase; font-size: 10px; font-weight: bold; border-bottom: 1px solid #000; color: #000;
             }}
-            td {{ padding: 8px; border-bottom: 1px solid #eee; font-size: 13px; vertical-align: middle; }}
+            td {{ padding: 6px 8px; border-bottom: 1px solid #ccc; font-size: 12px; vertical-align: middle; }}
             .col-qty {{ text-align: center; width: 10%; }}
             .col-price {{ text-align: right; width: 20%; }}
-            .total-row td {{ font-weight: bold; font-size: 16px; border-top: 2px solid #333; padding-top: 10px; color: #000; }}
+            .total-row td {{ font-weight: bold; font-size: 14px; border-top: 2px solid #000; padding-top: 8px; color: #000; }}
 
-            /* PIANO PAGAMENTO COMPATTO */
-            .payment-section {{ border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 20px; }}
-            .pay-title {{ font-weight: bold; text-transform: uppercase; font-size: 12px; margin-bottom: 12px; }}
-            .pay-line {{ display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }}
-            .dotted {{ border-bottom: 1px dotted #333; width: 90px; display: inline-block; }}
-            .dotted-date {{ border-bottom: 1px dotted #333; width: 130px; display: inline-block; }}
+            /* Pagamenti */
+            .payment-section {{ border: 1px solid #999; padding: 10px; border-radius: 0; margin-bottom: 20px; }}
+            .pay-title {{ font-weight: bold; text-transform: uppercase; font-size: 11px; margin-bottom: 8px; color: #000; }}
+            .pay-line {{ display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; }}
+            .dotted {{ border-bottom: 1px dotted #000; width: 80px; display: inline-block; }}
+            .dotted-date {{ border-bottom: 1px dotted #000; width: 120px; display: inline-block; }}
 
-            /* FOOTER */
+            /* Footer */
             .footer {{ margin-top: 40px; display: flex; justify-content: flex-end; }}
-            .sign-box {{ text-align: center; width: 220px; }}
-            .sign-line {{ border-bottom: 1px solid #000; margin-top: 40px; }}
-            .page-num {{ position: absolute; bottom: 15mm; left: 15mm; font-size: 10px; color: #999; }}
+            .sign-box {{ text-align: center; width: 200px; }}
+            .sign-line {{ border-bottom: 1px solid #000; margin-top: 30px; }}
+            .page-num {{ position: absolute; bottom: 10mm; left: 15mm; font-size: 9px; color: #666; }}
 
             @media print {{
-                @page {{ size: A4; margin: 0; }}
                 body {{ background: none; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; padding: 0; margin: 0; }}
                 .action-bar {{ display: none !important; }}
                 .sheet-a4 {{ margin: 0; box-shadow: none; width: 100%; border: none; page-break-after: always; }}
@@ -244,26 +296,19 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
     </head>
     <body>
         <div class="action-bar">
-            <button class="btn-download" onclick="window.print()">📥 STAMPA / SALVA PDF</button>
+            <button class="btn-download" onclick="window.print()">📥 SALVA PDF</button>
         </div>
-
         <div class="sheet-a4">
-            <div class="doc-header">
-                {header_content}
-            </div>
-
+            {header_content}
             <div class="doc-title">PREVENTIVO PERCORSO RIABILITATIVO</div>
-
             <div class="info-box">
                 <div><span class="info-label">Paziente:</span> {paziente}</div>
                 <div><span class="info-label">Data:</span> {data_oggi}</div>
             </div>
-
             <div class="obj-box">
                 <span class="obj-title">Obiettivi e Descrizione del Percorso:</span>
                 {note}
             </div>
-
             <table>
                 <thead><tr><th>Trattamento</th><th class="col-qty">Q.ta</th><th class="col-price">Importo</th></tr></thead>
                 <tbody>
@@ -274,14 +319,12 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
                     </tr>
                 </tbody>
             </table>
-
             <div class="payment-section">
                 <div class="pay-title">Piano di Pagamento Concordato:</div>
                 <div class="pay-line"><span>1) € <span class="dotted"></span></span> <span>entro il <span class="dotted-date"></span></span></div>
                 <div class="pay-line"><span>2) € <span class="dotted"></span></span> <span>entro il <span class="dotted-date"></span></span></div>
                 <div class="pay-line"><span>3) € <span class="dotted"></span></span> <span>entro il <span class="dotted-date"></span></span></div>
             </div>
-
             <div class="footer">
                 <div class="sign-box">
                     <div>Firma per accettazione:</div>
@@ -305,7 +348,7 @@ with st.sidebar:
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v59 - Print One Page")
+    st.divider(); st.caption("App v61 - One Page B&W")
 
 # =========================================================
 # DASHBOARD
@@ -318,7 +361,7 @@ if menu == "⚡ Dashboard":
     df = get_data("Pazienti")
     
     if not df.empty:
-        # Preprocessing per evitare errori (NORMALIZZAZIONE DATI)
+        # Preprocessing per evitare errori
         required_cols = ['Disdetto', 'Visita_Esterna', 'Data_Disdetta', 'Data_Visita', 'Area', 'Nome', 'Cognome']
         for c in required_cols:
             if c not in df.columns: df[c] = None 
