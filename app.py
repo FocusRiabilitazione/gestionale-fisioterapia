@@ -8,7 +8,7 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE (COMPACT + ALIGNED + NEW COLORS)
+# 0. CONFIGURAZIONE & STILE (YELLOW BUTTON UPDATE)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -47,7 +47,6 @@ st.markdown("""
     .kpi-label { font-size: 11px; text-transform: uppercase; color: #a0aec0; margin-top: 5px; }
 
     /* --- PULSANTI MODERNI (Dashboard Top) --- */
-    /* Questi sono i pulsanti blu sotto i quadrati KPI */
     div[data-testid="column"] .stButton > button {
         background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
         border: none !important;
@@ -65,54 +64,57 @@ st.markdown("""
     }
 
     /* --- STILE RIGHE COMPATTE (AVVISI) --- */
-    /* Container visivo per il nome */
     .alert-row-name {
         background-color: rgba(255, 255, 255, 0.03);
         border-radius: 8px;
-        padding: 0 15px; /* Padding laterale */
-        height: 42px;    /* Altezza fissa per allineamento */
+        padding: 0 15px;
+        height: 42px;    
         display: flex;
-        align-items: center; /* Centra verticalmente il testo */
+        align-items: center;
         border: 1px solid rgba(255, 255, 255, 0.05);
         font-weight: 600;
         color: #fff;
         font-size: 14px;
-        white-space: nowrap; /* Evita a capo */
+        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    /* Bordi colorati laterali specifici */
+    /* Bordi colorati laterali */
     .border-orange { border-left: 4px solid #ed8936 !important; }
     .border-red { border-left: 4px solid #e53e3e !important; }
     .border-blue { border-left: 4px solid #0bc5ea !important; }
 
-    /* --- PULSANTI "SLIM" ALLINEATI (Dentro le righe avvisi) --- */
-    /* Trucco CSS per centrare i bottoni con il box del nome */
-    
+    /* --- PULSANTI "SLIM" ALLINEATI --- */
     div[data-testid="stHorizontalBlock"] button {
         padding: 2px 10px !important;
         font-size: 11px !important;
         min-height: 0px !important;
-        height: 32px !important; /* Altezza fissa bottone */
+        height: 32px !important;
         line-height: 1 !important;
         border-radius: 6px !important;
-        margin-top: 6px !important; /* SPINGE GIU IL BOTTONE PER ALLINEARLO AL CENTRO */
+        margin-top: 6px !important;
     }
     
-    /* Colori specifici pulsanti azione */
+    /* Pulsante Primario (Es. Rientrato - Verde/Blu) */
     button[kind="primary"] {
         background: linear-gradient(135deg, #3182ce, #2b6cb0) !important;
         border: none !important;
+        color: white !important;
     }
+
+    /* Pulsante Secondario (RIMANDARE - GIALLO/ORO) */
     button[kind="secondary"] {
-        background: rgba(255,255,255,0.1) !important;
-        border: 1px solid rgba(255,255,255,0.2) !important;
-        color: #e2e8f0 !important;
+        background: rgba(236, 201, 75, 0.15) !important; /* Giallo trasparente */
+        border: 1px solid #ECC94B !important; /* Bordo Giallo */
+        color: #ECC94B !important; /* Testo Giallo */
+        font-weight: 600 !important;
+        transition: all 0.3s ease !important;
     }
     button[kind="secondary"]:hover {
-        border-color: #ed8936 !important;
-        color: #ed8936 !important;
+        background: #ECC94B !important; /* Sfondo Giallo Pieno al passaggio */
+        color: #1a202c !important; /* Testo scuro per contrasto */
+        box-shadow: 0 0 10px rgba(236, 201, 75, 0.4) !important;
     }
 
     /* --- ALTRI --- */
@@ -192,7 +194,7 @@ with st.sidebar:
     try: st.image("logo.png", use_container_width=True)
     except: st.title("Focus Rehab")
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v48 - KPI Colors")
+    st.divider(); st.caption("App v49 - Yellow Fix")
 
 # =========================================================
 # DASHBOARD
@@ -244,11 +246,10 @@ if menu == "⚡ Dashboard":
                 if st.button("Vedi Lista", key=f"btn_{filter_key}"):
                     st.session_state.kpi_filter = filter_key
 
-        # NUOVI COLORI: Attivi=Verde, Disdetti=Rosso, Recall=Arancio, Visite=Azzurro
-        draw_kpi(col1, "👥", cnt_attivi, "Attivi", "#2ecc71", "Attivi")  # Verde
-        draw_kpi(col2, "📉", len(df_disdetti), "Disdetti", "#e53e3e", "Disdetti") # Rosso
-        draw_kpi(col3, "💡", len(da_richiamare), "Recall", "#ed8936", "Recall") # Arancio
-        draw_kpi(col4, "🩺", len(visite_imminenti), "Visite", "#0bc5ea", "Visite") # Azzurro Ciano
+        draw_kpi(col1, "👥", cnt_attivi, "Attivi", "#2ecc71", "Attivi")
+        draw_kpi(col2, "📉", len(df_disdetti), "Disdetti", "#e53e3e", "Disdetti")
+        draw_kpi(col3, "💡", len(da_richiamare), "Recall", "#ed8936", "Recall")
+        draw_kpi(col4, "🩺", len(visite_imminenti), "Visite", "#0bc5ea", "Visite")
 
         st.write("")
 
@@ -271,14 +272,13 @@ if menu == "⚡ Dashboard":
 
         st.write("")
 
-        # --- 3. AVVISI (PERFECTLY ALIGNED) ---
+        # --- 3. AVVISI ---
         st.subheader("🔔 Avvisi e Scadenze")
         
         # RECALL (ARANCIO)
         if not da_richiamare.empty:
             st.caption(f"📞 Recall Necessari: {len(da_richiamare)}")
             for i, row in da_richiamare.iterrows():
-                # Definiamo colonne con proporzioni specifiche
                 c_info, c_btn1, c_btn2 = st.columns([3, 1, 1], gap="small")
                 with c_info:
                     st.markdown(f"""<div class="alert-row-name border-orange">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
@@ -286,8 +286,9 @@ if menu == "⚡ Dashboard":
                     if st.button("✅ Rientrato", key=f"rk_{row['id']}", use_container_width=True, type="primary"):
                         update_generic("Pazienti", row['id'], {"Disdetto": False}); st.rerun()
                 with c_btn2:
-                    if st.button("📆 +1 Sett", key=f"pk_{row['id']}", use_container_width=True, type="secondary"):
-                        new_date = row['Data_Disdetta'] + timedelta(days=7)
+                    # FIX: Ora aggiunge 7 giorni alla data DI OGGI, così va nel futuro
+                    if st.button("📅 Rimandare", key=f"pk_{row['id']}", use_container_width=True, type="secondary"):
+                        new_date = pd.Timestamp.now() + timedelta(days=7)
                         update_generic("Pazienti", row['id'], {"Data_Disdetta": new_date}); st.rerun()
 
         # VISITE SCADUTE (ROSSO)
@@ -301,7 +302,7 @@ if menu == "⚡ Dashboard":
                     if st.button("✅ Rientrato", key=f"vk_{row['id']}", use_container_width=True, type="primary"):
                         update_generic("Pazienti", row['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
 
-        # VISITE IMMINENTI (AZZURRO - SOLO INFO)
+        # VISITE IMMINENTI (AZZURRO)
         if not visite_imminenti.empty:
             st.caption(f"👨‍⚕️ Visite Imminenti: {len(visite_imminenti)}")
             for i, row in visite_imminenti.iterrows():
@@ -317,7 +318,7 @@ if menu == "⚡ Dashboard":
 
         st.divider()
 
-        # --- 4. GRAFICO (LARGO SOTTO) ---
+        # --- 4. GRAFICO ---
         st.subheader("📈 Performance Aree")
         df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
         all_areas = []
