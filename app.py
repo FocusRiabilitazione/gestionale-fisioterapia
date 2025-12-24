@@ -8,7 +8,7 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE (NEUTRAL BUTTONS)
+# 0. CONFIGURAZIONE & STILE (NEUTRAL / CLEAN)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -103,7 +103,7 @@ st.markdown("""
         color: white !important;
     }
 
-    /* Pulsante Secondario (Rimandare - Neutro/Grigio) */
+    /* Pulsante Secondario (Rimandare - Grigio/Neutro) */
     button[kind="secondary"] {
         background: rgba(255, 255, 255, 0.1) !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -146,10 +146,24 @@ def save_paziente(n, c, a, d):
     try: api.table(BASE_ID, "Pazienti").create({"Nome": n, "Cognome": c, "Area": a, "Disdetto": d}, typecast=True); get_data.clear(); return True
     except: return False
 
+# FUNZIONE AGGIORNAMENTO FIXATA (Gestisce correttamente il None)
 def update_generic(tbl, rid, data):
     try:
-        cl = {k: (v.strftime('%Y-%m-%d') if hasattr(v, 'strftime') else v) for k,v in data.items()}
-        api.table(BASE_ID, tbl).update(rid, cl, typecast=True); get_data.clear(); return True
+        clean_data = {}
+        for k, v in data.items():
+            # Se il valore è None, lo passiamo esplicitamente come None (Airtable lo cancella)
+            if v is None:
+                clean_data[k] = None
+            # Se è una data, la formattiamo stringa
+            elif hasattr(v, 'strftime'):
+                clean_data[k] = v.strftime('%Y-%m-%d')
+            # Altrimenti passiamo il valore così com'è
+            else:
+                clean_data[k] = v
+        
+        api.table(BASE_ID, tbl).update(rid, clean_data, typecast=True)
+        get_data.clear()
+        return True
     except: return False
 
 def delete_generic(tbl, rid):
@@ -192,7 +206,7 @@ with st.sidebar:
     try: st.image("logo.png", use_container_width=True)
     except: st.title("Focus Rehab")
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v50 - Final Logic")
+    st.divider(); st.caption("App v51 - Date Fix")
 
 # =========================================================
 # DASHBOARD
@@ -281,12 +295,12 @@ if menu == "⚡ Dashboard":
                 with c_info:
                     st.markdown(f"""<div class="alert-row-name border-orange">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
                 with c_btn1:
-                    # FIX LOGICA: Rimuove Disdetto E svuota Data_Disdetta
+                    # FIX: Disdetto = False E Data_Disdetta = None
                     if st.button("✅ Rientrato", key=f"rk_{row['id']}", use_container_width=True, type="primary"):
                         update_generic("Pazienti", row['id'], {"Disdetto": False, "Data_Disdetta": None}); st.rerun()
                 with c_btn2:
-                    # Pulsante Rimandare (Stile Neutro)
                     if st.button("📅 Rimandare", key=f"pk_{row['id']}", use_container_width=True, type="secondary"):
+                        # FIX: Nuova data = Oggi + 7 giorni
                         new_date = pd.Timestamp.now() + timedelta(days=7)
                         update_generic("Pazienti", row['id'], {"Data_Disdetta": new_date}); st.rerun()
 
@@ -298,6 +312,7 @@ if menu == "⚡ Dashboard":
                 with c_info:
                     st.markdown(f"""<div class="alert-row-name border-red">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
                 with c_btn1:
+                    # FIX: Visita Esterna = False E Data_Visita = None
                     if st.button("✅ Rientrato", key=f"vk_{row['id']}", use_container_width=True, type="primary"):
                         update_generic("Pazienti", row['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
 
