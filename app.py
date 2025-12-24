@@ -119,12 +119,6 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0,0,0,0.2) !important;
     }
     
-    /* Eccezione per i pulsanti Ghost sopra che potrebbero essere in vertical block */
-    /* Non serve se usiamo la gerarchia corretta, ma per sicurezza: */
-    div[data-testid="column"] div[data-testid="stVerticalBlock"] button {
-         /* Reset per evitare conflitti */
-    }
-
     /* Override specifico per i pulsanti 'Primary' (es. Salva Modifiche) */
     button[kind="primary"] {
         background: linear-gradient(135deg, #3182ce, #2b6cb0) !important;
@@ -265,7 +259,6 @@ if menu == "⚡ Dashboard":
     st.title("⚡ Dashboard")
     st.write("")
     
-    # Check connessione
     if not API_KEY or not BASE_ID: st.warning("Chiavi API non trovate. Verifica i Secrets."); st.stop()
 
     if 'dash_filter' not in st.session_state: st.session_state.dash_filter = None
@@ -318,8 +311,6 @@ if menu == "⚡ Dashboard":
             with st.container(border=True):
                 cl, cr = st.columns([9,1])
                 cl.subheader(f"📋 Dettaglio: {st.session_state.dash_filter}")
-                # Questo bottone è 'secondary' ma essendo in una colonna potrebbe subire il CSS ghost
-                # Usiamo primary o un'icona per sicurezza
                 if cr.button("❌", key="close_list", type="primary"): st.session_state.dash_filter = None; st.rerun()
                 
                 d_show = df[(df['Disdetto']==False)] if st.session_state.dash_filter == "Attivi" else (disdetti if st.session_state.dash_filter == "Disdetti" else (recall if st.session_state.dash_filter == "Recall" else vis_imm))
