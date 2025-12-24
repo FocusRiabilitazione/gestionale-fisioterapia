@@ -8,7 +8,7 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE (YELLOW BUTTON UPDATE)
+# 0. CONFIGURAZIONE & STILE (NEUTRAL BUTTONS)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -96,25 +96,23 @@ st.markdown("""
         margin-top: 6px !important;
     }
     
-    /* Pulsante Primario (Es. Rientrato - Verde/Blu) */
+    /* Pulsante Primario (Es. Rientrato - Blu) */
     button[kind="primary"] {
         background: linear-gradient(135deg, #3182ce, #2b6cb0) !important;
         border: none !important;
         color: white !important;
     }
 
-    /* Pulsante Secondario (RIMANDARE - GIALLO/ORO) */
+    /* Pulsante Secondario (Rimandare - Neutro/Grigio) */
     button[kind="secondary"] {
-        background: rgba(236, 201, 75, 0.15) !important; /* Giallo trasparente */
-        border: 1px solid #ECC94B !important; /* Bordo Giallo */
-        color: #ECC94B !important; /* Testo Giallo */
-        font-weight: 600 !important;
-        transition: all 0.3s ease !important;
+        background: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        color: #e2e8f0 !important;
+        transition: all 0.2s ease !important;
     }
     button[kind="secondary"]:hover {
-        background: #ECC94B !important; /* Sfondo Giallo Pieno al passaggio */
-        color: #1a202c !important; /* Testo scuro per contrasto */
-        box-shadow: 0 0 10px rgba(236, 201, 75, 0.4) !important;
+        background: rgba(255, 255, 255, 0.2) !important;
+        border-color: #a0aec0 !important;
     }
 
     /* --- ALTRI --- */
@@ -194,7 +192,7 @@ with st.sidebar:
     try: st.image("logo.png", use_container_width=True)
     except: st.title("Focus Rehab")
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v49 - Yellow Fix")
+    st.divider(); st.caption("App v50 - Final Logic")
 
 # =========================================================
 # DASHBOARD
@@ -283,10 +281,11 @@ if menu == "⚡ Dashboard":
                 with c_info:
                     st.markdown(f"""<div class="alert-row-name border-orange">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
                 with c_btn1:
+                    # FIX LOGICA: Rimuove Disdetto E svuota Data_Disdetta
                     if st.button("✅ Rientrato", key=f"rk_{row['id']}", use_container_width=True, type="primary"):
-                        update_generic("Pazienti", row['id'], {"Disdetto": False}); st.rerun()
+                        update_generic("Pazienti", row['id'], {"Disdetto": False, "Data_Disdetta": None}); st.rerun()
                 with c_btn2:
-                    # FIX: Ora aggiunge 7 giorni alla data DI OGGI, così va nel futuro
+                    # Pulsante Rimandare (Stile Neutro)
                     if st.button("📅 Rimandare", key=f"pk_{row['id']}", use_container_width=True, type="secondary"):
                         new_date = pd.Timestamp.now() + timedelta(days=7)
                         update_generic("Pazienti", row['id'], {"Data_Disdetta": new_date}); st.rerun()
