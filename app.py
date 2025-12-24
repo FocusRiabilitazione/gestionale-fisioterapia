@@ -19,7 +19,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 2. CSS AVANZATO (GHOST UI & FIX GRAFICI)
+# 2. CSS AVANZATO (GHOST UI TRASPARENTE)
 # ==============================================================================
 st.markdown("""
 <style>
@@ -61,7 +61,7 @@ st.markdown("""
     h2, h3, h4 { color: #FFF !important; font-weight: 600; }
 
     /* ============================================================
-       1. KPI CARDS (SOLO VISUALI)
+       1. KPI CARDS (HTML PURO)
        ============================================================ */
     .glass-kpi {
         background: var(--glass-bg);
@@ -75,7 +75,7 @@ st.markdown("""
         justify-content: center;
         height: 140px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        margin-bottom: 5px; /* Vicino al bottone sotto */
+        margin-bottom: 10px;
         transition: transform 0.3s ease;
         position: relative;
     }
@@ -88,44 +88,45 @@ st.markdown("""
     .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #a0aec0; margin-top: 5px; }
 
     /* ============================================================
-       2. PULSANTI "GHOST" (LINK ELEGANTI SOTTO LE CARD)
+       2. LINK TESTUALI TRASPARENTI (Sotto le card)
        ============================================================ */
-    /* Questo selettore colpisce SOLO i bottoni dentro le colonne (KPI) */
+    /* Target specifico per i bottoni "Dettagli" */
     div[data-testid="column"] .stButton > button {
         background-color: transparent !important;
         background: transparent !important;
-        border: 1px solid transparent !important; /* Nessun bordo visibile di default */
-        color: #718096 !important; /* Grigio elegante */
+        border: none !important;
+        color: #718096 !important; /* Grigio scuro per default */
         font-size: 12px !important;
         font-weight: 500 !important;
-        padding: 2px 10px !important;
+        padding: 0px !important;
         width: 100% !important;
         text-align: center !important;
         margin-top: -5px !important;
+        text-decoration: none !important;
         box-shadow: none !important;
-        border-radius: 15px !important;
     }
 
-    /* Effetto Hover: Diventa leggermente visibile */
     div[data-testid="column"] .stButton > button:hover {
-        color: #4299e1 !important; /* Blu neon */
-        background-color: rgba(66, 153, 225, 0.05) !important;
-        border: 1px solid rgba(66, 153, 225, 0.2) !important;
-        transform: translateY(-1px);
+        color: #4299e1 !important;
+        text-decoration: underline !important;
+        background-color: transparent !important;
+        transform: none !important;
+        border: none !important;
+        box-shadow: none !important;
     }
     
-    div[data-testid="column"] .stButton > button:active,
-    div[data-testid="column"] .stButton > button:focus {
-        background-color: transparent !important;
-        color: #4299e1 !important;
+    div[data-testid="column"] .stButton > button:focus,
+    div[data-testid="column"] .stButton > button:active {
         box-shadow: none !important;
-        border-color: transparent !important;
+        color: #4299e1 !important;
+        background-color: transparent !important;
+        border: none !important;
     }
 
     /* ============================================================
        3. PULSANTI AZIONE STANDARD (Salva, Fatto, Rientrato)
        ============================================================ */
-    /* Questi rimangono colorati e visibili */
+    /* Questi rimangono belli e visibili */
     div[data-testid="stVerticalBlock"] .stButton > button {
         background: linear-gradient(135deg, #3182ce, #2b6cb0) !important;
         border: none !important;
@@ -134,6 +135,7 @@ st.markdown("""
         font-weight: 600 !important;
         border-radius: 8px !important;
         box-shadow: 0 4px 6px rgba(0,0,0,0.2) !important;
+        transition: all 0.2s;
     }
     div[data-testid="stVerticalBlock"] .stButton > button:hover {
         box-shadow: 0 6px 12px rgba(66, 153, 225, 0.4) !important;
@@ -371,13 +373,14 @@ with st.sidebar:
         ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"],
         label_visibility="collapsed"
     )
-    st.divider(); st.caption("System v3.8 - Ghost & Fix")
+    st.divider(); st.caption("System v3.8 - Elegant Ghost")
 
 # ==============================================================================
 # SEZIONE 1: DASHBOARD
 # ==============================================================================
 if menu == "⚡ Dashboard":
-    st.title("⚡ Dashboard")
+    # Titolo modificato per conferma visiva
+    st.title("⚡ Dashboard (V38 GHOST)")
     st.write("")
     
     if 'dash_filter' not in st.session_state: st.session_state.dash_filter = None
@@ -398,17 +401,17 @@ if menu == "⚡ Dashboard":
         disdetti = df[(df['Disdetto']==True)]
         attivi = tot - len(disdetti)
         
-        # Logica Date (CORRETTA)
+        # Logica Date (CORRETTA SENZA WALRUS OPERATOR)
         today = pd.Timestamp.now().normalize()
         limit_recall = today - pd.Timedelta(days=10)
         
         recall = disdetti[(disdetti['Data_Disdetta'].notna()) & (disdetti['Data_Disdetta'] <= limit_recall)]
-        visite = df[(df['Visita_Esterna']==True)]
         
+        visite = df[(df['Visita_Esterna']==True)]
         vis_imm = visite[(visite['Data_Visita'] >= today)]
         vis_scad = visite[(visite['Data_Visita'] < today)]
 
-        # --- 1. KPI CARDS (HTML) + LINK GHOST ---
+        # --- 1. KPI CARDS (HTML) + LINK TRASPARENTI ---
         c1, c2, c3, c4 = st.columns(4)
         
         def draw_kpi(col, icon, num, label, color, key):
