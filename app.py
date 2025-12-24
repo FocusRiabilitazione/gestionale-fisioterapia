@@ -8,7 +8,7 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE (FINAL COLORS)
+# 0. CONFIGURAZIONE & STILE
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -146,21 +146,13 @@ def save_paziente(n, c, a, d):
     try: api.table(BASE_ID, "Pazienti").create({"Nome": n, "Cognome": c, "Area": a, "Disdetto": d}, typecast=True); get_data.clear(); return True
     except: return False
 
-# FUNZIONE AGGIORNAMENTO FIXATA (Gestisce correttamente il None)
 def update_generic(tbl, rid, data):
     try:
         clean_data = {}
         for k, v in data.items():
-            # Se il valore è None, lo passiamo esplicitamente come None (Airtable lo cancella)
-            if v is None:
-                clean_data[k] = None
-            # Se è una data, la formattiamo stringa
-            elif hasattr(v, 'strftime'):
-                clean_data[k] = v.strftime('%Y-%m-%d')
-            # Altrimenti passiamo il valore così com'è
-            else:
-                clean_data[k] = v
-        
+            if v is None: clean_data[k] = None
+            elif hasattr(v, 'strftime'): clean_data[k] = v.strftime('%Y-%m-%d')
+            else: clean_data[k] = v
         api.table(BASE_ID, tbl).update(rid, clean_data, typecast=True)
         get_data.clear()
         return True
@@ -206,7 +198,7 @@ with st.sidebar:
     try: st.image("logo.png", use_container_width=True)
     except: st.title("Focus Rehab")
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v52 - Chart Colors")
+    st.divider(); st.caption("App v53 - Transparent Chart")
 
 # =========================================================
 # DASHBOARD
@@ -287,7 +279,7 @@ if menu == "⚡ Dashboard":
         # --- 3. AVVISI ---
         st.subheader("🔔 Avvisi e Scadenze")
         
-        # RECALL (ARANCIO)
+        # RECALL
         if not da_richiamare.empty:
             st.caption(f"📞 Recall Necessari: {len(da_richiamare)}")
             for i, row in da_richiamare.iterrows():
@@ -295,7 +287,6 @@ if menu == "⚡ Dashboard":
                 with c_info:
                     st.markdown(f"""<div class="alert-row-name border-orange">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
                 with c_btn1:
-                    # FIX: Disdetto = False E Data_Disdetta = None
                     if st.button("✅ Rientrato", key=f"rk_{row['id']}", use_container_width=True, type="primary"):
                         update_generic("Pazienti", row['id'], {"Disdetto": False, "Data_Disdetta": None}); st.rerun()
                 with c_btn2:
@@ -303,7 +294,7 @@ if menu == "⚡ Dashboard":
                         new_date = pd.Timestamp.now() + timedelta(days=7)
                         update_generic("Pazienti", row['id'], {"Data_Disdetta": new_date}); st.rerun()
 
-        # VISITE SCADUTE (ROSSO)
+        # VISITE SCADUTE
         if not visite_passate.empty:
             st.caption(f"⚠️ Visite Scadute: {len(visite_passate)}")
             for i, row in visite_passate.iterrows():
@@ -311,11 +302,10 @@ if menu == "⚡ Dashboard":
                 with c_info:
                     st.markdown(f"""<div class="alert-row-name border-red">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
                 with c_btn1:
-                    # FIX: Visita Esterna = False E Data_Visita = None
                     if st.button("✅ Rientrato", key=f"vk_{row['id']}", use_container_width=True, type="primary"):
                         update_generic("Pazienti", row['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
 
-        # VISITE IMMINENTI (AZZURRO)
+        # VISITE IMMINENTI
         if not visite_imminenti.empty:
             st.caption(f"👨‍⚕️ Visite Imminenti: {len(visite_imminenti)}")
             for i, row in visite_imminenti.iterrows():
@@ -331,7 +321,7 @@ if menu == "⚡ Dashboard":
 
         st.divider()
 
-        # --- 4. GRAFICO (COLORI PERSONALIZZATI) ---
+        # --- 4. GRAFICO (TRANSPARENT + COLORS) ---
         st.subheader("📈 Performance Aree")
         df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
         all_areas = []
@@ -345,23 +335,19 @@ if menu == "⚡ Dashboard":
             counts = pd.Series(all_areas).value_counts().reset_index()
             counts.columns = ['Area', 'Pazienti']
             
-            # DEFINIZIONE COLORI PERSONALIZZATI
-            # Azzurro: mano-polso (#0bc5ea)
-            # Lilla: muscolo-scheletrico (#9f7aea)
-            # Giallo: colonna (#ecc94b)
-            # Verde: atm (#2ecc71)
-            # Rosso: gruppi (#e53e3e)
-            # Grigio scuro: ortopedico (#4a5568)
             domain = ["Mano-Polso", "Muscolo-Scheletrico", "Colonna", "ATM", "Gruppi", "Ortopedico"]
             range_ = ["#0bc5ea", "#9f7aea", "#ecc94b", "#2ecc71", "#e53e3e", "#4a5568"]
             
+            # AGGIUNTO .configure(background='transparent') e axis color specifici
             chart = alt.Chart(counts).mark_bar(cornerRadius=6, height=35).encode(
                 x=alt.X('Pazienti', axis=None), 
                 y=alt.Y('Area', sort='-x', title=None, axis=alt.Axis(domain=False, ticks=False, labelColor="#cbd5e0", labelFontSize=14)),
                 color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None),
                 tooltip=['Area', 'Pazienti']
-            ).properties(height=400).configure_view(strokeWidth=0).configure_axis(grid=False)
-            st.altair_chart(chart, use_container_width=True)
+            ).properties(height=400).configure(background='transparent').configure_view(strokeWidth=0).configure_axis(grid=False)
+            
+            # AGGIUNTO theme=None per forzare la trasparenza
+            st.altair_chart(chart, use_container_width=True, theme=None)
         else: st.info("Dati insufficienti.")
 
 # =========================================================
