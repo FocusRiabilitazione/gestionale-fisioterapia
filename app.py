@@ -8,19 +8,19 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE
+# 0. CONFIGURAZIONE & STILE (ULTIMATE UI)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
     
     html, body, [class*="css"] {
         font-family: 'Outfit', sans-serif;
     }
 
-    /* SFONDO */
+    /* SFONDO PROFONDO */
     .stApp {
         background: radial-gradient(circle at top left, #1a202c, #0d1117);
         color: #e2e8f0;
@@ -29,44 +29,80 @@ st.markdown("""
     /* SIDEBAR */
     section[data-testid="stSidebar"] {
         background-color: rgba(13, 17, 23, 0.95);
-        border-right: 1px solid rgba(255, 255, 255, 0.1);
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(20px);
     }
 
-    /* --- KPI CARDS --- */
+    /* --- TITOLI MODERNI --- */
+    h1 {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 800 !important;
+        background: linear-gradient(120deg, #ffffff, #a0aec0);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: -1px;
+        margin-bottom: 10px;
+    }
+    h2, h3, h4 {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600 !important;
+        color: #f7fafc !important;
+        letter-spacing: 0.5px;
+    }
+
+    /* --- KPI CARDS (CON GLOW EFFECT) --- */
     .glass-kpi {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 16px;
-        padding: 15px;
+        border-radius: 20px; /* Più arrotondato */
+        padding: 20px;
         text-align: center;
-        height: 130px;
+        height: 140px;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
+        transition: transform 0.3s ease, border-color 0.3s ease;
     }
-    .kpi-value { font-size: 30px; font-weight: 800; color: white; line-height: 1.1; }
-    .kpi-label { font-size: 11px; text-transform: uppercase; color: #a0aec0; margin-top: 5px; }
+    .glass-kpi:hover {
+        transform: translateY(-5px);
+        background: rgba(255, 255, 255, 0.06);
+    }
+    
+    /* Icone animate e illuminate */
+    .kpi-icon { 
+        font-size: 32px; 
+        margin-bottom: 8px; 
+        transition: transform 0.3s ease;
+        filter: drop-shadow(0 0 5px rgba(255,255,255,0.3)); /* Base Glow */
+    }
+    .glass-kpi:hover .kpi-icon {
+        transform: scale(1.1);
+    }
 
-    /* --- PULSANTI MODERNI (Dashboard Top) --- */
+    .kpi-value { font-size: 36px; font-weight: 800; color: white; line-height: 1; letter-spacing: -1px; }
+    .kpi-label { font-size: 11px; text-transform: uppercase; color: #a0aec0; margin-top: 8px; letter-spacing: 1.5px; font-weight: 600; }
+
+    /* --- PULSANTI DASHBOARD (SOTTO LE CARD) --- */
     div[data-testid="column"] .stButton > button {
         background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
         border: none !important;
         color: white !important;
-        border-radius: 8px !important;
+        border-radius: 12px !important;
         font-size: 12px !important;
         font-weight: 600 !important;
-        padding: 4px 0 !important;
-        box-shadow: 0 4px 6px rgba(66, 153, 225, 0.25) !important;
-        transition: transform 0.2s;
+        padding: 6px 0 !important;
+        box-shadow: 0 4px 10px rgba(66, 153, 225, 0.3) !important;
+        transition: all 0.3s ease;
         margin-top: 0px !important;
     }
     div[data-testid="column"] .stButton > button:hover {
         transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(66, 153, 225, 0.5) !important;
     }
 
-    /* --- STILE RIGHE COMPATTE (AVVISI) --- */
+    /* --- RIGHE AVVISI COMPATTE --- */
     .alert-row-name {
         background-color: rgba(255, 255, 255, 0.03);
-        border-radius: 8px;
+        border-radius: 10px;
         padding: 0 15px;
         height: 42px;    
         display: flex;
@@ -85,38 +121,38 @@ st.markdown("""
     .border-red { border-left: 4px solid #e53e3e !important; }
     .border-blue { border-left: 4px solid #0bc5ea !important; }
 
-    /* --- PULSANTI "SLIM" ALLINEATI --- */
+    /* --- PULSANTI AZIONE (Neutri & Eleganti) --- */
     div[data-testid="stHorizontalBlock"] button {
-        padding: 2px 10px !important;
+        padding: 2px 12px !important;
         font-size: 11px !important;
         min-height: 0px !important;
         height: 32px !important;
         line-height: 1 !important;
-        border-radius: 6px !important;
+        border-radius: 8px !important;
         margin-top: 6px !important;
+        font-weight: 500 !important;
     }
     
-    /* Pulsante Primario (Es. Rientrato - Blu) */
     button[kind="primary"] {
         background: linear-gradient(135deg, #3182ce, #2b6cb0) !important;
         border: none !important;
         color: white !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
     }
-
-    /* Pulsante Secondario (Rimandare - Grigio/Neutro) */
+    
     button[kind="secondary"] {
-        background: rgba(255, 255, 255, 0.1) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        color: #e2e8f0 !important;
-        transition: all 0.2s ease !important;
+        background: rgba(255, 255, 255, 0.08) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        color: #cbd5e0 !important;
     }
     button[kind="secondary"]:hover {
-        background: rgba(255, 255, 255, 0.2) !important;
+        background: rgba(255, 255, 255, 0.15) !important;
         border-color: #a0aec0 !important;
+        color: white !important;
     }
 
     /* --- ALTRI --- */
-    div[data-testid="stDataFrame"] { background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; }
+    div[data-testid="stDataFrame"] { background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; }
     input, select, textarea { background-color: rgba(13, 17, 23, 0.8) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: white !important; border-radius: 8px; }
 </style>
 """, unsafe_allow_html=True)
@@ -198,7 +234,7 @@ with st.sidebar:
     try: st.image("logo.png", use_container_width=True)
     except: st.title("Focus Rehab")
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v53 - Transparent Chart")
+    st.divider(); st.caption("App v54 - Ultimate UI")
 
 # =========================================================
 # DASHBOARD
@@ -242,7 +278,7 @@ if menu == "⚡ Dashboard":
             with col:
                 st.markdown(f"""
                 <div class="glass-kpi" style="border-bottom: 4px solid {color};">
-                    <div class="kpi-icon" style="color:{color}">{icon}</div>
+                    <div class="kpi-icon" style="color:{color}; filter: drop-shadow(0 0 8px {color}88);">{icon}</div>
                     <div class="kpi-value">{num}</div>
                     <div class="kpi-label">{label}</div>
                 </div>
@@ -321,7 +357,7 @@ if menu == "⚡ Dashboard":
 
         st.divider()
 
-        # --- 4. GRAFICO (TRANSPARENT + COLORS) ---
+        # --- 4. GRAFICO ---
         st.subheader("📈 Performance Aree")
         df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
         all_areas = []
@@ -338,7 +374,6 @@ if menu == "⚡ Dashboard":
             domain = ["Mano-Polso", "Muscolo-Scheletrico", "Colonna", "ATM", "Gruppi", "Ortopedico"]
             range_ = ["#0bc5ea", "#9f7aea", "#ecc94b", "#2ecc71", "#e53e3e", "#4a5568"]
             
-            # AGGIUNTO .configure(background='transparent') e axis color specifici
             chart = alt.Chart(counts).mark_bar(cornerRadius=6, height=35).encode(
                 x=alt.X('Pazienti', axis=None), 
                 y=alt.Y('Area', sort='-x', title=None, axis=alt.Axis(domain=False, ticks=False, labelColor="#cbd5e0", labelFontSize=14)),
@@ -346,7 +381,6 @@ if menu == "⚡ Dashboard":
                 tooltip=['Area', 'Pazienti']
             ).properties(height=400).configure(background='transparent').configure_view(strokeWidth=0).configure_axis(grid=False)
             
-            # AGGIUNTO theme=None per forzare la trasparenza
             st.altair_chart(chart, use_container_width=True, theme=None)
         else: st.info("Dati insufficienti.")
 
