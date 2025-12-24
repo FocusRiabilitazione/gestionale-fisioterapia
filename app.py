@@ -8,7 +8,7 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE (NEUTRAL / CLEAN)
+# 0. CONFIGURAZIONE & STILE (FINAL COLORS)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -206,7 +206,7 @@ with st.sidebar:
     try: st.image("logo.png", use_container_width=True)
     except: st.title("Focus Rehab")
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v51 - Date Fix")
+    st.divider(); st.caption("App v52 - Chart Colors")
 
 # =========================================================
 # DASHBOARD
@@ -300,7 +300,6 @@ if menu == "⚡ Dashboard":
                         update_generic("Pazienti", row['id'], {"Disdetto": False, "Data_Disdetta": None}); st.rerun()
                 with c_btn2:
                     if st.button("📅 Rimandare", key=f"pk_{row['id']}", use_container_width=True, type="secondary"):
-                        # FIX: Nuova data = Oggi + 7 giorni
                         new_date = pd.Timestamp.now() + timedelta(days=7)
                         update_generic("Pazienti", row['id'], {"Data_Disdetta": new_date}); st.rerun()
 
@@ -332,7 +331,7 @@ if menu == "⚡ Dashboard":
 
         st.divider()
 
-        # --- 4. GRAFICO ---
+        # --- 4. GRAFICO (COLORI PERSONALIZZATI) ---
         st.subheader("📈 Performance Aree")
         df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
         all_areas = []
@@ -345,8 +344,17 @@ if menu == "⚡ Dashboard":
         if all_areas:
             counts = pd.Series(all_areas).value_counts().reset_index()
             counts.columns = ['Area', 'Pazienti']
-            domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
-            range_ = ["#4299e1", "#ed8936", "#38b2ac", "#9f7aea", "#f56565", "#a0aec0"]
+            
+            # DEFINIZIONE COLORI PERSONALIZZATI
+            # Azzurro: mano-polso (#0bc5ea)
+            # Lilla: muscolo-scheletrico (#9f7aea)
+            # Giallo: colonna (#ecc94b)
+            # Verde: atm (#2ecc71)
+            # Rosso: gruppi (#e53e3e)
+            # Grigio scuro: ortopedico (#4a5568)
+            domain = ["Mano-Polso", "Muscolo-Scheletrico", "Colonna", "ATM", "Gruppi", "Ortopedico"]
+            range_ = ["#0bc5ea", "#9f7aea", "#ecc94b", "#2ecc71", "#e53e3e", "#4a5568"]
+            
             chart = alt.Chart(counts).mark_bar(cornerRadius=6, height=35).encode(
                 x=alt.X('Pazienti', axis=None), 
                 y=alt.Y('Area', sort='-x', title=None, axis=alt.Axis(domain=False, ticks=False, labelColor="#cbd5e0", labelFontSize=14)),
