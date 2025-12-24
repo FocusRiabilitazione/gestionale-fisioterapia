@@ -19,7 +19,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 2. CSS AVANZATO (GHOST UI TRASPARENTE + FIX ERRORI)
+# 2. CSS AVANZATO (ELEGANT GHOST UI)
 # ==============================================================================
 st.markdown("""
 <style>
@@ -75,7 +75,7 @@ st.markdown("""
         justify-content: center;
         height: 140px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        margin-bottom: 10px;
+        margin-bottom: 5px; /* Ridotto margine per avvicinare il pulsante */
         transition: transform 0.3s ease;
         position: relative;
     }
@@ -88,47 +88,45 @@ st.markdown("""
     .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #a0aec0; margin-top: 5px; }
 
     /* ============================================================
-       2. LINK TESTUALI TRASPARENTI (Sotto le card)
-       Qui forziamo la trasparenza totale
+       2. PULSANTI "GHOST" TRASPARENTI (Sotto le card)
        ============================================================ */
+    /* Target specifico per i bottoni nelle colonne della dashboard (Kpi) */
     div[data-testid="column"] .stButton > button {
         background-color: transparent !important;
         background: transparent !important;
-        border: none !important;
-        color: #718096 !important; /* Grigio scuro per default */
-        font-size: 12px !important;
+        border: 1px solid transparent !important; /* Bordo invisibile di base */
+        color: #718096 !important; /* Grigio scuro elegante */
+        border-radius: 20px !important; /* Arrotondati */
+        font-size: 11px !important;
         font-weight: 500 !important;
-        padding: 0px !important;
-        width: 100% !important;
-        text-align: center !important;
-        margin-top: -5px !important;
-        text-decoration: none !important;
+        padding: 4px 10px !important;
+        width: auto !important; /* Non full width, ma adattati al testo */
+        margin: 0 auto !important; /* Centrati */
+        display: block !important;
+        transition: all 0.3s ease !important;
         box-shadow: none !important;
     }
 
-    /* Effetto Hover: Diventa blu e sottolineato */
+    /* Effetto Hover: Appare bordo sottile e colore */
     div[data-testid="column"] .stButton > button:hover {
+        border-color: rgba(66, 153, 225, 0.3) !important;
         color: #4299e1 !important;
-        text-decoration: underline !important;
-        background-color: transparent !important;
-        transform: none !important;
-        border: none !important;
-        box-shadow: none !important;
+        background-color: rgba(66, 153, 225, 0.05) !important;
+        transform: translateY(-1px);
     }
     
-    /* Rimozione effetto focus/active */
     div[data-testid="column"] .stButton > button:focus,
     div[data-testid="column"] .stButton > button:active {
         box-shadow: none !important;
-        color: #4299e1 !important;
         background-color: transparent !important;
-        border: none !important;
+        color: #4299e1 !important;
+        border-color: #4299e1 !important;
     }
 
     /* ============================================================
        3. PULSANTI AZIONE STANDARD (Salva, Fatto, Rientrato)
        ============================================================ */
-    /* Questi rimangono belli e visibili */
+    /* Questi rimangono belli, pieni e visibili per le azioni importanti */
     div[data-testid="stVerticalBlock"] .stButton > button {
         background: linear-gradient(135deg, #3182ce, #2b6cb0) !important;
         border: none !important;
@@ -375,7 +373,7 @@ with st.sidebar:
         ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"],
         label_visibility="collapsed"
     )
-    st.divider(); st.caption("System v3.8 - Stable")
+    st.divider(); st.caption("System v3.8 - Elegant")
 
 # ==============================================================================
 # SEZIONE 1: DASHBOARD
@@ -402,14 +400,13 @@ if menu == "⚡ Dashboard":
         disdetti = df[(df['Disdetto']==True)]
         attivi = tot - len(disdetti)
         
-        # Logica Date (CORRETTA - SENZA WALRUS OPERATOR :=)
-        oggi = pd.Timestamp.now().normalize()
-        limit_recall = today = pd.Timestamp.now().normalize() - pd.Timedelta(days=10)
+        # Logica Date (CORRETTA SENZA WALRUS OPERATOR)
+        today = pd.Timestamp.now().normalize()
+        limit_recall = today - pd.Timedelta(days=10)
         
         recall = disdetti[(disdetti['Data_Disdetta'].notna()) & (disdetti['Data_Disdetta'] <= limit_recall)]
         
         visite = df[(df['Visita_Esterna']==True)]
-        # Qui c'era l'errore, ora è corretto:
         vis_imm = visite[(visite['Data_Visita'] >= today)]
         vis_scad = visite[(visite['Data_Visita'] < today)]
 
