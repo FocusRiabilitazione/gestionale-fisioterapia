@@ -8,7 +8,7 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE (COMPACT + ALIGNED)
+# 0. CONFIGURAZIONE & STILE (COMPACT + ALIGNED + NEW COLORS)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -85,11 +85,10 @@ st.markdown("""
     /* Bordi colorati laterali specifici */
     .border-orange { border-left: 4px solid #ed8936 !important; }
     .border-red { border-left: 4px solid #e53e3e !important; }
-    .border-blue { border-left: 4px solid #38b2ac !important; }
+    .border-blue { border-left: 4px solid #0bc5ea !important; }
 
     /* --- PULSANTI "SLIM" ALLINEATI (Dentro le righe avvisi) --- */
     /* Trucco CSS per centrare i bottoni con il box del nome */
-    /* Selezioniamo i bottoni dentro le righe orizzontali degli avvisi */
     
     div[data-testid="stHorizontalBlock"] button {
         padding: 2px 10px !important;
@@ -193,7 +192,7 @@ with st.sidebar:
     try: st.image("logo.png", use_container_width=True)
     except: st.title("Focus Rehab")
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v47 - Perfect Align")
+    st.divider(); st.caption("App v48 - KPI Colors")
 
 # =========================================================
 # DASHBOARD
@@ -245,10 +244,11 @@ if menu == "⚡ Dashboard":
                 if st.button("Vedi Lista", key=f"btn_{filter_key}"):
                     st.session_state.kpi_filter = filter_key
 
-        draw_kpi(col1, "👥", cnt_attivi, "Attivi", "#4299e1", "Attivi")
-        draw_kpi(col2, "📉", len(df_disdetti), "Disdetti", "#e53e3e", "Disdetti")
-        draw_kpi(col3, "💡", len(da_richiamare), "Recall", "#ed8936", "Recall")
-        draw_kpi(col4, "🩺", len(visite_imminenti), "Visite", "#38b2ac", "Visite")
+        # NUOVI COLORI: Attivi=Verde, Disdetti=Rosso, Recall=Arancio, Visite=Azzurro
+        draw_kpi(col1, "👥", cnt_attivi, "Attivi", "#2ecc71", "Attivi")  # Verde
+        draw_kpi(col2, "📉", len(df_disdetti), "Disdetti", "#e53e3e", "Disdetti") # Rosso
+        draw_kpi(col3, "💡", len(da_richiamare), "Recall", "#ed8936", "Recall") # Arancio
+        draw_kpi(col4, "🩺", len(visite_imminenti), "Visite", "#0bc5ea", "Visite") # Azzurro Ciano
 
         st.write("")
 
@@ -283,7 +283,6 @@ if menu == "⚡ Dashboard":
                 with c_info:
                     st.markdown(f"""<div class="alert-row-name border-orange">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
                 with c_btn1:
-                    # Il CSS margin-top: 6px allineerà questo bottone al centro del div di sinistra
                     if st.button("✅ Rientrato", key=f"rk_{row['id']}", use_container_width=True, type="primary"):
                         update_generic("Pazienti", row['id'], {"Disdetto": False}); st.rerun()
                 with c_btn2:
@@ -302,15 +301,14 @@ if menu == "⚡ Dashboard":
                     if st.button("✅ Rientrato", key=f"vk_{row['id']}", use_container_width=True, type="primary"):
                         update_generic("Pazienti", row['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
 
-        # VISITE IMMINENTI (BLU - SOLO INFO)
+        # VISITE IMMINENTI (AZZURRO - SOLO INFO)
         if not visite_imminenti.empty:
             st.caption(f"👨‍⚕️ Visite Imminenti: {len(visite_imminenti)}")
             for i, row in visite_imminenti.iterrows():
-                # Qui usiamo un layout più semplice perché non ci sono bottoni
                 st.markdown(f"""
                 <div class="alert-row-name border-blue" style="justify-content: space-between;">
                     <span>{row['Nome']} {row['Cognome']}</span>
-                    <span style="color:#38b2ac; font-size:13px;">{row['Data_Visita'].strftime('%d/%m')}</span>
+                    <span style="color:#0bc5ea; font-size:13px;">{row['Data_Visita'].strftime('%d/%m')}</span>
                 </div>
                 """, unsafe_allow_html=True)
 
