@@ -9,7 +9,7 @@ import os
 import base64
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE (ULTIMATE UI)
+# 0. CONFIGURAZIONE & STILE
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -21,7 +21,7 @@ st.markdown("""
         font-family: 'Outfit', sans-serif;
     }
 
-    /* SFONDO PROFONDO */
+    /* SFONDO SCURO */
     .stApp {
         background: radial-gradient(circle at top left, #1a202c, #0d1117);
         color: #e2e8f0;
@@ -34,127 +34,42 @@ st.markdown("""
         backdrop-filter: blur(20px);
     }
 
-    /* --- TITOLI MODERNI --- */
-    h1 {
-        font-family: 'Outfit', sans-serif;
-        font-weight: 800 !important;
-        background: linear-gradient(120deg, #ffffff, #a0aec0);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        letter-spacing: -1px;
-        margin-bottom: 10px;
-    }
-    h2, h3, h4 {
-        font-family: 'Outfit', sans-serif;
-        font-weight: 600 !important;
-        color: #f7fafc !important;
-        letter-spacing: 0.5px;
-    }
-
-    /* --- KPI CARDS (CON GLOW EFFECT) --- */
+    /* KPI CARDS */
     .glass-kpi {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 20px; /* Più arrotondato */
+        border-radius: 20px;
         padding: 20px;
         text-align: center;
         height: 140px;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         margin-bottom: 10px;
-        transition: transform 0.3s ease, border-color 0.3s ease;
-    }
-    .glass-kpi:hover {
-        transform: translateY(-5px);
-        background: rgba(255, 255, 255, 0.06);
-    }
-    
-    /* Icone animate e illuminate */
-    .kpi-icon { 
-        font-size: 32px; 
-        margin-bottom: 8px; 
         transition: transform 0.3s ease;
-        filter: drop-shadow(0 0 5px rgba(255,255,255,0.3)); /* Base Glow */
     }
-    .glass-kpi:hover .kpi-icon {
-        transform: scale(1.1);
-    }
-
-    .kpi-value { font-size: 36px; font-weight: 800; color: white; line-height: 1; letter-spacing: -1px; }
+    .glass-kpi:hover { transform: translateY(-5px); background: rgba(255, 255, 255, 0.06); }
+    .kpi-icon { font-size: 32px; margin-bottom: 8px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.3)); }
+    .kpi-value { font-size: 36px; font-weight: 800; color: white; line-height: 1; }
     .kpi-label { font-size: 11px; text-transform: uppercase; color: #a0aec0; margin-top: 8px; letter-spacing: 1.5px; font-weight: 600; }
 
-    /* --- PULSANTI DASHBOARD (SOTTO LE CARD) --- */
-    div[data-testid="column"] .stButton > button {
-        background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
-        border: none !important;
-        color: white !important;
-        border-radius: 12px !important;
-        font-size: 12px !important;
-        font-weight: 600 !important;
-        padding: 6px 0 !important;
-        box-shadow: 0 4px 10px rgba(66, 153, 225, 0.3) !important;
-        transition: all 0.3s ease;
-        margin-top: 0px !important;
-    }
-    div[data-testid="column"] .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(66, 153, 225, 0.5) !important;
-    }
-
-    /* --- RIGHE AVVISI COMPATTE --- */
+    /* ALERT ROWS */
     .alert-row-name {
         background-color: rgba(255, 255, 255, 0.03);
         border-radius: 10px;
         padding: 0 15px;
         height: 42px;    
-        display: flex;
-        align-items: center;
+        display: flex; align-items: center;
         border: 1px solid rgba(255, 255, 255, 0.05);
-        font-weight: 600;
-        color: #fff;
-        font-size: 14px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        font-weight: 600; color: #fff; font-size: 14px;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-
-    /* Bordi colorati laterali */
     .border-orange { border-left: 4px solid #ed8936 !important; }
     .border-red { border-left: 4px solid #e53e3e !important; }
     .border-blue { border-left: 4px solid #0bc5ea !important; }
 
-    /* --- PULSANTI AZIONE (Neutri & Eleganti) --- */
-    div[data-testid="stHorizontalBlock"] button {
-        padding: 2px 12px !important;
-        font-size: 11px !important;
-        min-height: 0px !important;
-        height: 32px !important;
-        line-height: 1 !important;
-        border-radius: 8px !important;
-        margin-top: 6px !important;
-        font-weight: 500 !important;
-    }
-    
-    button[kind="primary"] {
-        background: linear-gradient(135deg, #3182ce, #2b6cb0) !important;
-        border: none !important;
-        color: white !important;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
-    }
-    
-    button[kind="secondary"] {
-        background: rgba(255, 255, 255, 0.08) !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        color: #cbd5e0 !important;
-    }
-    button[kind="secondary"]:hover {
-        background: rgba(255, 255, 255, 0.15) !important;
-        border-color: #a0aec0 !important;
-        color: white !important;
-    }
-
-    /* --- ALTRI --- */
+    /* UTILS */
     div[data-testid="stDataFrame"] { background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; }
     input, select, textarea { background-color: rgba(13, 17, 23, 0.8) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: white !important; border-radius: 8px; }
+    button[kind="primary"] { background: linear-gradient(135deg, #3182ce, #2b6cb0) !important; border: none; color: white; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -163,7 +78,8 @@ try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except:
-    API_KEY = "key"
+    # Inserisci le tue chiavi qui se non usi secrets.toml
+    API_KEY = "key" 
     BASE_ID = "id"
 
 api = Api(API_KEY)
@@ -223,7 +139,7 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
     for r in righe_preventivo:
         rows_html += f"<tr><td>{r['nome']}</td><td class='col-qty'>{r['qty']}</td><td class='col-price'>{r['tot']} €</td></tr>"
     
-    # Intestazione con Logo Centrato
+    # Header: Logo Centrato o Testo Centrato
     if logo_b64:
         header_content = f"<div style='text-align:center;'><img src='data:image/png;base64,{logo_b64}' class='logo-img'></div>"
     else:
@@ -247,7 +163,7 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
         <meta charset="UTF-8">
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700;800&display=swap');
-            body {{ font-family: 'Segoe UI', sans-serif; background: #f4f4f4; margin: 0; padding: 20px; color: #333; }}
+            body {{ font-family: 'Segoe UI', sans-serif; background: #fff; margin: 0; padding: 0; color: #333; }}
             
             /* BOTTONE DOWNLOAD (Visibile solo in anteprima manuale) */
             .action-bar {{ margin-bottom: 20px; justify-content: flex-end; {action_bar_style} }}
@@ -402,7 +318,7 @@ if menu == "⚡ Dashboard":
     df = get_data("Pazienti")
     
     if not df.empty:
-        # Preprocessing per evitare errori
+        # Preprocessing per evitare errori (NORMALIZZAZIONE DATI)
         required_cols = ['Disdetto', 'Visita_Esterna', 'Data_Disdetta', 'Data_Visita', 'Area', 'Nome', 'Cognome']
         for c in required_cols:
             if c not in df.columns: df[c] = None 
@@ -545,11 +461,12 @@ elif menu == "👥 Pazienti":
     df_original = get_data("Pazienti")
     
     if not df_original.empty:
-        # Assicuro che le colonne esistano per evitare KeyError
+        # Assicuro che le colonne esistano per evitare KeyError (FIX FONDAMENTALE)
         req_cols = ['Nome', 'Cognome', 'Area', 'Disdetto', 'Data_Disdetta', 'Visita_Esterna', 'Data_Visita', 'id']
         for c in req_cols:
             if c not in df_original.columns: df_original[c] = None 
         
+        # Conversione e normalizzazione tipi per data_editor
         df_original['Data_Disdetta'] = pd.to_datetime(df_original['Data_Disdetta'])
         df_original['Data_Visita'] = pd.to_datetime(df_original['Data_Visita'])
         df_original['Disdetto'] = df_original['Disdetto'].fillna(False).astype(bool)
