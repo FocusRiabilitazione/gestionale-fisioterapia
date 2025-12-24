@@ -8,7 +8,7 @@ import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE (MODERN BLUE BUTTONS)
+# 0. CONFIGURAZIONE & STILE (MODERN BLUE + LAYOUT VERTICALE)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -70,27 +70,25 @@ st.markdown("""
     .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #a0aec0; margin-top: 5px; }
 
     /* --- 2. PULSANTI "MODERN BLUE" (Per Dashboard) --- */
-    /* Questo stile si applica ai bottoni sotto le card */
     div[data-testid="column"] .stButton > button {
-        background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important; /* Gradiente Blu */
+        background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
         border: none !important;
         color: white !important;
-        border-radius: 12px !important; /* Arrotondati */
+        border-radius: 12px !important;
         font-size: 13px !important;
         font-weight: 600 !important;
         padding: 6px 0 !important;
         width: 100% !important;
-        box-shadow: 0 4px 6px rgba(66, 153, 225, 0.25) !important; /* Ombra Blu (Glow) */
+        box-shadow: 0 4px 6px rgba(66, 153, 225, 0.25) !important;
         transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
         text-transform: uppercase !important;
         letter-spacing: 0.5px !important;
     }
 
-    /* Effetto Hover "Lift" */
     div[data-testid="column"] .stButton > button:hover {
-        transform: translateY(-3px) !important; /* Si alza */
-        box-shadow: 0 7px 14px rgba(66, 153, 225, 0.4) !important; /* L'ombra aumenta */
-        background: linear-gradient(135deg, #63b3ed 0%, #4299e1 100%) !important; /* Diventa più chiaro */
+        transform: translateY(-3px) !important;
+        box-shadow: 0 7px 14px rgba(66, 153, 225, 0.4) !important;
+        background: linear-gradient(135deg, #63b3ed 0%, #4299e1 100%) !important;
     }
     
     div[data-testid="column"] .stButton > button:active {
@@ -98,7 +96,7 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(66, 153, 225, 0.3) !important;
     }
 
-    /* --- 3. PULSANTI AZIONE STANDARD (Salva/Fatto/Rientrato) --- */
+    /* --- 3. PULSANTI AZIONE STANDARD --- */
     div[data-testid="stVerticalBlock"] .stButton > button {
         background: linear-gradient(135deg, #3182ce, #2b6cb0) !important;
         border: none !important;
@@ -292,7 +290,7 @@ with st.sidebar:
         label_visibility="collapsed"
     )
     st.divider()
-    st.markdown("<div style='text-align:center; color:#64748b; font-size:11px;'>Focus App v3.3 - Modern</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align:center; color:#64748b; font-size:11px;'>Focus App v3.4 - Vertical Layout</div>", unsafe_allow_html=True)
 
 # =========================================================
 # SEZIONE 1: DASHBOARD (NUOVO DESIGN KPI)
@@ -332,7 +330,7 @@ if menu == "⚡ Dashboard":
         sette_giorni_fa = oggi - pd.Timedelta(days=7)
         visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
 
-        # 1. RIGA KPI (CARD + BOTTONI GHOST)
+        # 1. RIGA KPI (CARD + BOTTONI BLU MODERNI)
         col1, col2, col3, col4 = st.columns(4)
         
         def draw_kpi(col, icon, num, label, color, filter_key):
@@ -385,80 +383,81 @@ if menu == "⚡ Dashboard":
 
         st.write("")
 
-        # 3. SEZIONE PRINCIPALE
-        c_left, c_right = st.columns([1, 1.6], gap="large")
+        # 3. RIGA AVVISI (TUTTA LA LARGHEZZA)
+        st.subheader("🔔 Avvisi")
+        has_alerts = False
+        
+        # Uso st.container per raggruppare visivamente se necessario, ma qui scriviamo diretto
+        if not visite_imminenti.empty:
+            has_alerts = True
+            st.markdown(f"""<div class="alert-box" style='border-color:#38b2ac'>
+                <strong style='color:#38b2ac'>👨‍⚕️ Visite Imminenti ({len(visite_imminenti)})</strong><br>
+                {'<br>'.join([f"• {row['Nome']} {row['Cognome']} ({row['Data_Visita'].strftime('%d/%m')})" for i, row in visite_imminenti.iterrows()])}
+                </div>""", unsafe_allow_html=True)
 
-        with c_left:
-            st.markdown("### 🔔 Avvisi")
-            has_alerts = False
-            if not visite_imminenti.empty:
-                has_alerts = True
-                st.markdown(f"""<div class="alert-box" style='border-color:#38b2ac'>
-                    <strong style='color:#38b2ac'>👨‍⚕️ Visite Imminenti ({len(visite_imminenti)})</strong><br>
-                    {'<br>'.join([f"• {row['Nome']} {row['Cognome']} ({row['Data_Visita'].strftime('%d/%m')})" for i, row in visite_imminenti.iterrows()])}
-                    </div>""", unsafe_allow_html=True)
-
-            if not visite_passate.empty:
-                has_alerts = True
-                st.markdown(f"""<div class="alert-box" style='border-color:#e53e3e'>
-                    <strong style='color:#e53e3e'>⚠️ Visite Scadute</strong>
-                    </div>""", unsafe_allow_html=True)
+        if not visite_passate.empty:
+            has_alerts = True
+            st.markdown(f"""<div class="alert-box" style='border-color:#e53e3e'>
+                <strong style='color:#e53e3e'>⚠️ Visite Scadute</strong>
+                </div>""", unsafe_allow_html=True)
+            # Qui possiamo mettere più colonne per i pulsanti se sono tanti
+            for i, row in visite_passate.iterrows():
+                rec_id = row['id']
                 with st.container(border=True):
-                    for i, row in visite_passate.iterrows():
-                        rec_id = row['id']
-                        c1, c2 = st.columns([3, 1])
-                        c1.caption(f"{row['Nome']} {row['Cognome']}")
-                        if c2.button("Rientrato", key=f"rientro_{rec_id}"):
-                            update_generic("Pazienti", rec_id, {"Visita_Esterna": False, "Data_Visita": None})
-                            st.rerun()
+                    c1, c2 = st.columns([4, 1])
+                    c1.write(f"**{row['Nome']} {row['Cognome']}**")
+                    if c2.button("Rientrato", key=f"rientro_{rec_id}"):
+                        update_generic("Pazienti", rec_id, {"Visita_Esterna": False, "Data_Visita": None})
+                        st.rerun()
 
-            if len(da_richiamare) > 0:
-                has_alerts = True
-                st.markdown(f"""<div class="alert-box" style='border-color:#ed8936'>
-                    <strong style='color:#ed8936'>📞 Recall Necessari ({len(da_richiamare)})</strong><br>
-                    {'<br>'.join([f"• {row['Nome']} {row['Cognome']}" for i, row in da_richiamare.iterrows()])}
-                    </div>""", unsafe_allow_html=True)
-                # Aggiungo bottoni azione per recall come richiesto nella base precedente
+        if len(da_richiamare) > 0:
+            has_alerts = True
+            st.markdown(f"""<div class="alert-box" style='border-color:#ed8936'>
+                <strong style='color:#ed8936'>📞 Recall Necessari ({len(da_richiamare)})</strong><br>
+                {'<br>'.join([f"• {row['Nome']} {row['Cognome']}" for i, row in da_richiamare.iterrows()])}
+                </div>""", unsafe_allow_html=True)
+            for i, row in da_richiamare.iterrows():
+                rec_id = row['id']
                 with st.container(border=True):
-                    for i, row in da_richiamare.iterrows():
-                        rec_id = row['id']
-                        c1, c2 = st.columns([3, 1])
-                        c1.caption(f"{row['Nome']} {row['Cognome']}")
-                        if c2.button("Fatto", key=f"rec_done_{rec_id}"):
-                            update_generic("Pazienti", rec_id, {"Disdetto": False}) 
-                            st.rerun()
+                    c1, c2 = st.columns([4, 1])
+                    c1.write(f"**{row['Nome']} {row['Cognome']}**")
+                    if c2.button("Fatto", key=f"rec_done_{rec_id}"):
+                        update_generic("Pazienti", rec_id, {"Disdetto": False}) 
+                        st.rerun()
 
-            if not has_alerts and visite_imminenti.empty and visite_passate.empty and len(da_richiamare) == 0:
-                st.success("✅ Nessun avviso urgente.")
+        if not has_alerts and visite_imminenti.empty and visite_passate.empty and len(da_richiamare) == 0:
+            st.success("✅ Nessun avviso urgente.")
 
-        with c_right:
-            st.markdown("### 📈 Performance Aree")
-            df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
+        st.divider() # Separatore visivo
+
+        # 4. RIGA GRAFICO (TUTTA LA LARGHEZZA)
+        st.subheader("📈 Performance Aree")
+        df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
+        
+        all_areas = []
+        if 'Area' in df_attivi.columns:
+            for item in df_attivi['Area'].dropna():
+                if isinstance(item, list): all_areas.extend(item)
+                elif isinstance(item, str): all_areas.extend([p.strip() for p in item.split(',')])
+                else: all_areas.append(str(item))
+        
+        if all_areas:
+            counts = pd.Series(all_areas).value_counts().reset_index()
+            counts.columns = ['Area', 'Pazienti']
             
-            all_areas = []
-            if 'Area' in df_attivi.columns:
-                for item in df_attivi['Area'].dropna():
-                    if isinstance(item, list): all_areas.extend(item)
-                    elif isinstance(item, str): all_areas.extend([p.strip() for p in item.split(',')])
-                    else: all_areas.append(str(item))
+            domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
+            range_ = ["#4299e1", "#ed8936", "#38b2ac", "#9f7aea", "#f56565", "#a0aec0"]
             
-            if all_areas:
-                counts = pd.Series(all_areas).value_counts().reset_index()
-                counts.columns = ['Area', 'Pazienti']
-                
-                domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
-                range_ = ["#4299e1", "#ed8936", "#38b2ac", "#9f7aea", "#f56565", "#a0aec0"]
-                
-                chart = alt.Chart(counts).mark_bar(cornerRadius=6, height=25).encode(
-                    x=alt.X('Pazienti', axis=None), 
-                    y=alt.Y('Area', sort='-x', title=None, axis=alt.Axis(domain=False, ticks=False, labelColor="#cbd5e0", labelFontSize=13)),
-                    color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None),
-                    tooltip=['Area', 'Pazienti']
-                ).properties(height=350).configure_view(strokeWidth=0).configure_axis(grid=False)
-                
-                st.altair_chart(chart, use_container_width=True)
-            else:
-                st.info("I dati sulle aree saranno visualizzati qui.")
+            chart = alt.Chart(counts).mark_bar(cornerRadius=6, height=35).encode( # Aumentata altezza barre
+                x=alt.X('Pazienti', axis=None), 
+                y=alt.Y('Area', sort='-x', title=None, axis=alt.Axis(domain=False, ticks=False, labelColor="#cbd5e0", labelFontSize=14)), # Font più grande
+                color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None),
+                tooltip=['Area', 'Pazienti']
+            ).properties(height=400).configure_view(strokeWidth=0).configure_axis(grid=False) # Grafico più alto
+            
+            st.altair_chart(chart, use_container_width=True)
+        else:
+            st.info("I dati sulle aree saranno visualizzati qui.")
 
 # =========================================================
 # SEZIONE 2: PAZIENTI
