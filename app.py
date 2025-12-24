@@ -2,13 +2,13 @@ import streamlit as st
 from pyairtable import Api
 import pandas as pd
 import altair as alt
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from fpdf import FPDF
 import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE (MODERN BLUE + AVVISI FIX)
+# 0. CONFIGURAZIONE & STILE (COMPACT LIST DESIGN)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -16,12 +16,6 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
     
-    :root {
-        --glass-bg: rgba(255, 255, 255, 0.03);
-        --glass-border: 1px solid rgba(255, 255, 255, 0.08);
-        --neon-blue: #4299e1;
-    }
-
     html, body, [class*="css"] {
         font-family: 'Outfit', sans-serif;
     }
@@ -35,117 +29,112 @@ st.markdown("""
     /* SIDEBAR */
     section[data-testid="stSidebar"] {
         background-color: rgba(13, 17, 23, 0.95);
-        backdrop-filter: blur(12px);
-        border-right: var(--glass-border);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
     }
-    
-    /* TITOLI */
-    h1 {
-        background: linear-gradient(90deg, #FFF, #A0AEC0);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-weight: 800 !important;
-        letter-spacing: -0.5px;
-    }
-    h2, h3, h4, h5 { color: #FFF !important; font-weight: 600; }
 
-    /* --- 1. KPI CARDS (VISUALI) --- */
+    /* --- KPI CARDS --- */
     .glass-kpi {
-        background: var(--glass-bg);
-        backdrop-filter: blur(10px);
-        border: var(--glass-border);
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 16px;
         padding: 15px;
         text-align: center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
         height: 130px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
         margin-bottom: 8px;
     }
-    .kpi-icon { font-size: 26px; margin-bottom: 5px; }
     .kpi-value { font-size: 30px; font-weight: 800; color: white; line-height: 1.1; }
-    .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #a0aec0; margin-top: 5px; }
+    .kpi-label { font-size: 11px; text-transform: uppercase; color: #a0aec0; margin-top: 5px; }
 
-    /* --- 2. PULSANTI "MODERN BLUE" (Per Dashboard) --- */
+    /* --- PULSANTI MODERNI (Dashboard Top) --- */
     div[data-testid="column"] .stButton > button {
         background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
         border: none !important;
         color: white !important;
-        border-radius: 12px !important;
-        font-size: 13px !important;
+        border-radius: 8px !important;
+        font-size: 12px !important;
         font-weight: 600 !important;
-        padding: 6px 0 !important;
-        width: 100% !important;
+        padding: 4px 0 !important;
         box-shadow: 0 4px 6px rgba(66, 153, 225, 0.25) !important;
-        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.5px !important;
+        transition: transform 0.2s;
+    }
+    div[data-testid="column"] .stButton > button:hover {
+        transform: translateY(-2px);
     }
 
-    div[data-testid="column"] .stButton > button:hover {
-        transform: translateY(-3px) !important;
-        box-shadow: 0 7px 14px rgba(66, 153, 225, 0.4) !important;
-        background: linear-gradient(135deg, #63b3ed 0%, #4299e1 100%) !important;
+    /* --- STILE RIGHE COMPATTE (AVVISI) --- */
+    /* Crea lo sfondo scuro per la riga */
+    div[data-testid="stVerticalBlock"] > div > div[data-testid="stVerticalBlock"] {
+        gap: 0.5rem; /* Riduci spazio tra le righe */
     }
     
-    /* --- 3. PULSANTI AZIONE STANDARD --- */
-    div[data-testid="stVerticalBlock"] .stButton > button {
+    /* CSS per simulare la card compatta attorno alle colonne */
+    .compact-row {
+        background-color: rgba(255, 255, 255, 0.03);
+        border-radius: 8px;
+        padding: 8px 15px;
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Bordi colorati laterali specifici */
+    .border-orange { border-left: 4px solid #ed8936 !important; }
+    .border-red { border-left: 4px solid #e53e3e !important; }
+    .border-blue { border-left: 4px solid #38b2ac !important; }
+
+    /* Testo nome paziente */
+    .patient-name {
+        font-size: 15px;
+        font-weight: 600;
+        color: #fff;
+        margin: 0; padding: 0;
+    }
+
+    /* --- PULSANTI "SLIM" (Dentro le righe avvisi) --- */
+    /* Target specifico per i pulsanti nelle righe avvisi per farli piccoli */
+    div[data-testid="stHorizontalBlock"] button {
+        padding: 2px 10px !important;
+        font-size: 11px !important;
+        min-height: 0px !important;
+        height: auto !important;
+        line-height: 1.5 !important;
+        border-radius: 6px !important;
+    }
+    
+    /* Colori specifici pulsanti azione */
+    button[kind="primary"] {
         background: linear-gradient(135deg, #3182ce, #2b6cb0) !important;
         border: none !important;
-        color: white !important;
-        padding: 0.5rem 1rem !important;
-        font-weight: 600 !important;
-        border-radius: 8px !important;
+    }
+    button[kind="secondary"] {
+        background: rgba(255,255,255,0.1) !important;
+        border: 1px solid rgba(255,255,255,0.2) !important;
+        color: #e2e8f0 !important;
+    }
+    button[kind="secondary"]:hover {
+        border-color: #ed8936 !important;
+        color: #ed8936 !important;
     }
 
-    /* --- ALTRI ELEMENTI --- */
-    div[data-testid="stDataFrame"] {
-        background-color: rgba(20, 25, 35, 0.6);
-        border: var(--glass-border);
-        border-radius: 12px;
-    }
-    input, select, textarea {
-        background-color: rgba(13, 17, 23, 0.8) !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        color: white !important;
-        border-radius: 8px;
-    }
-    
-    /* Custom Card per Avvisi */
-    .recall-card-header {
-        border-left: 5px solid #ed8936;
-        padding-left: 10px;
-        margin-bottom: 10px;
-        font-weight: bold;
-        font-size: 1.1em;
-        color: #fbd38d;
-    }
-    .alert-card-header {
-        border-left: 5px solid #e53e3e;
-        padding-left: 10px;
-        margin-bottom: 10px;
-        font-weight: bold;
-        font-size: 1.1em;
-        color: #feb2b2;
-    }
+    /* --- ALTRI --- */
+    div[data-testid="stDataFrame"] { background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; }
+    input, select, textarea { background-color: rgba(13, 17, 23, 0.8) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: white !important; border-radius: 8px; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 1. CONFIGURAZIONE CONNESSIONE ---
+# --- 1. CONNESSIONE ---
 try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
-except FileNotFoundError:
-    API_KEY = "tua_chiave"
-    BASE_ID = "tuo_base_id"
+except:
+    API_KEY = "key"
+    BASE_ID = "id"
 
 api = Api(API_KEY)
 
 # --- 2. FUNZIONI ---
-
 @st.cache_data(ttl=60)
 def get_data(table_name):
     try:
@@ -154,158 +143,68 @@ def get_data(table_name):
         if not records: return pd.DataFrame()
         data = [{'id': r['id'], **r['fields']} for r in records]
         return pd.DataFrame(data)
-    except Exception: return pd.DataFrame()
+    except: return pd.DataFrame()
 
-def save_paziente(nome, cognome, area, disdetto):
-    table = api.table(BASE_ID, "Pazienti")
-    record = {"Nome": nome, "Cognome": cognome, "Area": area, "Disdetto": disdetto}
-    get_data.clear()
-    table.create(record, typecast=True)
+def save_paziente(n, c, a, d):
+    try: api.table(BASE_ID, "Pazienti").create({"Nome": n, "Cognome": c, "Area": a, "Disdetto": d}, typecast=True); get_data.clear(); return True
+    except: return False
 
-def update_generic(table_name, record_id, dati_aggiornati):
-    table = api.table(BASE_ID, table_name)
-    fields_to_send = {}
-    for k, v in dati_aggiornati.items():
-        if "Data" in k: 
-            if pd.isna(v) or str(v) == "NaT" or v == "": fields_to_send[k] = None
-            else: fields_to_send[k] = v.strftime('%Y-%m-%d') if hasattr(v, 'strftime') else str(v)
-        else: fields_to_send[k] = v
-    table.update(record_id, fields_to_send, typecast=True)
+def update_generic(tbl, rid, data):
+    try:
+        cl = {k: (v.strftime('%Y-%m-%d') if hasattr(v, 'strftime') else v) for k,v in data.items()}
+        api.table(BASE_ID, tbl).update(rid, cl, typecast=True); get_data.clear(); return True
+    except: return False
 
-def delete_generic(table_name, record_id):
-    table = api.table(BASE_ID, table_name)
-    table.delete(record_id)
-    get_data.clear()
-
-def save_prestito(paziente, oggetto, data_prestito):
-    table = api.table(BASE_ID, "Prestiti")
-    data_str = data_prestito.strftime('%Y-%m-%d') if hasattr(data_prestito, 'strftime') else str(data_prestito)
-    record = {"Paziente": paziente, "Oggetto": oggetto, "Data_Prestito": data_str, "Restituito": False}
-    get_data.clear()
-    table.create(record, typecast=True)
-
-def save_prodotto(prodotto, quantita):
-    table = api.table(BASE_ID, "Inventario")
-    record = {"Prodotto": prodotto, "Quantita": quantita}
-    get_data.clear()
-    table.create(record, typecast=True)
+def delete_generic(tbl, rid):
+    try: api.table(BASE_ID, tbl).delete(rid); get_data.clear(); return True
+    except: return False
 
 def save_preventivo_temp(paziente, dettagli_str, totale, note):
-    table = api.table(BASE_ID, "Preventivi_Salvati")
-    record = {
-        "Paziente": paziente, 
-        "Dettagli": dettagli_str, 
-        "Totale": totale, 
-        "Note": note, 
-        "Data_Creazione": str(date.today())
-    }
-    get_data.clear()
-    table.create(record, typecast=True)
+    try: api.table(BASE_ID, "Preventivi_Salvati").create({"Paziente": paziente, "Dettagli": dettagli_str, "Totale": totale, "Note": note, "Data_Creazione": str(date.today())}, typecast=True); get_data.clear(); return True
+    except: return False
 
-def create_pdf(paziente, righe_preventivo, totale, note=""):
+def save_prodotto(prodotto, quantita):
+    try: api.table(BASE_ID, "Inventario").create({"Prodotto": prodotto, "Quantita": quantita}, typecast=True); get_data.clear(); return True
+    except: return False
+
+def save_prestito(paziente, oggetto, data_prestito):
+    try: api.table(BASE_ID, "Prestiti").create({"Paziente": paziente, "Oggetto": oggetto, "Data_Prestito": str(data_prestito), "Restituito": False}, typecast=True); get_data.clear(); return True
+    except: return False
+
+def create_pdf(paz, righe, tot, note=""):
     euro = chr(128)
     class PDF(FPDF):
         def header(self):
             if os.path.exists("logo.png"):
                 try: self.image('logo.png', 75, 10, 60)
                 except: pass
-            self.set_y(32)
-            self.set_font('Arial', 'B', 12)
-            self.set_text_color(80, 80, 80)
-            self.cell(0, 10, 'PREVENTIVO PERCORSO RIABILITATIVO', 0, 1, 'C')
-            self.set_draw_color(200, 200, 200)
-            self.line(20, self.get_y(), 190, self.get_y())
-            self.ln(8)
-        def footer(self):
-            self.set_y(-15); self.set_font('Arial', 'I', 8)
-            self.set_text_color(128)
-            self.cell(0, 10, f'Pagina {self.page_no()}', 0, 0, 'C')
-
-    pdf = PDF()
-    pdf.add_page()
-    pdf.set_text_color(0)
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(95, 8, f'Paziente: {paziente}', 0, 0, 'L')
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(95, 8, f'Data: {date.today().strftime("%d/%m/%Y")}', 0, 1, 'R')
-    pdf.ln(8)
-    
-    if note and len(note) > 5:
-        pdf.set_font('Arial', 'BI', 11)
-        pdf.cell(0, 8, 'Obiettivi e Descrizione del Percorso:', 0, 1)
-        pdf.set_font('Arial', 'I', 11)
-        pdf.set_text_color(60, 60, 60)
-        clean_note = note.replace("€", euro).encode('latin-1', 'replace').decode('latin-1')
-        pdf.multi_cell(0, 6, clean_note)
-        pdf.ln(10)
-    
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_fill_color(50, 50, 50)
-    pdf.set_font('Arial', 'B', 11)
-    pdf.cell(110, 10, ' Trattamento', 0, 0, 'L', 1) 
-    pdf.cell(30, 10, 'Q.ta', 0, 0, 'C', 1)
-    pdf.cell(50, 10, 'Importo ', 0, 1, 'R', 1)
-    
-    pdf.set_text_color(0); pdf.set_font('Arial', '', 11)
-    for riga in righe_preventivo:
-        nome = str(riga.get('nome', '-'))[:55]
-        qty = str(riga.get('qty', '0'))
-        tot_riga = str(riga.get('tot', '0'))
-        pdf.cell(110, 10, f" {nome}", 'B') 
-        pdf.cell(30, 10, qty, 'B', 0, 'C')
-        pdf.cell(50, 10, f"{tot_riga} {euro} ", 'B', 1, 'R')
-    pdf.ln(5)
-    
-    pdf.set_font('Arial', 'B', 14)
-    pdf.cell(140, 12, 'TOTALE COMPLESSIVO:', 0, 0, 'R')
-    pdf.set_fill_color(240, 240, 240)
-    pdf.cell(50, 12, f'{totale} {euro}', 1, 1, 'R', 1)
-    pdf.ln(10)
-
-    pdf.set_font('Arial', 'B', 10)
-    pdf.cell(0, 8, 'PIANO DI PAGAMENTO CONCORDATO:', 0, 1)
-    pdf.set_font('Arial', '', 10)
-    pdf.set_draw_color(180, 180, 180)
-    pdf.cell(15, 8, f'1) {euro}', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
-    pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
-    pdf.cell(15, 8, f'2) {euro}', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
-    pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
-    pdf.cell(15, 8, f'3) {euro}', 0, 0); pdf.cell(40, 8, '______________', 0, 0)
-    pdf.cell(20, 8, ' entro il', 0, 0); pdf.cell(40, 8, '______________', 0, 1)
-    pdf.ln(15)
-
-    y_pos = pdf.get_y()
+            self.set_y(35); self.set_font('Arial', 'B', 14); self.set_text_color(50)
+            self.cell(0, 10, 'PREVENTIVO', 0, 1, 'C'); self.ln(10)
+    pdf = PDF(); pdf.add_page(); pdf.set_text_color(0); pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 8, f'Paziente: {paz}', 0, 1); pdf.ln(5)
+    if note: pdf.set_font('Arial', 'I', 11); pdf.multi_cell(0, 6, note.replace("€", euro).encode('latin-1','replace').decode('latin-1')); pdf.ln(5)
+    pdf.set_font('Arial', 'B', 11); pdf.set_fill_color(240)
+    pdf.cell(110, 10, 'Trattamento', 1, 0, 'L', 1); pdf.cell(30, 10, 'Q.ta', 1, 0, 'C', 1); pdf.cell(50, 10, 'Importo', 1, 1, 'R', 1)
     pdf.set_font('Arial', '', 11)
-    pdf.set_xy(110, y_pos)
-    pdf.cell(80, 6, 'Firma per accettazione:', 0, 1, 'L')
-    pdf.set_xy(110, y_pos + 15)
-    pdf.cell(80, 0, '', 'T')
+    for r in righe: pdf.cell(110, 10, f" {str(r['nome'])[:55]}", 1); pdf.cell(30, 10, str(r['qty']), 1, 0, 'C'); pdf.cell(50, 10, f"{r['tot']} {euro}", 1, 1, 'R')
+    pdf.ln(5); pdf.set_font('Arial', 'B', 14); pdf.cell(140, 12, 'TOTALE:', 0, 0, 'R'); pdf.cell(50, 12, f'{tot} {euro}', 1, 1, 'R')
     return pdf.output(dest='S').encode('latin-1')
 
-# --- 3. INTERFACCIA GRAFICA ---
-
+# --- 3. INTERFACCIA ---
 with st.sidebar:
     try: st.image("logo.png", use_container_width=True)
     except: st.title("Focus Rehab")
-    st.write("")
-    menu = st.radio(
-        "Menu", 
-        ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"],
-        label_visibility="collapsed"
-    )
-    st.divider()
-    st.markdown("<div style='text-align:center; color:#64748b; font-size:11px;'>Focus App v3.5 - Alerts Fix</div>", unsafe_allow_html=True)
+    menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
+    st.divider(); st.caption("App v46 - Compact Layout")
 
 # =========================================================
-# SEZIONE 1: DASHBOARD (NUOVO DESIGN KPI)
+# DASHBOARD
 # =========================================================
 if menu == "⚡ Dashboard":
     st.title("⚡ Dashboard")
     st.write("")
 
-    # Inizializza stato filtro
-    if 'kpi_filter' not in st.session_state:
-        st.session_state.kpi_filter = "None"
+    if 'kpi_filter' not in st.session_state: st.session_state.kpi_filter = "None"
 
     df = get_data("Pazienti")
     
@@ -334,9 +233,8 @@ if menu == "⚡ Dashboard":
         sette_giorni_fa = oggi - pd.Timedelta(days=7)
         visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
 
-        # 1. RIGA KPI (CARD + BOTTONI BLU MODERNI)
+        # --- 1. KPI CARDS ---
         col1, col2, col3, col4 = st.columns(4)
-        
         def draw_kpi(col, icon, num, label, color, filter_key):
             with col:
                 st.markdown(f"""
@@ -356,84 +254,123 @@ if menu == "⚡ Dashboard":
 
         st.write("")
 
-        # 2. SEZIONE LISTA FILTRATA
+        # --- 2. LISTA DETTAGLIO ---
         if st.session_state.kpi_filter != "None":
             st.divider()
-            c_head, c_close = st.columns([4, 1])
-            with c_head: st.subheader(f"📋 Dettaglio: {st.session_state.kpi_filter}")
-            with c_close: 
-                if st.button("❌ Chiudi"): st.session_state.kpi_filter = "None"; st.rerun()
+            c_head, c_close = st.columns([9, 1])
+            c_head.subheader(f"📋 Lista: {st.session_state.kpi_filter}")
+            if c_close.button("❌"): st.session_state.kpi_filter = "None"; st.rerun()
             
             df_show = pd.DataFrame()
-            if st.session_state.kpi_filter == "Attivi":
-                df_show = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
-            elif st.session_state.kpi_filter == "Disdetti":
-                df_show = df_disdetti
-            elif st.session_state.kpi_filter == "Recall":
-                df_show = da_richiamare
-            elif st.session_state.kpi_filter == "Visite":
-                df_show = df_visite
+            if st.session_state.kpi_filter == "Attivi": df_show = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
+            elif st.session_state.kpi_filter == "Disdetti": df_show = df_disdetti
+            elif st.session_state.kpi_filter == "Recall": df_show = da_richiamare
+            elif st.session_state.kpi_filter == "Visite": df_show = df_visite
 
-            if not df_show.empty:
-                st.dataframe(
-                    df_show[['Nome', 'Cognome', 'Area', 'Data_Disdetta', 'Data_Visita']],
-                    use_container_width=True,
-                    height=300
-                )
-            else:
-                st.info("Nessun paziente in questa lista.")
+            if not df_show.empty: st.dataframe(df_show[['Nome', 'Cognome', 'Area', 'Data_Disdetta', 'Data_Visita']], use_container_width=True, height=250)
+            else: st.info("Nessun dato.")
             st.divider()
 
         st.write("")
 
-        # 3. RIGA AVVISI (LAYOUT VERTICALE)
+        # --- 3. AVVISI (COMPACT LAYOUT) ---
         st.subheader("🔔 Avvisi e Scadenze")
         
-        # --- BLOCCO RECALL ---
-        if len(da_richiamare) > 0:
-            st.markdown(f"<div style='margin-bottom:10px; color:#ed8936; font-weight:600;'>📞 Recall Necessari ({len(da_richiamare)})</div>", unsafe_allow_html=True)
+        # Helper per creare le righe compatte
+        def compact_alert_row(rec_id, name, surname, type_alert):
+            # type_alert: 'recall' (orange), 'expired' (red), 'visit' (blue)
+            
+            border_class = f"border-{type_alert}" if type_alert == 'recall' else (f"border-{type_alert}" if type_alert == 'red' else f"border-{type_alert}")
+            
+            # Creiamo un container visivo per la riga
+            with st.container():
+                # CSS Hack per il background della riga specifica
+                st.markdown(f"""
+                <div class="compact-row {border_class}">
+                    <div class="patient-name">{name} {surname}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Colonne per i pulsanti (sovrapposte visivamente alla riga tramite layout, o appena sotto molto strette)
+                # Per fare un vero layout "in-line" in Streamlit nativo serve st.columns DENTRO il loop
+                c_name, c_act1, c_act2 = st.columns([3, 1, 1])
+                with c_name:
+                    # Spazio vuoto per allineare col div sopra, o testo se preferiamo non usare HTML
+                    # Usiamo HTML sopra per il bordo, qui usiamo colonne per i bottoni
+                    st.write("") # Spacer
+                
+                with c_act1:
+                    if type_alert == 'recall':
+                        if st.button("✅ Rientrato", key=f"btn_ret_{rec_id}", type="primary"):
+                            update_generic("Pazienti", rec_id, {"Disdetto": False}); st.rerun()
+                    elif type_alert == 'red':
+                        if st.button("✅ Rientrato", key=f"btn_vis_ret_{rec_id}", type="primary"):
+                            update_generic("Pazienti", rec_id, {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
+                
+                with c_act2:
+                    if type_alert == 'recall':
+                        if st.button("📆 +1 Settimana", key=f"btn_post_{rec_id}", type="secondary"):
+                            new_date = pd.Timestamp.now() + timedelta(days=7)
+                            update_generic("Pazienti", rec_id, {"Data_Disdetta": new_date}); st.rerun()
+
+        # RECALL (ARANCIO)
+        if not da_richiamare.empty:
+            st.caption(f"📞 Recall Necessari: {len(da_richiamare)}")
             for i, row in da_richiamare.iterrows():
-                rec_id = row['id']
-                with st.container(border=True):
-                    # HTML Custom per il bordo laterale colorato simulato
-                    st.markdown(f'<div class="recall-card-header">{row["Nome"]} {row["Cognome"]}</div>', unsafe_allow_html=True)
-                    
-                    c_btn1, c_btn2 = st.columns(2)
-                    if c_btn1.button("✅ Rientrato", key=f"rec_done_{rec_id}", use_container_width=True):
-                        update_generic("Pazienti", rec_id, {"Disdetto": False}) 
-                        st.rerun()
-                    
-                    if c_btn2.button("📆 +1 Settimana", key=f"rec_postpone_{rec_id}", use_container_width=True):
+                # LAYOUT ORIZZONTALE COMPATTO VERO
+                # Usiamo colonne: [Bordo+Nome (3)] [Btn1 (1)] [Btn2 (1)]
+                c_info, c_btn1, c_btn2 = st.columns([3, 1, 1], gap="small")
+                with c_info:
+                    st.markdown(f"""
+                    <div style="background:rgba(255,255,255,0.05); padding:8px; border-radius:6px; border-left:4px solid #ed8936; display:flex; align-items:center; height:40px;">
+                        <span style="font-weight:600; color:#fff; font-size:14px;">{row['Nome']} {row['Cognome']}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with c_btn1:
+                    st.write("") # spacer verticale micro
+                    if st.button("✅ Rientrato", key=f"rk_{row['id']}", use_container_width=True, type="primary"):
+                        update_generic("Pazienti", row['id'], {"Disdetto": False}); st.rerun()
+                with c_btn2:
+                    st.write("") 
+                    if st.button("📆 +1 Sett", key=f"pk_{row['id']}", use_container_width=True):
                         new_date = row['Data_Disdetta'] + timedelta(days=7)
-                        update_generic("Pazienti", rec_id, {"Data_Disdetta": new_date})
-                        st.rerun()
-        
-        # --- BLOCCO VISITE SCADUTE ---
+                        update_generic("Pazienti", row['id'], {"Data_Disdetta": new_date}); st.rerun()
+
+        # VISITE SCADUTE (ROSSO)
         if not visite_passate.empty:
-            st.markdown(f"<div style='margin-top:20px; margin-bottom:10px; color:#e53e3e; font-weight:600;'>⚠️ Visite Scadute ({len(visite_passate)})</div>", unsafe_allow_html=True)
+            st.caption(f"⚠️ Visite Scadute: {len(visite_passate)}")
             for i, row in visite_passate.iterrows():
-                rec_id = row['id']
-                with st.container(border=True):
-                    st.markdown(f'<div class="alert-card-header">{row["Nome"]} {row["Cognome"]}</div>', unsafe_allow_html=True)
-                    if st.button("Rientrato dalla visita", key=f"rientro_{rec_id}", use_container_width=True):
-                        update_generic("Pazienti", rec_id, {"Visita_Esterna": False, "Data_Visita": None})
-                        st.rerun()
+                c_info, c_btn1, c_void = st.columns([3, 1, 1], gap="small")
+                with c_info:
+                    st.markdown(f"""
+                    <div style="background:rgba(255,255,255,0.05); padding:8px; border-radius:6px; border-left:4px solid #e53e3e; display:flex; align-items:center; height:40px;">
+                        <span style="font-weight:600; color:#fff; font-size:14px;">{row['Nome']} {row['Cognome']}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with c_btn1:
+                    st.write("")
+                    if st.button("✅ Rientrato", key=f"vk_{row['id']}", use_container_width=True, type="primary"):
+                        update_generic("Pazienti", row['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
 
-        # --- BLOCCO VISITE IMMINENTI ---
+        # VISITE IMMINENTI (BLU - SOLO INFO)
         if not visite_imminenti.empty:
-            st.markdown(f"<div style='margin-top:20px; margin-bottom:10px; color:#38b2ac; font-weight:600;'>👨‍⚕️ Visite Imminenti ({len(visite_imminenti)})</div>", unsafe_allow_html=True)
+            st.caption(f"👨‍⚕️ Visite Imminenti: {len(visite_imminenti)}")
             for i, row in visite_imminenti.iterrows():
-                st.info(f"{row['Nome']} {row['Cognome']} - {row['Data_Visita'].strftime('%d/%m')}")
+                st.markdown(f"""
+                <div style="background:rgba(255,255,255,0.03); padding:6px 12px; border-radius:6px; border-left:4px solid #38b2ac; margin-bottom:5px;">
+                    <span style="color:#e2e8f0; font-size:13px;">{row['Nome']} {row['Cognome']}</span> 
+                    <span style="float:right; color:#38b2ac; font-weight:bold;">{row['Data_Visita'].strftime('%d/%m')}</span>
+                </div>
+                """, unsafe_allow_html=True)
 
-        if len(da_richiamare) == 0 and visite_passate.empty and visite_imminenti.empty:
-            st.success("✅ Nessun avviso urgente. Tutto regolare.")
+        if da_richiamare.empty and visite_passate.empty and visite_imminenti.empty:
+            st.success("Tutto tranquillo! Nessun avviso.")
 
         st.divider()
 
-        # 4. RIGA GRAFICO (LAYOUT VERTICALE)
+        # --- 4. GRAFICO (LARGO SOTTO) ---
         st.subheader("📈 Performance Aree")
         df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
-        
         all_areas = []
         if 'Area' in df_attivi.columns:
             for item in df_attivi['Area'].dropna():
@@ -444,20 +381,16 @@ if menu == "⚡ Dashboard":
         if all_areas:
             counts = pd.Series(all_areas).value_counts().reset_index()
             counts.columns = ['Area', 'Pazienti']
-            
             domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
             range_ = ["#4299e1", "#ed8936", "#38b2ac", "#9f7aea", "#f56565", "#a0aec0"]
-            
             chart = alt.Chart(counts).mark_bar(cornerRadius=6, height=35).encode(
                 x=alt.X('Pazienti', axis=None), 
                 y=alt.Y('Area', sort='-x', title=None, axis=alt.Axis(domain=False, ticks=False, labelColor="#cbd5e0", labelFontSize=14)),
                 color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None),
                 tooltip=['Area', 'Pazienti']
             ).properties(height=400).configure_view(strokeWidth=0).configure_axis(grid=False)
-            
             st.altair_chart(chart, use_container_width=True)
-        else:
-            st.info("I dati sulle aree saranno visualizzati qui.")
+        else: st.info("Dati insufficienti.")
 
 # =========================================================
 # SEZIONE 2: PAZIENTI
