@@ -4,6 +4,8 @@ from pyairtable import Api
 import pandas as pd
 import altair as alt
 from datetime import date, datetime, timedelta
+import io
+import os
 import base64
 
 # =========================================================
@@ -65,7 +67,12 @@ st.markdown("""
         transform: translateY(-5px);
         background: rgba(255, 255, 255, 0.06);
     }
-    .kpi-icon { font-size: 32px; margin-bottom: 8px; transition: transform 0.3s ease; filter: drop-shadow(0 0 5px rgba(255,255,255,0.3)); }
+    .kpi-icon { 
+        font-size: 32px; 
+        margin-bottom: 8px; 
+        transition: transform 0.3s ease;
+        filter: drop-shadow(0 0 5px rgba(255,255,255,0.3));
+    }
     .glass-kpi:hover .kpi-icon { transform: scale(1.1); }
     .kpi-value { font-size: 36px; font-weight: 800; color: white; line-height: 1; letter-spacing: -1px; }
     .kpi-label { font-size: 11px; text-transform: uppercase; color: #a0aec0; margin-top: 8px; letter-spacing: 1.5px; font-weight: 600; }
@@ -90,13 +97,33 @@ st.markdown("""
     .border-red { border-left: 4px solid #e53e3e !important; }
     .border-blue { border-left: 4px solid #0bc5ea !important; }
 
+    /* --- PULSANTI AZIONE --- */
+    div[data-testid="stHorizontalBlock"] button {
+        padding: 2px 12px !important;
+        font-size: 11px !important;
+        min-height: 0px !important;
+        height: 32px !important;
+        line-height: 1 !important;
+        border-radius: 8px !important;
+        margin-top: 6px !important;
+        font-weight: 500 !important;
+    }
+    
+    button[kind="primary"] {
+        background: linear-gradient(135deg, #3182ce, #2b6cb0) !important;
+        border: none !important;
+        color: white !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
+    }
+    button[kind="secondary"] {
+        background: rgba(255, 255, 255, 0.08) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        color: #cbd5e0 !important;
+    }
+
     /* --- ALTRI --- */
     div[data-testid="stDataFrame"] { background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; }
     input, select, textarea { background-color: rgba(13, 17, 23, 0.8) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: white !important; border-radius: 8px; }
-    
-    /* Bottoni Stile */
-    button[kind="primary"] { background: linear-gradient(135deg, #3182ce, #2b6cb0) !important; border: none; color: white; }
-    button[kind="secondary"] { background: rgba(255, 255, 255, 0.08) !important; border: 1px solid rgba(255, 255, 255, 0.15); color: #cbd5e0; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -105,12 +132,12 @@ try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except:
-    API_KEY = "tuo_token"
-    BASE_ID = "tuo_base_id"
+    API_KEY = "key"
+    BASE_ID = "id"
 
 api = Api(API_KEY)
 
-# --- 2. FUNZIONI UTILI ---
+# --- 2. FUNZIONI ---
 @st.cache_data(ttl=60)
 def get_data(table_name):
     try:
@@ -161,8 +188,8 @@ def get_base64_image(image_path):
     except:
         return ""
 
-# --- FUNZIONE GENERAZIONE HTML PERFETTO (LAYOUT PDF) ---
-def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale_complessivo, logo_b64, auto_print=False):
+# --- FUNZIONE GENERAZIONE HTML PER STAMPA PERFETTA ---
+def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale_complessivo, logo_b64=None, auto_print=False):
     # Costruzione righe tabella HTML
     rows_html = ""
     for r in righe_preventivo:
@@ -174,19 +201,22 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
         </tr>
         """
     
-    # Gestione Header con Logo o Testo
+    # Gestione Intestazione: Se c'è il logo usa l'immagine, altrimenti testo stilizzato come il PDF
     if logo_b64:
         header_content = f'<img src="data:image/png;base64,{logo_b64}" class="logo-img" alt="Logo">'
     else:
+        # Fallback testuale che imita il logo del PDF caricato
         header_content = """
-        <div class="doc-brand-top">studio</div>
-        <div class="doc-brand-main">FOCUS RIABILITAZIONE SPECIALISTICA</div>
+        <div class="brand-text-container">
+            <div class="doc-brand-top">studio</div>
+            <div class="doc-brand-main">FOCUS</div>
+            <div class="doc-brand-sub">RIABILITAZIONE SPECIALISTICA</div>
+        </div>
         """
 
-    # Script per la stampa automatica (fondamentale per il tasto "Stampa/Salva PDF")
+    # Script per la stampa automatica
     print_script = "<script>window.print();</script>" if auto_print else ""
-    
-    # Se è auto_print, nascondiamo la barra dei pulsanti dell'anteprima
+    # Nasconde la barra dei pulsanti se si sta stampando automaticamente
     action_bar_style = "display:none;" if auto_print else "display:flex;"
 
     html_content = f"""
@@ -194,12 +224,12 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
     <html lang="it">
     <head>
         <meta charset="UTF-8">
-        <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700;800&display=swap" rel="stylesheet">
         <style>
             /* STILE GENERALE */
             body {{ font-family: 'Segoe UI', sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; color: #333; }}
             
-            /* BOTTONE DOWNLOAD (Visibile solo in anteprima manuale) */
+            /* BOTTONE DOWNLOAD */
             .action-bar {{ margin-bottom: 20px; justify-content: flex-end; {action_bar_style} }}
             .btn-download {{
                 background-color: #e74c3c; color: white; border: none; padding: 12px 25px;
@@ -214,13 +244,33 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
                 padding: 20mm; box-shadow: 0 0 15px rgba(0,0,0,0.15); position: relative; box-sizing: border-box;
             }}
 
-            /* LOGHI E TITOLI */
-            .logo-img {{ max-width: 250px; height: auto; margin-bottom: 20px; display: block; }}
-            .doc-brand-top {{ font-size: 11px; text-transform: uppercase; color: #666; letter-spacing: 3px; margin-bottom: 5px; }}
-            .doc-brand-main {{ font-size: 22px; font-weight: 800; color: #000; text-transform: uppercase; }}
+            /* INTESTAZIONE / LOGO */
+            .doc-header {{ 
+                text-align: center; /* CENTRATO COME RICHIESTO */
+                margin-bottom: 40px; 
+            }}
+            .logo-img {{ 
+                max-width: 200px; 
+                height: auto; 
+                display: block; 
+                margin: 0 auto; /* Centra l'immagine */
+            }}
             
-            .doc-title-row {{ margin-top: 10px; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 25px; }}
-            .doc-title {{ font-size: 20px; font-weight: 700; color: #2c3e50; text-transform: uppercase; margin: 0; }}
+            /* Fallback testo se manca logo.png */
+            .brand-text-container {{ text-align: center; }}
+            .doc-brand-top {{ font-size: 12px; text-transform: uppercase; color: #666; letter-spacing: 4px; margin-bottom: 2px; }}
+            .doc-brand-main {{ font-size: 32px; font-weight: 800; color: #000; text-transform: uppercase; letter-spacing: 2px; line-height: 1; }}
+            .doc-brand-sub {{ font-size: 14px; font-weight: 700; color: #333; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px; }}
+
+            /* TITOLO DOCUMENTO */
+            .doc-title-row {{ 
+                margin-top: 20px; 
+                border-bottom: 2px solid #2c3e50; 
+                padding-bottom: 15px; 
+                margin-bottom: 30px; 
+                text-align: left; /* Il titolo del documento rimane a sinistra o centro? Nel PDF sembra a sinistra con linea */
+            }}
+            .doc-title {{ font-size: 22px; font-weight: 700; color: #2c3e50; text-transform: uppercase; margin: 0; }}
 
             /* INFO */
             .info-grid {{ display: flex; justify-content: space-between; margin-bottom: 30px; font-size: 15px; }}
@@ -239,21 +289,21 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
             .row-total td {{ border-top: 2px solid #333; font-size: 18px; font-weight: 700; padding-top: 15px; color: #000; }}
 
             /* PIANO PAGAMENTO */
-            .payment-box {{ border: 1px solid #ccc; padding: 20px; border-radius: 4px; page-break-inside: avoid; }}
+            .payment-box {{ border: 1px solid #ccc; padding: 20px; border-radius: 4px; }}
             .payment-header {{ font-weight: 700; text-transform: uppercase; font-size: 14px; margin-bottom: 15px; }}
             .pay-row {{ display: flex; gap: 20px; font-size: 14px; margin-bottom: 10px; }}
             .line-placeholder {{ border-bottom: 1px solid #333; display: inline-block; min-width: 80px; }}
             .date-placeholder {{ border-bottom: 1px solid #333; display: inline-block; min-width: 120px; }}
 
             /* FIRMA */
-            .footer-signature {{ margin-top: 50px; display: flex; justify-content: flex-end; page-break-inside: avoid; }}
+            .footer-signature {{ margin-top: 50px; display: flex; justify-content: flex-end; }}
             .sign-block {{ text-align: center; width: 250px; }}
             .sign-line {{ border-bottom: 1px solid #000; height: 1px; margin-top: 40px; }}
 
             /* STAMPA */
             @media print {{
                 @page {{ size: A4; margin: 0; }}
-                body {{ background: none; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; padding: 0; margin: 0; }}
+                body {{ background: none; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; padding: 0; }}
                 .action-bar {{ display: none !important; }}
                 .sheet-a4 {{ box-shadow: none; margin: 0; width: 100%; page-break-after: always; }}
             }}
@@ -320,15 +370,15 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
 
 # --- 3. INTERFACCIA ---
 with st.sidebar:
+    LOGO_B64 = ""
     try: 
         st.image("logo.png", use_container_width=True)
-        LOGO_B64 = get_base64_image("logo.png") # Carica il logo in memoria
+        LOGO_B64 = get_base64_image("logo.png") # Carica il logo in memoria per il PDF
     except: 
         st.title("Focus Rehab")
-        LOGO_B64 = ""
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v56 - Full Code")
+    st.divider(); st.caption("App v57 - Final Print Style")
 
 # =========================================================
 # DASHBOARD
@@ -434,7 +484,6 @@ elif menu == "👥 Pazienti":
         with col_search: search = st.text_input("🔍 Cerca Paziente")
         df_filt = df_original[df_original['Cognome'].astype(str).str.contains(search, case=False, na=False)] if search else df_original
         
-        # Editor completo
         edited = st.data_editor(
             df_filt[['Nome', 'Cognome', 'Area', 'Disdetto', 'Data_Disdetta', 'Visita_Esterna', 'Data_Visita', 'id']],
             hide_index=True, use_container_width=True, key="editor_main",
@@ -447,12 +496,6 @@ elif menu == "👥 Pazienti":
         )
         
         if st.button("💾 Salva Modifiche Tabella", type="primary"):
-             # Logica semplificata di salvataggio bulk
-             cnt=0
-             for i, row in edited.iterrows():
-                 # Qui servirebbe confronto con originale, semplifico per brevità:
-                 # In un caso reale, controllare diff per evitare chiamate API inutili
-                 pass 
              st.toast("Modifiche salvate (simulazione)", icon="✅")
 
 # =========================================================
