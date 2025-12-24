@@ -373,7 +373,7 @@ with st.sidebar:
         ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"],
         label_visibility="collapsed"
     )
-    st.divider(); st.caption("System v3.8 - Elegant")
+    st.divider(); st.caption("System v3.8 - Stable")
 
 # ==============================================================================
 # SEZIONE 1: DASHBOARD
