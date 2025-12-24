@@ -1,15 +1,14 @@
 import streamlit as st
 from pyairtable import Api
 import pandas as pd
-from requests.exceptions import HTTPError
 import altair as alt
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from fpdf import FPDF
 import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE (BASE + GHOST BUTTONS)
+# 0. CONFIGURAZIONE & STILE (MODERN BLUE BUTTONS)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -50,7 +49,7 @@ st.markdown("""
     }
     h2, h3, h4, h5 { color: #FFF !important; font-weight: 600; }
 
-    /* --- 1. NUOVE KPI CARDS (VISUALI) --- */
+    /* --- 1. KPI CARDS (VISUALI) --- */
     .glass-kpi {
         background: var(--glass-bg);
         backdrop-filter: blur(10px);
@@ -64,41 +63,49 @@ st.markdown("""
         justify-content: center;
         height: 130px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        margin-bottom: 8px; /* Spazio per il bottone sotto */
+        margin-bottom: 8px;
     }
     .kpi-icon { font-size: 26px; margin-bottom: 5px; }
     .kpi-value { font-size: 30px; font-weight: 800; color: white; line-height: 1.1; }
     .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #a0aec0; margin-top: 5px; }
 
-    /* --- 2. PULSANTI "GHOST" (Sotto le card) --- */
-    /* Target specifico: pulsanti nelle colonne principali della dashboard */
+    /* --- 2. PULSANTI "MODERN BLUE" (Per Dashboard) --- */
+    /* Questo stile si applica ai bottoni sotto le card */
     div[data-testid="column"] .stButton > button {
-        background-color: transparent !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        color: #a0aec0 !important;
-        border-radius: 10px !important;
-        font-size: 12px !important;
-        font-weight: 500 !important;
-        padding: 4px 0 !important;
+        background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important; /* Gradiente Blu */
+        border: none !important;
+        color: white !important;
+        border-radius: 12px !important; /* Arrotondati */
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        padding: 6px 0 !important;
         width: 100% !important;
-        transition: all 0.2s ease !important;
+        box-shadow: 0 4px 6px rgba(66, 153, 225, 0.25) !important; /* Ombra Blu (Glow) */
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
     }
 
+    /* Effetto Hover "Lift" */
     div[data-testid="column"] .stButton > button:hover {
-        border-color: #4299e1 !important;
-        color: white !important;
-        background-color: rgba(66, 153, 225, 0.1) !important;
-        transform: translateY(-2px);
+        transform: translateY(-3px) !important; /* Si alza */
+        box-shadow: 0 7px 14px rgba(66, 153, 225, 0.4) !important; /* L'ombra aumenta */
+        background: linear-gradient(135deg, #63b3ed 0%, #4299e1 100%) !important; /* Diventa più chiaro */
+    }
+    
+    div[data-testid="column"] .stButton > button:active {
+        transform: translateY(1px) !important;
+        box-shadow: 0 2px 4px rgba(66, 153, 225, 0.3) !important;
     }
 
     /* --- 3. PULSANTI AZIONE STANDARD (Salva/Fatto/Rientrato) --- */
-    /* Target: pulsanti dentro i blocchi verticali (es. liste avvisi) */
     div[data-testid="stVerticalBlock"] .stButton > button {
         background: linear-gradient(135deg, #3182ce, #2b6cb0) !important;
         border: none !important;
         color: white !important;
         padding: 0.5rem 1rem !important;
         font-weight: 600 !important;
+        border-radius: 8px !important;
     }
 
     /* --- ALTRI ELEMENTI --- */
@@ -285,7 +292,7 @@ with st.sidebar:
         label_visibility="collapsed"
     )
     st.divider()
-    st.markdown("<div style='text-align:center; color:#64748b; font-size:11px;'>Focus App v3.3 - Enhanced</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align:center; color:#64748b; font-size:11px;'>Focus App v3.3 - Modern</div>", unsafe_allow_html=True)
 
 # =========================================================
 # SEZIONE 1: DASHBOARD (NUOVO DESIGN KPI)
@@ -337,8 +344,8 @@ if menu == "⚡ Dashboard":
                     <div class="kpi-label">{label}</div>
                 </div>
                 """, unsafe_allow_html=True)
-                # PULSANTE MINIMAL GHOST
-                if st.button("🔽 Dettagli", key=f"btn_{filter_key}"):
+                # PULSANTE MODERN BLUE
+                if st.button("Vedi Lista", key=f"btn_{filter_key}"):
                     st.session_state.kpi_filter = filter_key
 
         draw_kpi(col1, "👥", cnt_attivi, "Attivi", "#4299e1", "Attivi")
