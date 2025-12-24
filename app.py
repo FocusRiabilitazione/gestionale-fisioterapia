@@ -2,13 +2,13 @@ import streamlit as st
 from pyairtable import Api
 import pandas as pd
 import altair as alt
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from fpdf import FPDF
 import io
 import os
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE (MODERN BLUE + LAYOUT VERTICALE)
+# 0. CONFIGURAZIONE & STILE (MODERN BLUE + AVVISI FIX)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -91,11 +91,6 @@ st.markdown("""
         background: linear-gradient(135deg, #63b3ed 0%, #4299e1 100%) !important;
     }
     
-    div[data-testid="column"] .stButton > button:active {
-        transform: translateY(1px) !important;
-        box-shadow: 0 2px 4px rgba(66, 153, 225, 0.3) !important;
-    }
-
     /* --- 3. PULSANTI AZIONE STANDARD --- */
     div[data-testid="stVerticalBlock"] .stButton > button {
         background: linear-gradient(135deg, #3182ce, #2b6cb0) !important;
@@ -118,14 +113,23 @@ st.markdown("""
         color: white !important;
         border-radius: 8px;
     }
-    .streamlit-expanderHeader {
-        background-color: rgba(255,255,255,0.02);
-        border-radius: 8px;
-        color: white;
+    
+    /* Custom Card per Avvisi */
+    .recall-card-header {
+        border-left: 5px solid #ed8936;
+        padding-left: 10px;
+        margin-bottom: 10px;
+        font-weight: bold;
+        font-size: 1.1em;
+        color: #fbd38d;
     }
-    .alert-box {
-        padding: 15px; border-radius: 12px; margin-bottom: 10px;
-        border-left: 4px solid; background: rgba(255,255,255,0.03);
+    .alert-card-header {
+        border-left: 5px solid #e53e3e;
+        padding-left: 10px;
+        margin-bottom: 10px;
+        font-weight: bold;
+        font-size: 1.1em;
+        color: #feb2b2;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -290,7 +294,7 @@ with st.sidebar:
         label_visibility="collapsed"
     )
     st.divider()
-    st.markdown("<div style='text-align:center; color:#64748b; font-size:11px;'>Focus App v3.4 - Vertical Layout</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align:center; color:#64748b; font-size:11px;'>Focus App v3.5 - Alerts Fix</div>", unsafe_allow_html=True)
 
 # =========================================================
 # SEZIONE 1: DASHBOARD (NUOVO DESIGN KPI)
@@ -342,7 +346,6 @@ if menu == "⚡ Dashboard":
                     <div class="kpi-label">{label}</div>
                 </div>
                 """, unsafe_allow_html=True)
-                # PULSANTE MODERN BLUE
                 if st.button("Vedi Lista", key=f"btn_{filter_key}"):
                     st.session_state.kpi_filter = filter_key
 
@@ -383,54 +386,51 @@ if menu == "⚡ Dashboard":
 
         st.write("")
 
-        # 3. RIGA AVVISI (TUTTA LA LARGHEZZA)
-        st.subheader("🔔 Avvisi")
-        has_alerts = False
+        # 3. RIGA AVVISI (LAYOUT VERTICALE)
+        st.subheader("🔔 Avvisi e Scadenze")
         
-        # Uso st.container per raggruppare visivamente se necessario, ma qui scriviamo diretto
-        if not visite_imminenti.empty:
-            has_alerts = True
-            st.markdown(f"""<div class="alert-box" style='border-color:#38b2ac'>
-                <strong style='color:#38b2ac'>👨‍⚕️ Visite Imminenti ({len(visite_imminenti)})</strong><br>
-                {'<br>'.join([f"• {row['Nome']} {row['Cognome']} ({row['Data_Visita'].strftime('%d/%m')})" for i, row in visite_imminenti.iterrows()])}
-                </div>""", unsafe_allow_html=True)
-
-        if not visite_passate.empty:
-            has_alerts = True
-            st.markdown(f"""<div class="alert-box" style='border-color:#e53e3e'>
-                <strong style='color:#e53e3e'>⚠️ Visite Scadute</strong>
-                </div>""", unsafe_allow_html=True)
-            # Qui possiamo mettere più colonne per i pulsanti se sono tanti
-            for i, row in visite_passate.iterrows():
-                rec_id = row['id']
-                with st.container(border=True):
-                    c1, c2 = st.columns([4, 1])
-                    c1.write(f"**{row['Nome']} {row['Cognome']}**")
-                    if c2.button("Rientrato", key=f"rientro_{rec_id}"):
-                        update_generic("Pazienti", rec_id, {"Visita_Esterna": False, "Data_Visita": None})
-                        st.rerun()
-
+        # --- BLOCCO RECALL ---
         if len(da_richiamare) > 0:
-            has_alerts = True
-            st.markdown(f"""<div class="alert-box" style='border-color:#ed8936'>
-                <strong style='color:#ed8936'>📞 Recall Necessari ({len(da_richiamare)})</strong><br>
-                {'<br>'.join([f"• {row['Nome']} {row['Cognome']}" for i, row in da_richiamare.iterrows()])}
-                </div>""", unsafe_allow_html=True)
+            st.markdown(f"<div style='margin-bottom:10px; color:#ed8936; font-weight:600;'>📞 Recall Necessari ({len(da_richiamare)})</div>", unsafe_allow_html=True)
             for i, row in da_richiamare.iterrows():
                 rec_id = row['id']
                 with st.container(border=True):
-                    c1, c2 = st.columns([4, 1])
-                    c1.write(f"**{row['Nome']} {row['Cognome']}**")
-                    if c2.button("Fatto", key=f"rec_done_{rec_id}"):
+                    # HTML Custom per il bordo laterale colorato simulato
+                    st.markdown(f'<div class="recall-card-header">{row["Nome"]} {row["Cognome"]}</div>', unsafe_allow_html=True)
+                    
+                    c_btn1, c_btn2 = st.columns(2)
+                    if c_btn1.button("✅ Rientrato", key=f"rec_done_{rec_id}", use_container_width=True):
                         update_generic("Pazienti", rec_id, {"Disdetto": False}) 
                         st.rerun()
+                    
+                    if c_btn2.button("📆 +1 Settimana", key=f"rec_postpone_{rec_id}", use_container_width=True):
+                        new_date = row['Data_Disdetta'] + timedelta(days=7)
+                        update_generic("Pazienti", rec_id, {"Data_Disdetta": new_date})
+                        st.rerun()
+        
+        # --- BLOCCO VISITE SCADUTE ---
+        if not visite_passate.empty:
+            st.markdown(f"<div style='margin-top:20px; margin-bottom:10px; color:#e53e3e; font-weight:600;'>⚠️ Visite Scadute ({len(visite_passate)})</div>", unsafe_allow_html=True)
+            for i, row in visite_passate.iterrows():
+                rec_id = row['id']
+                with st.container(border=True):
+                    st.markdown(f'<div class="alert-card-header">{row["Nome"]} {row["Cognome"]}</div>', unsafe_allow_html=True)
+                    if st.button("Rientrato dalla visita", key=f"rientro_{rec_id}", use_container_width=True):
+                        update_generic("Pazienti", rec_id, {"Visita_Esterna": False, "Data_Visita": None})
+                        st.rerun()
 
-        if not has_alerts and visite_imminenti.empty and visite_passate.empty and len(da_richiamare) == 0:
-            st.success("✅ Nessun avviso urgente.")
+        # --- BLOCCO VISITE IMMINENTI ---
+        if not visite_imminenti.empty:
+            st.markdown(f"<div style='margin-top:20px; margin-bottom:10px; color:#38b2ac; font-weight:600;'>👨‍⚕️ Visite Imminenti ({len(visite_imminenti)})</div>", unsafe_allow_html=True)
+            for i, row in visite_imminenti.iterrows():
+                st.info(f"{row['Nome']} {row['Cognome']} - {row['Data_Visita'].strftime('%d/%m')}")
 
-        st.divider() # Separatore visivo
+        if len(da_richiamare) == 0 and visite_passate.empty and visite_imminenti.empty:
+            st.success("✅ Nessun avviso urgente. Tutto regolare.")
 
-        # 4. RIGA GRAFICO (TUTTA LA LARGHEZZA)
+        st.divider()
+
+        # 4. RIGA GRAFICO (LAYOUT VERTICALE)
         st.subheader("📈 Performance Aree")
         df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
         
@@ -448,12 +448,12 @@ if menu == "⚡ Dashboard":
             domain = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
             range_ = ["#4299e1", "#ed8936", "#38b2ac", "#9f7aea", "#f56565", "#a0aec0"]
             
-            chart = alt.Chart(counts).mark_bar(cornerRadius=6, height=35).encode( # Aumentata altezza barre
+            chart = alt.Chart(counts).mark_bar(cornerRadius=6, height=35).encode(
                 x=alt.X('Pazienti', axis=None), 
-                y=alt.Y('Area', sort='-x', title=None, axis=alt.Axis(domain=False, ticks=False, labelColor="#cbd5e0", labelFontSize=14)), # Font più grande
+                y=alt.Y('Area', sort='-x', title=None, axis=alt.Axis(domain=False, ticks=False, labelColor="#cbd5e0", labelFontSize=14)),
                 color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None),
                 tooltip=['Area', 'Pazienti']
-            ).properties(height=400).configure_view(strokeWidth=0).configure_axis(grid=False) # Grafico più alto
+            ).properties(height=400).configure_view(strokeWidth=0).configure_axis(grid=False)
             
             st.altair_chart(chart, use_container_width=True)
         else:
