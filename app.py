@@ -82,7 +82,7 @@ st.markdown("""
     .kpi-value { font-size: 36px; font-weight: 800; color: white; line-height: 1; letter-spacing: -1px; }
     .kpi-label { font-size: 11px; text-transform: uppercase; color: #a0aec0; margin-top: 8px; letter-spacing: 1.5px; font-weight: 600; }
 
-    /* --- PULSANTI --- */
+    /* --- PULSANTI DASHBOARD (SOTTO LE CARD) --- */
     div[data-testid="column"] .stButton > button {
         background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
         border: none !important;
@@ -121,7 +121,7 @@ st.markdown("""
     .border-orange { border-left: 4px solid #ed8936 !important; }
     .border-red { border-left: 4px solid #e53e3e !important; }
     .border-blue { border-left: 4px solid #0bc5ea !important; }
-    .border-purple { border-left: 4px solid #9f7aea !important; }
+    .border-purple { border-left: 4px solid #9f7aea !important; } /* Colore viola per preventivi */
 
     /* --- PULSANTI AZIONE (Neutri & Eleganti) --- */
     div[data-testid="stHorizontalBlock"] button {
@@ -209,7 +209,7 @@ def save_preventivo_temp(paziente, dettagli_str, totale, note):
     try: api.table(BASE_ID, "Preventivi_Salvati").create({"Paziente": paziente, "Dettagli": dettagli_str, "Totale": totale, "Note": note, "Data_Creazione": str(date.today())}, typecast=True); get_data.clear(); return True
     except: return False
 
-# --- FUNZIONE SALVATAGGIO MAGAZZINO AVANZATO ---
+# --- NUOVA FUNZIONE SALVATAGGIO MAGAZZINO CON "MATERIALI" ---
 def save_materiale_avanzato(materiale, area, quantita, obiettivo, soglia):
     try: 
         api.table(BASE_ID, "Inventario").create({
@@ -224,6 +224,10 @@ def save_materiale_avanzato(materiale, area, quantita, obiettivo, soglia):
     except Exception as e:
         st.error(f"Errore DB: {e}")
         return False
+
+def save_prodotto(prodotto, quantita):
+    try: api.table(BASE_ID, "Inventario").create({"Prodotto": prodotto, "Quantita": quantita}, typecast=True); get_data.clear(); return True
+    except: return False
 
 def save_prestito(paziente, oggetto, data_prestito):
     try: api.table(BASE_ID, "Prestiti").create({"Paziente": paziente, "Oggetto": oggetto, "Data_Prestito": str(data_prestito), "Restituito": False}, typecast=True); get_data.clear(); return True
@@ -245,6 +249,7 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
     if logo_b64:
         header_content = f"<div style='text-align:center;'><img src='data:image/png;base64,{logo_b64}' class='logo-img'></div>"
     else:
+        # Fallback testuale se manca il logo
         header_content = """
         <div class='brand-text-container'>
             <div class='brand-small'>studio</div>
@@ -412,7 +417,7 @@ with st.sidebar:
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v70 - Magazzino & Preventivi")
+    st.divider(); st.caption("App v71 - Final Features")
 
 # =========================================================
 # DASHBOARD
@@ -424,8 +429,8 @@ if menu == "⚡ Dashboard":
     if 'kpi_filter' not in st.session_state: st.session_state.kpi_filter = "None"
 
     df = get_data("Pazienti")
-    df_prev = get_data("Preventivi_Salvati") # Carico i preventivi
-    df_inv = get_data("Inventario") # Carico magazzino per alert
+    df_prev = get_data("Preventivi_Salvati") # Carico anche i preventivi
+    df_inv = get_data("Inventario") # Carico inventario per alert
     
     if not df.empty:
         # Preprocessing
@@ -460,85 +465,135 @@ if menu == "⚡ Dashboard":
         # Calcolo Scorte Basse
         low_stock = pd.DataFrame()
         if not df_inv.empty:
-            for c in ['Quantita', 'Soglia_Minima', 'Materiali']:
+            # Assicuro che le colonne esistano per evitare crash
+            for c in ['Quantita', 'Soglia_Minima']:
                 if c not in df_inv.columns: df_inv[c] = 0
             low_stock = df_inv[df_inv['Quantita'] <= df_inv['Soglia_Minima']]
 
-        # KPI CARDS (5 COLONNE)
+        # --- 1. KPI CARDS (MODIFICATO A 5 COLONNE) ---
         col1, col2, col3, col4, col5 = st.columns(5)
         def draw_kpi(col, icon, num, label, color, filter_key):
             with col:
-                st.markdown(f"""<div class="glass-kpi" style="border-bottom: 4px solid {color};"><div class="kpi-icon" style="color:{color};">{icon}</div><div class="kpi-value">{num}</div><div class="kpi-label">{label}</div></div>""", unsafe_allow_html=True)
-                if st.button("Vedi Lista", key=f"btn_{filter_key}"): st.session_state.kpi_filter = filter_key
+                st.markdown(f"""
+                <div class="glass-kpi" style="border-bottom: 4px solid {color};">
+                    <div class="kpi-icon" style="color:{color}; filter: drop-shadow(0 0 8px {color}88);">{icon}</div>
+                    <div class="kpi-value">{num}</div>
+                    <div class="kpi-label">{label}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("Vedi Lista", key=f"btn_{filter_key}"):
+                    st.session_state.kpi_filter = filter_key
+
         draw_kpi(col1, "👥", cnt_attivi, "Attivi", "#2ecc71", "Attivi")
         draw_kpi(col2, "📉", len(df_disdetti), "Disdetti", "#e53e3e", "Disdetti")
         draw_kpi(col3, "💡", len(da_richiamare), "Recall", "#ed8936", "Recall")
         draw_kpi(col4, "🩺", len(visite_imminenti), "Visite", "#0bc5ea", "Visite")
-        draw_kpi(col5, "💳", cnt_prev, "Preventivi", "#9f7aea", "Preventivi")
+        draw_kpi(col5, "💳", cnt_prev, "Preventivi", "#9f7aea", "Preventivi") # Nuovo KPI
 
         st.write("")
+
+        # --- 2. LISTA DETTAGLIO ---
         if st.session_state.kpi_filter != "None":
-            st.divider(); c_head, c_close = st.columns([9, 1])
+            st.divider()
+            c_head, c_close = st.columns([9, 1])
             c_head.subheader(f"📋 Lista: {st.session_state.kpi_filter}")
             if c_close.button("❌"): st.session_state.kpi_filter = "None"; st.rerun()
+            
             df_show = pd.DataFrame()
             if st.session_state.kpi_filter == "Attivi": df_show = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
             elif st.session_state.kpi_filter == "Disdetti": df_show = df_disdetti
             elif st.session_state.kpi_filter == "Recall": df_show = da_richiamare
             elif st.session_state.kpi_filter == "Visite": df_show = df_visite
-            elif st.session_state.kpi_filter == "Preventivi": df_show = df_prev
-            if not df_show.empty: 
+            elif st.session_state.kpi_filter == "Preventivi": df_show = df_prev # Mostra preventivi
+
+            if not df_show.empty:
+                # Selettore colonne smart
                 cols_to_show = ['Nome', 'Cognome', 'Area', 'Data_Disdetta', 'Data_Visita']
-                if st.session_state.kpi_filter == "Preventivi": cols_to_show = ['Paziente', 'Data_Creazione', 'Totale']
+                if st.session_state.kpi_filter == "Preventivi":
+                    cols_to_show = ['Paziente', 'Data_Creazione', 'Totale']
+                
                 valid_show = [c for c in cols_to_show if c in df_show.columns]
                 st.dataframe(df_show[valid_show], use_container_width=True, height=250)
             else: st.info("Nessun dato.")
             st.divider()
 
         st.write("")
+
+        # --- 3. AVVISI ---
         st.subheader("🔔 Avvisi e Scadenze")
         
-        # ALERT MAGAZZINO
+        # ALERT MAGAZZINO BASSO (NUOVO)
         if not low_stock.empty:
             st.error(f"⚠️ ATTENZIONE: {len(low_stock)} prodotti in esaurimento!")
             for i, row in low_stock.iterrows():
                 mat_name = row.get('Materiali', 'Sconosciuto')
-                st.markdown(f"""<div class="alert-row-name border-red" style="justify-content: space-between;"><span>📦 {mat_name} (Zona: {row.get('Area','-')})</span><span>Qta: <strong>{row.get('Quantita',0)}</strong> (Min: {row.get('Soglia_Minima',0)})</span></div>""", unsafe_allow_html=True)
-        
-        # ALERT PREVENTIVI
+                st.markdown(f"""
+                <div class="alert-row-name border-red" style="justify-content: space-between;">
+                    <span>📦 {mat_name} (Zona: {row.get('Area','-')})</span>
+                    <span>Qta: <strong>{row.get('Quantita',0)}</strong> (Min: {row.get('Soglia_Minima',0)})</span>
+                </div>
+                """, unsafe_allow_html=True)
+
+        # ALERT PREVENTIVI SCADUTI (NUOVO)
         if not prev_scaduti.empty:
             st.caption(f"⏳ Preventivi in Sospeso (> 7gg): {len(prev_scaduti)}")
             for i, row in prev_scaduti.iterrows():
                 c_info, c_btn1, c_btn2 = st.columns([3, 1, 1], gap="small")
-                with c_info: st.markdown(f"""<div class="alert-row-name border-purple">{row['Paziente']} ({row['Data_Creazione'].strftime('%d/%m')})</div>""", unsafe_allow_html=True)
+                with c_info:
+                    st.markdown(f"""<div class="alert-row-name border-purple">{row['Paziente']} ({row['Data_Creazione'].strftime('%d/%m')})</div>""", unsafe_allow_html=True)
                 with c_btn1:
-                    if st.button("📞 Rinnova", key=f"ren_{row['id']}", type="primary"): update_generic("Preventivi_Salvati", row['id'], {"Data_Creazione": str(date.today())}); st.rerun()
+                    # Rinnova: Aggiorna data a oggi
+                    if st.button("📞 Rinnova", key=f"ren_{row['id']}", type="primary"):
+                        update_generic("Preventivi_Salvati", row['id'], {"Data_Creazione": str(date.today())}); st.rerun()
                 with c_btn2:
-                    if st.button("🗑️ Elimina", key=f"del_prev_{row['id']}", type="secondary"): delete_generic("Preventivi_Salvati", row['id']); st.rerun()
+                    # Elimina
+                    if st.button("🗑️ Elimina", key=f"del_prev_{row['id']}", type="secondary"):
+                        delete_generic("Preventivi_Salvati", row['id']); st.rerun()
 
+        # RECALL
         if not da_richiamare.empty:
             st.caption(f"📞 Recall Necessari: {len(da_richiamare)}")
             for i, row in da_richiamare.iterrows():
                 c_info, c_btn1, c_btn2 = st.columns([3, 1, 1], gap="small")
-                with c_info: st.markdown(f"""<div class="alert-row-name border-orange">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
-                with c_btn1: 
-                    if st.button("✅ Rientrato", key=f"rk_{row['id']}", type="primary"): update_generic("Pazienti", row['id'], {"Disdetto": False, "Data_Disdetta": None}); st.rerun()
-                with c_btn2: 
-                    if st.button("📅 Rimandare", key=f"pk_{row['id']}", type="secondary"): update_generic("Pazienti", row['id'], {"Data_Disdetta": pd.Timestamp.now() + timedelta(days=7)}); st.rerun()
+                with c_info:
+                    st.markdown(f"""<div class="alert-row-name border-orange">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
+                with c_btn1:
+                    if st.button("✅ Rientrato", key=f"rk_{row['id']}", use_container_width=True, type="primary"):
+                        update_generic("Pazienti", row['id'], {"Disdetto": False, "Data_Disdetta": None}); st.rerun()
+                with c_btn2:
+                    if st.button("📅 Rimandare", key=f"pk_{row['id']}", use_container_width=True, type="secondary"):
+                        new_date = pd.Timestamp.now() + timedelta(days=7)
+                        update_generic("Pazienti", row['id'], {"Data_Disdetta": new_date}); st.rerun()
+
+        # VISITE SCADUTE
         if not visite_passate.empty:
             st.caption(f"⚠️ Visite Scadute: {len(visite_passate)}")
             for i, row in visite_passate.iterrows():
                 c_info, c_btn1, c_void = st.columns([3, 1, 1], gap="small")
-                with c_info: st.markdown(f"""<div class="alert-row-name border-red">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
+                with c_info:
+                    st.markdown(f"""<div class="alert-row-name border-red">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
                 with c_btn1:
-                    if st.button("✅ Rientrato", key=f"vk_{row['id']}", type="primary"): update_generic("Pazienti", row['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
+                    if st.button("✅ Rientrato", key=f"vk_{row['id']}", use_container_width=True, type="primary"):
+                        update_generic("Pazienti", row['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
+
+        # VISITE IMMINENTI
         if not visite_imminenti.empty:
             st.caption(f"👨‍⚕️ Visite Imminenti: {len(visite_imminenti)}")
             for i, row in visite_imminenti.iterrows():
-                st.markdown(f"""<div class="alert-row-name border-blue" style="justify-content: space-between;"><span>{row['Nome']} {row['Cognome']}</span><span style="color:#0bc5ea; font-size:13px;">{row['Data_Visita'].strftime('%d/%m')}</span></div>""", unsafe_allow_html=True)
-        if da_richiamare.empty and visite_passate.empty and visite_imminenti.empty and prev_scaduti.empty and low_stock.empty: st.success("Tutto tranquillo! Nessun avviso.")
-        
-        st.divider(); st.subheader("📈 Performance Aree")
+                st.markdown(f"""
+                <div class="alert-row-name border-blue" style="justify-content: space-between;">
+                    <span>{row['Nome']} {row['Cognome']}</span>
+                    <span style="color:#0bc5ea; font-size:13px;">{row['Data_Visita'].strftime('%d/%m')}</span>
+                </div>
+                """, unsafe_allow_html=True)
+
+        if da_richiamare.empty and visite_passate.empty and visite_imminenti.empty and prev_scaduti.empty and low_stock.empty:
+            st.success("Tutto tranquillo! Nessun avviso.")
+
+        st.divider()
+
+        # --- 4. GRAFICO ---
+        st.subheader("📈 Performance Aree")
         df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
         all_areas = []
         if 'Area' in df_attivi.columns:
@@ -546,9 +601,21 @@ if menu == "⚡ Dashboard":
                 if isinstance(item, list): all_areas.extend(item)
                 elif isinstance(item, str): all_areas.extend([p.strip() for p in item.split(',')])
                 else: all_areas.append(str(item))
+        
         if all_areas:
-            counts = pd.Series(all_areas).value_counts().reset_index(); counts.columns = ['Area', 'Pazienti']
-            chart = alt.Chart(counts).mark_bar(cornerRadius=6, height=35).encode(x=alt.X('Pazienti', axis=None), y=alt.Y('Area', sort='-x', title=None), color=alt.Color('Area', legend=None), tooltip=['Area', 'Pazienti']).properties(height=400).configure(background='transparent').configure_view(strokeWidth=0).configure_axis(grid=False)
+            counts = pd.Series(all_areas).value_counts().reset_index()
+            counts.columns = ['Area', 'Pazienti']
+            
+            domain = ["Mano-Polso", "Muscolo-Scheletrico", "Colonna", "ATM", "Gruppi", "Ortopedico"]
+            range_ = ["#0bc5ea", "#9f7aea", "#ecc94b", "#2ecc71", "#e53e3e", "#4a5568"]
+            
+            chart = alt.Chart(counts).mark_bar(cornerRadius=6, height=35).encode(
+                x=alt.X('Pazienti', axis=None), 
+                y=alt.Y('Area', sort='-x', title=None, axis=alt.Axis(domain=False, ticks=False, labelColor="#cbd5e0", labelFontSize=14)),
+                color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None),
+                tooltip=['Area', 'Pazienti']
+            ).properties(height=400).configure(background='transparent').configure_view(strokeWidth=0).configure_axis(grid=False)
+            
             st.altair_chart(chart, use_container_width=True, theme=None)
         else: st.info("Dati insufficienti.")
 
@@ -558,48 +625,80 @@ if menu == "⚡ Dashboard":
 elif menu == "👥 Pazienti":
     st.title("Anagrafica Pazienti")
     lista_aree = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
+    
     with st.container(border=True):
         st.subheader("➕ Aggiungi Paziente")
         with st.form("form_paziente", clear_on_submit=True):
             c1, c2, c3 = st.columns([2, 2, 1])
-            c1.text_input("Nome", key="new_name"); c2.text_input("Cognome", key="new_surname"); c3.multiselect("Area", lista_aree, key="new_area")
+            c1.text_input("Nome", key="new_name", placeholder="Es. Mario")
+            c2.text_input("Cognome", key="new_surname", placeholder="Es. Rossi")
+            c3.multiselect("Area", lista_aree, key="new_area")
             if st.form_submit_button("Salva Paziente", use_container_width=True, type="primary"):
                 if st.session_state.new_name and st.session_state.new_surname:
-                    save_paziente(st.session_state.new_name, st.session_state.new_surname, ", ".join(st.session_state.new_area), False)
-                    st.success("Paziente salvato!"); st.rerun()
-    st.write(""); df_original = get_data("Pazienti")
+                    area_s = ", ".join(st.session_state.new_area)
+                    save_paziente(st.session_state.new_name, st.session_state.new_surname, area_s, False)
+                    st.success("Paziente salvato con successo!"); st.rerun()
+    
+    st.write("")
+    df_original = get_data("Pazienti")
+    
     if not df_original.empty:
+        # Preprocessing per evitare errori
         for c in ['Disdetto', 'Visita_Esterna', 'Dimissione']:
             if c not in df_original.columns: df_original[c] = False
             df_original[c] = df_original[c].fillna(False).infer_objects(copy=False)
         for c in ['Data_Disdetta', 'Data_Visita']:
             if c not in df_original.columns: df_original[c] = None
             df_original[c] = pd.to_datetime(df_original[c], errors='coerce')
-        if 'Area' in df_original.columns: df_original['Area'] = df_original['Area'].apply(lambda x: x[0] if isinstance(x, list) and len(x)>0 else (str(x) if x else "")).str.strip() 
+        if 'Area' in df_original.columns:
+             df_original['Area'] = df_original['Area'].apply(lambda x: x[0] if isinstance(x, list) and len(x)>0 else (str(x) if x else "")).str.strip() 
         df_original['Area'] = df_original['Area'].astype("category")
-        
+
         col_search, _ = st.columns([1, 2])
-        with col_search: search = st.text_input("🔍 Cerca Paziente")
+        with col_search: search = st.text_input("🔍 Cerca Paziente", placeholder="Digita il cognome...")
         df_filt = df_original[df_original['Cognome'].astype(str).str.contains(search, case=False, na=False)] if search else df_original
+
         cols_show = ['Nome', 'Cognome', 'Area', 'Disdetto', 'Data_Disdetta', 'Visita_Esterna', 'Data_Visita', 'Dimissione', 'id']
         valid_cols = [c for c in cols_show if c in df_filt.columns]
-        
-        edited = st.data_editor(df_filt[valid_cols], column_config={"Disdetto": st.column_config.CheckboxColumn("Disd.", width="small"), "Data_Disdetta": st.column_config.DateColumn("Data Disd.", format="DD/MM/YYYY"), "Visita_Esterna": st.column_config.CheckboxColumn("Visita Ext.", width="small"), "Data_Visita": st.column_config.DateColumn("Data Visita", format="DD/MM/YYYY"), "Dimissione": st.column_config.CheckboxColumn("🗑️", width="small"), "Area": st.column_config.SelectboxColumn("Area Principale", options=lista_aree), "id": None}, disabled=["Nome", "Cognome"], hide_index=True, use_container_width=True, key="editor_main", num_rows="fixed", height=500)
-        
+
+        edited = st.data_editor(
+            df_filt[valid_cols],
+            column_config={
+                "Disdetto": st.column_config.CheckboxColumn("Disd.", width="small", help="Segna come disdetto"),
+                "Data_Disdetta": st.column_config.DateColumn("Data Disd.", format="DD/MM/YYYY"),
+                "Visita_Esterna": st.column_config.CheckboxColumn("Visita Ext.", width="small", help="Inviato a visita medica"),
+                "Data_Visita": st.column_config.DateColumn("Data Visita", format="DD/MM/YYYY"),
+                "Dimissione": st.column_config.CheckboxColumn("🗑️", width="small", help="Elimina definitivamente"),
+                "Area": st.column_config.SelectboxColumn("Area Principale", options=lista_aree),
+                "id": None
+            },
+            disabled=["Nome", "Cognome"], hide_index=True, use_container_width=True, key="editor_main", num_rows="fixed", height=500
+        )
+
         if st.button("💾 Salva Modifiche Tabella", type="primary", use_container_width=True):
             count_upd = 0; count_del = 0
             for i, row in edited.iterrows():
                 rec_id = row['id']
-                if row.get('Dimissione') == True: delete_generic("Pazienti", rec_id); count_del += 1; continue
-                orig = df_original[df_original['id'] == rec_id].iloc[0]; changes = {}
+                if row.get('Dimissione') == True:
+                    delete_generic("Pazienti", rec_id); count_del += 1; continue
+
+                orig = df_original[df_original['id'] == rec_id].iloc[0]
+                changes = {}
+                
                 if row['Disdetto'] != (orig['Disdetto'] in [True, 1]): changes['Disdetto'] = row['Disdetto']
-                if str(row['Data_Disdetta']) != str(orig['Data_Disdetta']): changes['Data_Disdetta'] = row['Data_Disdetta']
-                if row['Disdetto'] and (pd.isna(row['Data_Disdetta']) or str(row['Data_Disdetta']) == "NaT"): changes['Data_Disdetta'] = pd.Timestamp.now().normalize()
+                d_dis = row['Data_Disdetta']
+                if row['Disdetto'] and (pd.isna(d_dis) or str(d_dis) == "NaT"): 
+                    d_dis = pd.Timestamp.now().normalize(); changes['Data_Disdetta'] = d_dis
+                elif str(d_dis) != str(orig['Data_Disdetta']): changes['Data_Disdetta'] = d_dis
+
                 if row['Visita_Esterna'] != (orig['Visita_Esterna'] in [True, 1]): changes['Visita_Esterna'] = row['Visita_Esterna']
                 if str(row['Data_Visita']) != str(orig['Data_Visita']): changes['Data_Visita'] = row['Data_Visita']
                 if row['Area'] != orig['Area']: changes['Area'] = row['Area']
+
                 if changes: update_generic("Pazienti", rec_id, changes); count_upd += 1
-            if count_upd > 0 or count_del > 0: get_data.clear(); st.toast("Database aggiornato!", icon="✅"); st.rerun()
+
+            if count_upd > 0 or count_del > 0:
+                get_data.clear(); st.toast("Database aggiornato con successo!", icon="✅"); st.rerun()
 
 # =========================================================
 # SEZIONE 3: PREVENTIVI
@@ -608,65 +707,159 @@ elif menu == "💳 Preventivi":
     st.title("Preventivi & Proposte")
     tab1, tab2 = st.tabs(["📝 Generatore", "📂 Archivio Salvati"])
     df_srv = get_data("Servizi"); df_paz = get_data("Pazienti"); df_std = get_data("Preventivi_Standard")
+
     with tab1:
-        with st.expander("📋 Listino Prezzi", expanded=False):
+        with st.expander("📋 Listino Prezzi Attuale", expanded=False):
             if not df_srv.empty and 'Area' in df_srv.columns:
-                for i, area in enumerate(df_srv['Area'].unique()):
-                    st.markdown(f"**{area}**"); st.caption(", ".join([f"{r['Servizio']} ({r['Prezzo']}€)" for _, r in df_srv[df_srv['Area']==area].iterrows()]))
+                aree_uniche = df_srv['Area'].dropna().unique(); cols = st.columns(3)
+                for i, area in enumerate(aree_uniche):
+                    with cols[i % 3]:
+                        st.markdown(f"<strong style='color:var(--neon-blue)'>📍 {area}</strong>", unsafe_allow_html=True)
+                        items = df_srv[df_srv['Area'] == area]
+                        for _, r in items.iterrows(): prz = f"{r['Prezzo']}€" if 'Prezzo' in r else "-"; st.caption(f"{r['Servizio']}: **{prz}**")
+            else: st.warning("Configura la colonna 'Area' in Servizi.")
+
         with st.container(border=True):
-            st.subheader("Creazione Nuovo Preventivo"); selected_services_default = []; default_descrizione = ""
+            st.subheader("Creazione Nuovo Preventivo")
+            selected_services_default = []
+            default_descrizione = "" 
+            
             if not df_std.empty and 'Nome' in df_std.columns:
-                scelta_std = st.selectbox("Carica Pacchetto Standard (Opzionale):", ["-- Seleziona --"] + sorted(list(df_std['Nome'].unique())))
+                c_filtro, c_pack = st.columns(2)
+                with c_filtro:
+                    if 'Area' in df_std.columns:
+                        aree_std = ["Tutte"] + sorted(list(df_std['Area'].astype(str).unique()))
+                        filtro_area = st.selectbox("Filtra Area Pacchetti:", aree_std)
+                        df_std_filt = df_std[df_std['Area'].astype(str) == filtro_area] if filtro_area != "Tutte" else df_std
+                    else: df_std_filt = df_std
+                with c_pack:
+                    opt_std = ["-- Seleziona --"] + sorted(list(df_std_filt['Nome'].unique()))
+                    scelta_std = st.selectbox("Carica Pacchetto Standard (Opzionale):", opt_std)
+                
                 if scelta_std != "-- Seleziona --":
-                    row_std = df_std[df_std['Nome'] == scelta_std].iloc[0]; default_descrizione = row_std.get('Descrizione', '')
-                    if row_std.get('Contenuto'):
-                        for p in row_std['Contenuto'].split(','):
-                            if ' x' in p: srv_name, srv_qty = p.split(' x'); selected_services_default.append(srv_name); st.session_state[f"qty_preload_{srv_name}"] = int(srv_qty)
-            nomi_pazienti = ["Seleziona..."] + sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows()]) if not df_paz.empty else []
-            c_paz, c_serv = st.columns([1, 2])
-            paziente_scelto = c_paz.selectbox("Intestato a:", nomi_pazienti)
+                    row_std = df_std_filt[df_std_filt['Nome'] == scelta_std].iloc[0]
+                    content = row_std.get('Contenuto', '')
+                    default_descrizione = row_std.get('Descrizione', '')
+                    if pd.isna(default_descrizione): default_descrizione = ""
+                    
+                    if content:
+                        parts = [x.strip() for x in content.split(',')]
+                        for p in parts:
+                            if ' x' in p:
+                                srv_name, srv_qty = p.split(' x')
+                                selected_services_default.append(srv_name)
+                                st.session_state[f"qty_preload_{srv_name}"] = int(srv_qty)
+            st.divider()
+
+            nomi_pazienti = ["Seleziona Paziente..."]
+            if not df_paz.empty:
+                nomi_pazienti += sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows() if r.get('Cognome')])
+            
+            col_paz, col_serv = st.columns([1, 2])
+            with col_paz: paziente_scelto = st.selectbox("Intestato a:", nomi_pazienti)
+            
             listino_dict = {str(r['Servizio']): float(r.get('Prezzo', 0) or 0) for i, r in df_srv.iterrows() if r.get('Servizio')}
             valid_defaults = [s for s in selected_services_default if s in listino_dict]
-            servizi_scelti = c_serv.multiselect("Trattamenti:", sorted(list(listino_dict.keys())), default=valid_defaults)
-            note_preventivo = st.text_area("Descrizione del Percorso:", value=default_descrizione, height=100)
             
-            righe_preventivo = []; totale = 0
+            with col_serv:
+                servizi_scelti = st.multiselect("Aggiungi Trattamenti:", sorted(list(listino_dict.keys())), default=valid_defaults)
+
+            st.markdown("**Descrizione del Percorso / Obiettivi** (Appare nel PDF)")
+            note_preventivo = st.text_area("Dettagli...", value=default_descrizione, height=100, label_visibility="collapsed")
+            
+            righe_preventivo = []
+            totale = 0
+
             if servizi_scelti:
-                st.divider(); st.subheader("Dettaglio Costi")
+                st.divider()
+                st.subheader("Dettaglio Costi")
                 for s in servizi_scelti:
-                    c1, c2, c3 = st.columns([3, 1, 1]); c1.write(f"**{s}**"); def_qty = st.session_state.get(f"qty_preload_{s}", 1)
-                    qty = c2.number_input(f"Q.tà", 1, 50, def_qty, key=f"q_{s}"); costo = listino_dict[s] * qty; c3.markdown(f"**{costo} €**"); totale += costo; righe_preventivo.append({"nome": s, "qty": qty, "tot": costo})
-                st.divider(); c_tot, c_btn = st.columns([2, 1]); c_tot.markdown(f"### TOTALE: {totale} €")
-                with c_btn:
-                    if st.button("💾 Salva in Archivio", use_container_width=True):
-                        if paziente_scelto == "Seleziona...": st.error("Manca il paziente!")
-                        else: save_preventivo_temp(paziente_scelto, " | ".join([f"{r['nome']} x{r['qty']} ({r['tot']}€)" for r in righe_preventivo]), totale, note_preventivo); st.success("Salvato!")
-                    if st.button("🖨️ Genera Anteprima", type="primary", use_container_width=True):
-                        if paziente_scelto == "Seleziona...": st.error("Manca il paziente!")
-                        else: st.session_state['show_html_preview'] = True
+                    c1, c2, c3 = st.columns([3, 1, 1])
+                    with c1: st.write(f"**{s}**")
+                    def_qty = st.session_state.get(f"qty_preload_{s}", 1)
+                    with c2: qty = st.number_input(f"Q.tà", 1, 50, def_qty, key=f"q_{s}", label_visibility="collapsed")
+                    with c3: 
+                        costo = listino_dict[s] * qty
+                        st.markdown(f"<div style='text-align:right; font-weight:bold'>{costo} €</div>", unsafe_allow_html=True)
+                    totale += costo
+                    righe_preventivo.append({"nome": s, "qty": qty, "tot": costo})
+                
+                st.divider()
+                col_tot, col_btn = st.columns([2, 1])
+                with col_tot: 
+                    st.markdown(f"<div style='font-size: 24px; font-weight: 800; color: var(--neon-blue);'>TOTALE: {totale} €</div>", unsafe_allow_html=True)
+                with col_btn:
+                    st.write("") 
+                    # 1. Pulsante Salva su DB
+                    if st.button("💾 Salva Preventivo", use_container_width=True):
+                         if paziente_scelto == "Seleziona Paziente...":
+                            st.error("Seleziona un paziente!")
+                         else:
+                            dettagli_str = " | ".join([f"{r['nome']} x{r['qty']} ({r['tot']}€)" for r in righe_preventivo])
+                            save_preventivo_temp(paziente_scelto, dettagli_str, totale, note_preventivo)
+                            st.success("Preventivo salvato in archivio!")
+                    
+                    # 2. Pulsante Genera HTML (Nuovo)
+                    if st.button("🖨️ Genera Anteprima Stampa", type="primary", use_container_width=True):
+                        if paziente_scelto == "Seleziona Paziente...":
+                            st.error("Seleziona un paziente!")
+                        else:
+                            st.session_state['show_html_preview'] = True
+
+            # ANTEPRIMA HTML
             if st.session_state.get('show_html_preview'):
-                st.divider(); st.subheader("Anteprima")
-                html_code = generate_html_preventivo(paziente_scelto, date.today().strftime("%d/%m/%Y"), note_preventivo, righe_preventivo, totale, LOGO_B64)
-                components.html(html_code, height=800, scrolling=True)
-                if st.button("❌ Chiudi"): st.session_state['show_html_preview'] = False; st.rerun()
+                st.divider()
+                st.subheader("Anteprima di Stampa")
+                html_code = generate_html_preventivo(
+                    paziente=paziente_scelto,
+                    data_oggi=date.today().strftime("%d/%m/%Y"),
+                    note=note_preventivo,
+                    righe_preventivo=righe_preventivo,
+                    totale_complessivo=totale,
+                    logo_b64=LOGO_B64
+                )
+                components.html(html_code, height=1000, scrolling=True)
+                if st.button("❌ Chiudi Anteprima"):
+                    st.session_state['show_html_preview'] = False
+                    st.rerun()
 
     with tab2:
-        st.subheader("Archivio Preventivi"); df_prev = get_data("Preventivi_Salvati")
+        st.subheader("Archivio Preventivi")
+        df_prev = get_data("Preventivi_Salvati")
         if not df_prev.empty:
             for i, row in df_prev.iterrows():
-                rec_id = row['id']; paz = row.get('Paziente', 'Sconosciuto'); tot = row.get('Totale', 0); dett = str(row.get('Dettagli', '')); note_saved = str(row.get('Note', '')); data_c = row.get('Data_Creazione', '')
+                rec_id = row['id']
+                paz = row.get('Paziente', 'Sconosciuto')
+                dett = str(row.get('Dettagli', '')) if not pd.isna(row.get('Dettagli')) else ""
+                note_saved = str(row.get('Note', '')) if not pd.isna(row.get('Note')) else ""
+                tot = row.get('Totale', 0)
+                data_c = row.get('Data_Creazione', '')
+
                 with st.container(border=True):
-                    c1, c2, c3 = st.columns([3, 1, 1]); c1.markdown(f"**{paz}** ({data_c})"); c1.caption(f"Tot: {tot} €")
-                    righe_pdf = []
-                    if dett:
-                        for it in dett.split(" | "):
-                            try: parts = it.split(" x"); righe_pdf.append({"nome": parts[0], "qty": parts[1].split(" (")[0], "tot": parts[1].split(" (")[1].replace("€)", "")})
-                            except: pass
-                    if c2.button("🖨️ Stampa", key=f"p_{rec_id}", use_container_width=True):
-                        html_archive = generate_html_preventivo(paz, data_c, note_saved, righe_pdf, tot, LOGO_B64, auto_print=True)
-                        components.html(html_archive, height=0, width=0, scrolling=False)
-                    if c3.button("🗑️ Elimina", key=f"d_{rec_id}", use_container_width=True): delete_generic("Preventivi_Salvati", rec_id); st.rerun()
-        else: st.info("Archivio vuoto.")
+                    c1, c2, c3 = st.columns([3, 1, 1])
+                    with c1:
+                        st.markdown(f"**{paz}**"); st.caption(f"Emesso: {data_c} • Tot: **{tot} €**")
+                    with c2:
+                         # Ricostruzione righe per il bottone di ristampa
+                        righe_pdf = []
+                        if dett:
+                            items = dett.split(" | ")
+                            for it in items:
+                                try:
+                                    parts = it.split(" x")
+                                    nome = parts[0]; rest = parts[1].split(" ("); qty = rest[0]; prz = rest[1].replace("€)", "")
+                                    righe_pdf.append({"nome": nome, "qty": qty, "tot": prz})
+                                except: pass
+                        
+                        # Pulsante per aprire l'HTML anche dall'archivio
+                        if st.button("🖨️ Stampa", key=f"print_{rec_id}", use_container_width=True):
+                             html_archive = generate_html_preventivo(paz, data_c, note_saved, righe_pdf, tot, logo_b64=LOGO_B64, auto_print=True)
+                             components.html(html_archive, height=0, width=0, scrolling=False)
+
+                    with c3:
+                        if st.button("✅ Elimina", key=f"conf_{rec_id}", use_container_width=True):
+                            delete_generic("Preventivi_Salvati", rec_id); st.rerun()
+        else: st.info("Nessun preventivo salvato.")
 
 # =========================================================
 # SEZIONE 4: MAGAZZINO (RIFATTA: TAB + TARGET + CONSUMO RAPIDO)
