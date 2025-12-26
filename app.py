@@ -121,6 +121,7 @@ st.markdown("""
     .border-orange { border-left: 4px solid #ed8936 !important; }
     .border-red { border-left: 4px solid #e53e3e !important; }
     .border-blue { border-left: 4px solid #0bc5ea !important; }
+    .border-purple { border-left: 4px solid #9f7aea !important; } /* Colore viola per preventivi */
 
     /* --- PULSANTI AZIONE (Neutri & Eleganti) --- */
     div[data-testid="stHorizontalBlock"] button {
@@ -211,14 +212,13 @@ def save_prestito(paziente, oggetto, data_prestito):
     try: api.table(BASE_ID, "Prestiti").create({"Paziente": paziente, "Oggetto": oggetto, "Data_Prestito": str(data_prestito), "Restituito": False}, typecast=True); get_data.clear(); return True
     except: return False
 
-# FUNZIONE LOGO
 def get_base64_image(image_path):
     try:
         with open(image_path, "rb") as img_file:
             return base64.b64encode(img_file.read()).decode()
     except: return ""
 
-# --- NUOVA FUNZIONE HTML PDF (STYLE OTTIMIZZATO PER 1 PAGINA, B&W, LOGO CENTRATO) ---
+# --- FUNZIONE HTML PDF (STYLE OTTIMIZZATO PER 1 PAGINA, B&W, LOGO CENTRATO) ---
 def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale_complessivo, logo_b64=None, auto_print=False):
     rows_html = ""
     for r in righe_preventivo:
@@ -396,7 +396,7 @@ with st.sidebar:
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v64 - Final Layout Fix")
+    st.divider(); st.caption("App v66 - Final Layout Fix")
 
 # =========================================================
 # DASHBOARD
@@ -408,6 +408,7 @@ if menu == "⚡ Dashboard":
     if 'kpi_filter' not in st.session_state: st.session_state.kpi_filter = "None"
 
     df = get_data("Pazienti")
+    df_prev = get_data("Preventivi_Salvati") # Carico anche i preventivi
     
     if not df.empty:
         # Preprocessing
@@ -434,8 +435,16 @@ if menu == "⚡ Dashboard":
         sette_giorni_fa = oggi - pd.Timedelta(days=7)
         visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
 
-        # --- 1. KPI CARDS ---
-        col1, col2, col3, col4 = st.columns(4)
+        # Calcolo preventivi scaduti (> 7gg)
+        cnt_prev = len(df_prev)
+        prev_scaduti = pd.DataFrame()
+        if not df_prev.empty:
+            df_prev['Data_Creazione'] = pd.to_datetime(df_prev['Data_Creazione'], errors='coerce')
+            limite_prev = oggi - timedelta(days=7)
+            prev_scaduti = df_prev[df_prev['Data_Creazione'] <= limite_prev]
+
+        # --- 1. KPI CARDS (MODIFICATO A 5 COLONNE) ---
+        col1, col2, col3, col4, col5 = st.columns(5)
         def draw_kpi(col, icon, num, label, color, filter_key):
             with col:
                 st.markdown(f"""
@@ -452,6 +461,7 @@ if menu == "⚡ Dashboard":
         draw_kpi(col2, "📉", len(df_disdetti), "Disdetti", "#e53e3e", "Disdetti")
         draw_kpi(col3, "💡", len(da_richiamare), "Recall", "#ed8936", "Recall")
         draw_kpi(col4, "🩺", len(visite_imminenti), "Visite", "#0bc5ea", "Visite")
+        draw_kpi(col5, "💳", cnt_prev, "Preventivi", "#9f7aea", "Preventivi") # Nuovo KPI
 
         st.write("")
 
@@ -467,8 +477,16 @@ if menu == "⚡ Dashboard":
             elif st.session_state.kpi_filter == "Disdetti": df_show = df_disdetti
             elif st.session_state.kpi_filter == "Recall": df_show = da_richiamare
             elif st.session_state.kpi_filter == "Visite": df_show = df_visite
+            elif st.session_state.kpi_filter == "Preventivi": df_show = df_prev # Mostra preventivi
 
-            if not df_show.empty: st.dataframe(df_show[['Nome', 'Cognome', 'Area', 'Data_Disdetta', 'Data_Visita']], use_container_width=True, height=250)
+            if not df_show.empty:
+                # Selettore colonne smart
+                cols_to_show = ['Nome', 'Cognome', 'Area', 'Data_Disdetta', 'Data_Visita']
+                if st.session_state.kpi_filter == "Preventivi":
+                    cols_to_show = ['Paziente', 'Data_Creazione', 'Totale']
+                
+                valid_show = [c for c in cols_to_show if c in df_show.columns]
+                st.dataframe(df_show[valid_show], use_container_width=True, height=250)
             else: st.info("Nessun dato.")
             st.divider()
 
@@ -477,6 +495,22 @@ if menu == "⚡ Dashboard":
         # --- 3. AVVISI ---
         st.subheader("🔔 Avvisi e Scadenze")
         
+        # ALERT PREVENTIVI SCADUTI (NUOVO)
+        if not prev_scaduti.empty:
+            st.caption(f"⏳ Preventivi in Sospeso (> 7gg): {len(prev_scaduti)}")
+            for i, row in prev_scaduti.iterrows():
+                c_info, c_btn1, c_btn2 = st.columns([3, 1, 1], gap="small")
+                with c_info:
+                    st.markdown(f"""<div class="alert-row-name border-purple">{row['Paziente']} ({row['Data_Creazione'].strftime('%d/%m')})</div>""", unsafe_allow_html=True)
+                with c_btn1:
+                    # Rinnova: Aggiorna data a oggi
+                    if st.button("📞 Rinnova", key=f"ren_{row['id']}", type="primary"):
+                        update_generic("Preventivi_Salvati", row['id'], {"Data_Creazione": str(date.today())}); st.rerun()
+                with c_btn2:
+                    # Elimina
+                    if st.button("🗑️ Elimina", key=f"del_prev_{row['id']}", type="secondary"):
+                        delete_generic("Preventivi_Salvati", row['id']); st.rerun()
+
         # RECALL
         if not da_richiamare.empty:
             st.caption(f"📞 Recall Necessari: {len(da_richiamare)}")
@@ -514,7 +548,7 @@ if menu == "⚡ Dashboard":
                 </div>
                 """, unsafe_allow_html=True)
 
-        if da_richiamare.empty and visite_passate.empty and visite_imminenti.empty:
+        if da_richiamare.empty and visite_passate.empty and visite_imminenti.empty and prev_scaduti.empty:
             st.success("Tutto tranquillo! Nessun avviso.")
 
         st.divider()
@@ -570,6 +604,7 @@ elif menu == "👥 Pazienti":
     df_original = get_data("Pazienti")
     
     if not df_original.empty:
+        # Preprocessing per evitare errori
         for c in ['Disdetto', 'Visita_Esterna', 'Dimissione']:
             if c not in df_original.columns: df_original[c] = False
             df_original[c] = df_original[c].fillna(False).infer_objects(copy=False)
