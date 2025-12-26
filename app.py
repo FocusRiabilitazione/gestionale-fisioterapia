@@ -121,8 +121,8 @@ st.markdown("""
     .border-orange { border-left: 4px solid #ed8936 !important; }
     .border-red { border-left: 4px solid #e53e3e !important; }
     .border-blue { border-left: 4px solid #0bc5ea !important; }
-    .border-purple { border-left: 4px solid #9f7aea !important; } 
-    .border-yellow { border-left: 4px solid #ecc94b !important; } /* Giallo per Magazzino */
+    .border-purple { border-left: 4px solid #9f7aea !important; }
+    .border-yellow { border-left: 4px solid #ecc94b !important; } /* Giallo Uniforme */
 
     /* --- PULSANTI AZIONE (Neutri & Eleganti) --- */
     div[data-testid="stHorizontalBlock"] button {
@@ -243,7 +243,7 @@ def get_base64_image(image_path):
             return base64.b64encode(img_file.read()).decode()
     except: return ""
 
-# --- FUNZIONE HTML PDF ---
+# --- FUNZIONE HTML PDF (STYLE OTTIMIZZATO PER 1 PAGINA, B&W, LOGO CENTRATO) ---
 def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale_complessivo, logo_b64=None, auto_print=False):
     rows_html = ""
     for r in righe_preventivo:
@@ -321,7 +321,7 @@ with st.sidebar:
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v76 - Final Fixed")
+    st.divider(); st.caption("App v77 - Uniform Style Fix")
 
 # =========================================================
 # DASHBOARD
@@ -358,7 +358,7 @@ if menu == "⚡ Dashboard":
         sette_giorni_fa = oggi - pd.Timedelta(days=7)
         visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
 
-        # Preventivi
+        # Calcolo Preventivi Scaduti
         cnt_prev = len(df_prev)
         prev_scaduti = pd.DataFrame()
         if not df_prev.empty:
@@ -366,22 +366,32 @@ if menu == "⚡ Dashboard":
             limite_prev = oggi - timedelta(days=7)
             prev_scaduti = df_prev[df_prev['Data_Creazione'] <= limite_prev]
 
-        # Scorte Basse
+        # Calcolo Scorte Basse (FIX NOME COLONNA)
         low_stock = pd.DataFrame()
         if not df_inv.empty:
-            # FIX: Colonna Quantità da Airtable
+            # Rinomina per coerenza interna (da Airtable con accento a interno senza)
             if 'Quantità' in df_inv.columns:
                 df_inv = df_inv.rename(columns={'Quantità': 'Quantita'})
+            
+            # Assicuro che le colonne esistano
             for c in ['Quantita', 'Soglia_Minima', 'Materiali']:
                 if c not in df_inv.columns: df_inv[c] = 0
+            
             low_stock = df_inv[df_inv['Quantita'] <= df_inv['Soglia_Minima']]
 
-        # KPI CARDS
+        # KPI CARDS (5 COLONNE)
         col1, col2, col3, col4, col5 = st.columns(5)
         def draw_kpi(col, icon, num, label, color, filter_key):
             with col:
-                st.markdown(f"""<div class="glass-kpi" style="border-bottom: 4px solid {color};"><div class="kpi-icon" style="color:{color};">{icon}</div><div class="kpi-value">{num}</div><div class="kpi-label">{label}</div></div>""", unsafe_allow_html=True)
-                if st.button("Vedi Lista", key=f"btn_{filter_key}"): st.session_state.kpi_filter = filter_key
+                st.markdown(f"""
+                <div class="glass-kpi" style="border-bottom: 4px solid {color};">
+                    <div class="kpi-icon" style="color:{color}; filter: drop-shadow(0 0 8px {color}88);">{icon}</div>
+                    <div class="kpi-value">{num}</div>
+                    <div class="kpi-label">{label}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("Vedi Lista", key=f"btn_{filter_key}"):
+                    st.session_state.kpi_filter = filter_key
 
         draw_kpi(col1, "👥", cnt_attivi, "Attivi", "#2ecc71", "Attivi")
         draw_kpi(col2, "📉", len(df_disdetti), "Disdetti", "#e53e3e", "Disdetti")
@@ -412,31 +422,33 @@ if menu == "⚡ Dashboard":
         # AVVISI
         st.subheader("🔔 Avvisi e Scadenze")
         
-        # ALERT MAGAZZINO (GIALLO)
+        # ALERT MAGAZZINO (GIALLO - STILE UNIFORMATO)
         if not low_stock.empty:
-            st.warning(f"⚠️ SCORTA BASSA: {len(low_stock)} prodotti in esaurimento!")
+            st.caption(f"⚠️ Prodotti in esaurimento: {len(low_stock)}")
             for i, row in low_stock.iterrows():
-                c_info, c_btn = st.columns([3, 1])
+                # Stessa struttura di colonne di Recall e Visite: 3, 1, 1 (il terzo vuoto o per allineamento)
+                c_info, c_btn, c_void = st.columns([3, 1, 1], gap="small")
                 with c_info:
                     mat_name = row.get('Materiali', 'Sconosciuto')
                     st.markdown(f"""<div class="alert-row-name border-yellow">{mat_name} (Qta: {row.get('Quantita',0)})</div>""", unsafe_allow_html=True)
                 with c_btn:
-                    if st.button("🔄 Riordinato", key=f"restock_{row['id']}", type="primary"):
+                    if st.button("🔄 Riordinato", key=f"restock_{row['id']}", type="primary", use_container_width=True):
                         # Ripristina a obiettivo
                         target = int(row.get('Obiettivo', 5))
+                        # Aggiorna la colonna corretta su Airtable: Quantità con accento
                         update_generic("Inventario", row['id'], {"Quantità": target})
                         st.rerun()
 
         # ALERT PREVENTIVI (VIOLA)
         if not prev_scaduti.empty:
-            st.caption(f"⏳ Preventivi > 7gg: {len(prev_scaduti)}")
+            st.caption(f"⏳ Preventivi in Sospeso (> 7gg): {len(prev_scaduti)}")
             for i, row in prev_scaduti.iterrows():
                 c_info, c_btn1, c_btn2 = st.columns([3, 1, 1], gap="small")
                 with c_info: st.markdown(f"""<div class="alert-row-name border-purple">{row['Paziente']} ({row['Data_Creazione'].strftime('%d/%m')})</div>""", unsafe_allow_html=True)
                 with c_btn1:
-                    if st.button("📞 Rinnova", key=f"ren_{row['id']}", type="primary"): update_generic("Preventivi_Salvati", row['id'], {"Data_Creazione": str(date.today())}); st.rerun()
+                    if st.button("📞 Rinnova", key=f"ren_{row['id']}", type="primary", use_container_width=True): update_generic("Preventivi_Salvati", row['id'], {"Data_Creazione": str(date.today())}); st.rerun()
                 with c_btn2:
-                    if st.button("🗑️ Elimina", key=f"del_prev_{row['id']}", type="secondary"): delete_generic("Preventivi_Salvati", row['id']); st.rerun()
+                    if st.button("🗑️ Elimina", key=f"del_prev_{row['id']}", type="secondary", use_container_width=True): delete_generic("Preventivi_Salvati", row['id']); st.rerun()
 
         # RECALL (ARANCIO)
         if not da_richiamare.empty:
@@ -445,9 +457,9 @@ if menu == "⚡ Dashboard":
                 c_info, c_btn1, c_btn2 = st.columns([3, 1, 1], gap="small")
                 with c_info: st.markdown(f"""<div class="alert-row-name border-orange">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
                 with c_btn1: 
-                    if st.button("✅ Rientrato", key=f"rk_{row['id']}", type="primary"): update_generic("Pazienti", row['id'], {"Disdetto": False, "Data_Disdetta": None}); st.rerun()
+                    if st.button("✅ Rientrato", key=f"rk_{row['id']}", type="primary", use_container_width=True): update_generic("Pazienti", row['id'], {"Disdetto": False, "Data_Disdetta": None}); st.rerun()
                 with c_btn2: 
-                    if st.button("📅 Rimandare", key=f"pk_{row['id']}", type="secondary"): update_generic("Pazienti", row['id'], {"Data_Disdetta": pd.Timestamp.now() + timedelta(days=7)}); st.rerun()
+                    if st.button("📅 Rimandare", key=f"pk_{row['id']}", type="secondary", use_container_width=True): update_generic("Pazienti", row['id'], {"Data_Disdetta": pd.Timestamp.now() + timedelta(days=7)}); st.rerun()
         
         # VISITE (ROSSO/BLU)
         if not visite_passate.empty:
@@ -456,7 +468,7 @@ if menu == "⚡ Dashboard":
                 c_info, c_btn1, c_void = st.columns([3, 1, 1], gap="small")
                 with c_info: st.markdown(f"""<div class="alert-row-name border-red">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
                 with c_btn1:
-                    if st.button("✅ Rientrato", key=f"vk_{row['id']}", type="primary"): update_generic("Pazienti", row['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
+                    if st.button("✅ Rientrato", key=f"vk_{row['id']}", type="primary", use_container_width=True): update_generic("Pazienti", row['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
         
         if not visite_imminenti.empty:
             st.caption(f"👨‍⚕️ Visite Imminenti: {len(visite_imminenti)}")
@@ -546,78 +558,6 @@ elif menu == "👥 Pazienti":
             if count_upd > 0 or count_del > 0: get_data.clear(); st.toast("Database aggiornato!", icon="✅"); st.rerun()
 
 # =========================================================
-# SEZIONE 3: PREVENTIVI
-# =========================================================
-elif menu == "💳 Preventivi":
-    st.title("Preventivi & Proposte")
-    tab1, tab2 = st.tabs(["📝 Generatore", "📂 Archivio Salvati"])
-    df_srv = get_data("Servizi"); df_paz = get_data("Pazienti"); df_std = get_data("Preventivi_Standard")
-    with tab1:
-        with st.expander("📋 Listino Prezzi", expanded=False):
-            if not df_srv.empty and 'Area' in df_srv.columns:
-                for i, area in enumerate(df_srv['Area'].unique()):
-                    st.markdown(f"**{area}**"); st.caption(", ".join([f"{r['Servizio']} ({r['Prezzo']}€)" for _, r in df_srv[df_srv['Area']==area].iterrows()]))
-        with st.container(border=True):
-            st.subheader("Creazione Nuovo Preventivo"); selected_services_default = []; default_descrizione = ""
-            if not df_std.empty and 'Nome' in df_std.columns:
-                scelta_std = st.selectbox("Carica Pacchetto Standard (Opzionale):", ["-- Seleziona --"] + sorted(list(df_std['Nome'].unique())))
-                if scelta_std != "-- Seleziona --":
-                    row_std = df_std[df_std['Nome'] == scelta_std].iloc[0]; default_descrizione = row_std.get('Descrizione', '')
-                    if row_std.get('Contenuto'):
-                        for p in row_std['Contenuto'].split(','):
-                            if ' x' in p: srv_name, srv_qty = p.split(' x'); selected_services_default.append(srv_name); st.session_state[f"qty_preload_{srv_name}"] = int(srv_qty)
-            nomi_pazienti = ["Seleziona..."] + sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows()]) if not df_paz.empty else []
-            c_paz, c_serv = st.columns([1, 2])
-            paziente_scelto = c_paz.selectbox("Intestato a:", nomi_pazienti)
-            listino_dict = {str(r['Servizio']): float(r.get('Prezzo', 0) or 0) for i, r in df_srv.iterrows() if r.get('Servizio')}
-            valid_defaults = [s for s in selected_services_default if s in listino_dict]
-            servizi_scelti = c_serv.multiselect("Trattamenti:", sorted(list(listino_dict.keys())), default=valid_defaults)
-            note_preventivo = st.text_area("Descrizione del Percorso:", value=default_descrizione, height=100)
-            
-            righe_preventivo = []; totale = 0
-            if servizi_scelti:
-                st.divider(); st.subheader("Dettaglio Costi")
-                for s in servizi_scelti:
-                    c1, c2, c3 = st.columns([3, 1, 1]); c1.write(f"**{s}**"); def_qty = st.session_state.get(f"qty_preload_{s}", 1)
-                    qty = c2.number_input(f"Q.tà", 1, 50, def_qty, key=f"q_{s}", label_visibility="collapsed")
-                    with c3: 
-                        costo = listino_dict[s] * qty
-                        st.markdown(f"<div style='text-align:right; font-weight:bold'>{costo} €</div>", unsafe_allow_html=True)
-                    totale += costo
-                    righe_preventivo.append({"nome": s, "qty": qty, "tot": costo})
-                st.divider(); c_tot, c_btn = st.columns([2, 1]); c_tot.markdown(f"### TOTALE: {totale} €")
-                with c_btn:
-                    if st.button("💾 Salva in Archivio", use_container_width=True):
-                        if paziente_scelto == "Seleziona...": st.error("Manca il paziente!")
-                        else: save_preventivo_temp(paziente_scelto, " | ".join([f"{r['nome']} x{r['qty']} ({r['tot']}€)" for r in righe_preventivo]), totale, note_preventivo); st.success("Salvato!")
-                    if st.button("🖨️ Genera Anteprima", type="primary", use_container_width=True):
-                        if paziente_scelto == "Seleziona...": st.error("Manca il paziente!")
-                        else: st.session_state['show_html_preview'] = True
-            if st.session_state.get('show_html_preview'):
-                st.divider(); st.subheader("Anteprima")
-                html_code = generate_html_preventivo(paziente_scelto, date.today().strftime("%d/%m/%Y"), note_preventivo, righe_preventivo, totale, LOGO_B64)
-                components.html(html_code, height=800, scrolling=True)
-                if st.button("❌ Chiudi"): st.session_state['show_html_preview'] = False; st.rerun()
-
-    with tab2:
-        st.subheader("Archivio Preventivi"); df_prev = get_data("Preventivi_Salvati")
-        if not df_prev.empty:
-            for i, row in df_prev.iterrows():
-                rec_id = row['id']; paz = row.get('Paziente', 'Sconosciuto'); tot = row.get('Totale', 0); dett = str(row.get('Dettagli', '')); note_saved = str(row.get('Note', '')); data_c = row.get('Data_Creazione', '')
-                with st.container(border=True):
-                    c1, c2, c3 = st.columns([3, 1, 1]); c1.markdown(f"**{paz}** ({data_c})"); c1.caption(f"Tot: {tot} €")
-                    righe_pdf = []
-                    if dett:
-                        for it in dett.split(" | "):
-                            try: parts = it.split(" x"); righe_pdf.append({"nome": parts[0], "qty": parts[1].split(" (")[0], "tot": parts[1].split(" (")[1].replace("€)", "")})
-                            except: pass
-                    if c2.button("🖨️ Stampa", key=f"p_{rec_id}", use_container_width=True):
-                        html_archive = generate_html_preventivo(paz, data_c, note_saved, righe_pdf, tot, LOGO_B64, auto_print=True)
-                        components.html(html_archive, height=0, width=0, scrolling=False)
-                    if c3.button("🗑️ Elimina", key=f"d_{rec_id}", use_container_width=True): delete_generic("Preventivi_Salvati", rec_id); st.rerun()
-        else: st.info("Archivio vuoto.")
-
-# =========================================================
 # SEZIONE 4: MAGAZZINO (RIFATTA: COMPATTA E FUNZIONANTE)
 # =========================================================
 elif menu == "📦 Magazzino":
@@ -679,21 +619,19 @@ elif menu == "📦 Magazzino":
                             
                             # RIGA COMPATTA CUSTOM
                             with st.container(border=True):
-                                # CSS inline per compattezza estrema di questa sezione
-                                st.markdown('<style>div[data-testid="stVerticalBlockBorderWrapper"] {padding: 8px 15px !important; margin-bottom: 5px !important;}</style>', unsafe_allow_html=True)
-                                
-                                c_info, c_stat, c_act = st.columns([3, 2, 1], gap="small")
+                                # Layout a 3 colonne per compattezza
+                                c_info, c_stat, c_act = st.columns([3, 2, 1])
                                 
                                 with c_info:
                                     mat_name = row.get('Materiali', 'Senza Nome')
                                     st.markdown(f"**{mat_name}**")
                                     if is_low: 
-                                        st.caption(":red[⚠️ SCORTA BASSA]")
+                                        st.caption(":red[⚠️ BASSO]")
                                     else:
-                                        st.caption(":green[DISPONIBILE]")
+                                        st.caption(":green[OK]")
 
                                 with c_stat:
-                                    # Barra semplice
+                                    # Barra semplice e numeri
                                     val = min(row['Quantita'] / row['Obiettivo'], 1.0) if row['Obiettivo'] > 0 else 0
                                     st.progress(val)
                                     st.caption(f"**{row['Quantita']}** / {row['Obiettivo']}")
