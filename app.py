@@ -82,7 +82,7 @@ st.markdown("""
     .kpi-value { font-size: 36px; font-weight: 800; color: white; line-height: 1; letter-spacing: -1px; }
     .kpi-label { font-size: 11px; text-transform: uppercase; color: #a0aec0; margin-top: 8px; letter-spacing: 1.5px; font-weight: 600; }
 
-    /* --- PULSANTI DASHBOARD (SOTTO LE CARD) --- */
+    /* --- PULSANTI --- */
     div[data-testid="column"] .stButton > button {
         background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
         border: none !important;
@@ -156,6 +156,11 @@ st.markdown("""
     /* --- ALTRI --- */
     div[data-testid="stDataFrame"] { background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; }
     input, select, textarea { background-color: rgba(13, 17, 23, 0.8) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: white !important; border-radius: 8px; }
+    
+    /* STILI MAGAZZINO */
+    .stock-row { background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; margin-bottom: 5px; display: flex; align-items: center; justify-content: space-between; }
+    .stock-low { border-left: 4px solid #e53e3e !important; } /* Rosso per scorte basse */
+    .stock-ok { border-left: 4px solid #2ecc71 !important; } /* Verde per scorte ok */
 </style>
 """, unsafe_allow_html=True)
 
@@ -204,8 +209,18 @@ def save_preventivo_temp(paziente, dettagli_str, totale, note):
     try: api.table(BASE_ID, "Preventivi_Salvati").create({"Paziente": paziente, "Dettagli": dettagli_str, "Totale": totale, "Note": note, "Data_Creazione": str(date.today())}, typecast=True); get_data.clear(); return True
     except: return False
 
-def save_prodotto(prodotto, quantita):
-    try: api.table(BASE_ID, "Inventario").create({"Prodotto": prodotto, "Quantita": quantita}, typecast=True); get_data.clear(); return True
+# FUNZIONE MAGAZZINO AVANZATA (Gestisce Area e Soglie)
+def save_prodotto_avanzato(prodotto, area, quantita, obiettivo, soglia):
+    try: 
+        api.table(BASE_ID, "Inventario").create({
+            "Prodotto": prodotto, 
+            "Area": area,
+            "Quantita": int(quantita),
+            "Obiettivo": int(obiettivo),
+            "Soglia_Minima": int(soglia)
+        }, typecast=True)
+        get_data.clear()
+        return True
     except: return False
 
 def save_prestito(paziente, oggetto, data_prestito):
@@ -396,7 +411,7 @@ with st.sidebar:
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v66 - Final Layout Fix")
+    st.divider(); st.caption("App v67 - Magazzino Pro")
 
 # =========================================================
 # DASHBOARD
@@ -409,6 +424,7 @@ if menu == "⚡ Dashboard":
 
     df = get_data("Pazienti")
     df_prev = get_data("Preventivi_Salvati") # Carico anche i preventivi
+    df_inv = get_data("Inventario") # Carico inventario per alert
     
     if not df.empty:
         # Preprocessing
@@ -442,6 +458,14 @@ if menu == "⚡ Dashboard":
             df_prev['Data_Creazione'] = pd.to_datetime(df_prev['Data_Creazione'], errors='coerce')
             limite_prev = oggi - timedelta(days=7)
             prev_scaduti = df_prev[df_prev['Data_Creazione'] <= limite_prev]
+
+        # Calcolo Scorte Basse
+        low_stock = pd.DataFrame()
+        if not df_inv.empty:
+            # Assicuro che le colonne esistano per evitare crash
+            for c in ['Quantita', 'Soglia_Minima']:
+                if c not in df_inv.columns: df_inv[c] = 0
+            low_stock = df_inv[df_inv['Quantita'] <= df_inv['Soglia_Minima']]
 
         # --- 1. KPI CARDS (MODIFICATO A 5 COLONNE) ---
         col1, col2, col3, col4, col5 = st.columns(5)
@@ -495,7 +519,18 @@ if menu == "⚡ Dashboard":
         # --- 3. AVVISI ---
         st.subheader("🔔 Avvisi e Scadenze")
         
-        # ALERT PREVENTIVI SCADUTI (NUOVO)
+        # ALERT MAGAZZINO BASSO (NUOVO)
+        if not low_stock.empty:
+            st.error(f"⚠️ ATTENZIONE: {len(low_stock)} prodotti in esaurimento!")
+            for i, row in low_stock.iterrows():
+                st.markdown(f"""
+                <div class="alert-row-name border-red" style="justify-content: space-between;">
+                    <span>📦 {row.get('Prodotto','')} (Zona: {row.get('Area','')})</span>
+                    <span>Qta: <strong>{row.get('Quantita',0)}</strong> (Min: {row.get('Soglia_Minima',0)})</span>
+                </div>
+                """, unsafe_allow_html=True)
+
+        # ALERT PREVENTIVI SCADUTI
         if not prev_scaduti.empty:
             st.caption(f"⏳ Preventivi in Sospeso (> 7gg): {len(prev_scaduti)}")
             for i, row in prev_scaduti.iterrows():
@@ -548,7 +583,7 @@ if menu == "⚡ Dashboard":
                 </div>
                 """, unsafe_allow_html=True)
 
-        if da_richiamare.empty and visite_passate.empty and visite_imminenti.empty and prev_scaduti.empty:
+        if da_richiamare.empty and visite_passate.empty and visite_imminenti.empty and prev_scaduti.empty and low_stock.empty:
             st.success("Tutto tranquillo! Nessun avviso.")
 
         st.divider()
@@ -667,9 +702,7 @@ elif menu == "👥 Pazienti":
 elif menu == "💳 Preventivi":
     st.title("Preventivi & Proposte")
     tab1, tab2 = st.tabs(["📝 Generatore", "📂 Archivio Salvati"])
-    df_srv = get_data("Servizi")
-    df_paz = get_data("Pazienti")
-    df_std = get_data("Preventivi_Standard")
+    df_srv = get_data("Servizi"); df_paz = get_data("Pazienti"); df_std = get_data("Preventivi_Standard")
 
     with tab1:
         with st.expander("📋 Listino Prezzi Attuale", expanded=False):
@@ -825,29 +858,80 @@ elif menu == "💳 Preventivi":
         else: st.info("Nessun preventivo salvato.")
 
 # =========================================================
-# SEZIONE 4: MAGAZZINO
+# SEZIONE 4: MAGAZZINO (RIFATTA: TAB + TARGET + CONSUMO RAPIDO)
 # =========================================================
 elif menu == "📦 Magazzino":
     st.title("Magazzino & Materiali")
-    col_add, col_tab = st.columns([1, 2], gap="large")
+    
+    # Elenco stanze
+    STANZE = ["Segreteria", "Mano", "Stanze", "Medicinali", "Pulizie"]
+    
+    col_add, col_view = st.columns([1, 2])
+    
+    # A. FORM AGGIUNTA PRODOTTO
     with col_add:
         with st.container(border=True):
-            st.subheader("Nuovo Prodotto")
-            with st.form("add_prod"):
-                new_prod = st.text_input("Nome Prodotto"); new_qty = st.number_input("Quantità Iniziale", 0, 1000, 1)
-                if st.form_submit_button("Aggiungi al Magazzino", use_container_width=True, type="primary"): save_prodotto(new_prod, new_qty); st.rerun()
-    with col_tab:
+            st.subheader("Nuovo Articolo")
+            with st.form("add_inv"):
+                new_prod = st.text_input("Nome Prodotto")
+                new_area = st.selectbox("Area/Stanza", STANZE)
+                c_q1, c_q2, c_q3 = st.columns(3)
+                qty_now = c_q1.number_input("Q.tà Attuale", 0, 1000, 1)
+                qty_target = c_q2.number_input("Q.tà Obiettivo", 1, 1000, 5)
+                qty_min = c_q3.number_input("Soglia Minima", 0, 100, 2)
+                
+                if st.form_submit_button("Aggiungi", use_container_width=True, type="primary"):
+                    if new_prod:
+                        save_prodotto_avanzato(new_prod, new_area, qty_now, qty_target, qty_min)
+                        st.success("Aggiunto!"); st.rerun()
+                    else: st.error("Inserisci nome.")
+
+    # B. VISUALIZZAZIONE PER STANZE
+    with col_view:
         df_inv = get_data("Inventario")
         if not df_inv.empty:
-            st.subheader("Giacenze Attuali")
-            if 'Prodotto' in df_inv.columns: df_inv = df_inv.sort_values('Prodotto')
-            edited_inv = st.data_editor(df_inv[['Prodotto', 'Quantita', 'id']], column_config={"Prodotto": st.column_config.TextColumn("Prodotto", disabled=True), "Quantita": st.column_config.NumberColumn("Q.tà Disponibile", min_value=0, step=1), "id": None}, hide_index=True, use_container_width=True, height=400)
-            if st.button("🔄 Aggiorna Giacenze", type="primary", use_container_width=True):
-                cnt = 0
-                for i, row in edited_inv.iterrows():
-                    rec_id = row['id']; orig_qty = df_inv[df_inv['id']==rec_id].iloc[0]['Quantita']
-                    if row['Quantita'] != orig_qty: update_generic("Inventario", rec_id, {"Quantita": row['Quantita']}); cnt += 1
-                if cnt > 0: get_data.clear(); st.success("Stock aggiornato!"); st.rerun()
+            # Assicuro colonne
+            for c in ['Area', 'Quantita', 'Obiettivo', 'Soglia_Minima']:
+                if c not in df_inv.columns: df_inv[c] = None
+            
+            # Normalizzo
+            df_inv['Quantita'] = df_inv['Quantita'].fillna(0).astype(int)
+            df_inv['Obiettivo'] = df_inv['Obiettivo'].fillna(1).astype(int)
+            df_inv['Soglia_Minima'] = df_inv['Soglia_Minima'].fillna(0).astype(int)
+            
+            # Tabs
+            tabs = st.tabs(STANZE)
+            
+            for i, stanza in enumerate(STANZE):
+                with tabs[i]:
+                    items = df_inv[df_inv['Area'] == stanza]
+                    if items.empty:
+                        st.caption("Nessun articolo.")
+                    else:
+                        for _, row in items.iterrows():
+                            # Calcolo stato scorta
+                            is_low = row['Quantita'] <= row['Soglia_Minima']
+                            
+                            # Riga custom
+                            c_name, c_prog, c_qty, c_btn = st.columns([3, 2, 1, 1])
+                            
+                            with c_name:
+                                st.markdown(f"**{row['Prodotto']}**")
+                                if is_low: st.caption("⚠️ BASSO!")
+                            
+                            with c_prog:
+                                progress = min(row['Quantita'] / row['Obiettivo'], 1.0)
+                                st.progress(progress)
+                            
+                            with c_qty:
+                                st.markdown(f"**{row['Quantita']}**/{row['Obiettivo']}")
+                            
+                            with c_btn:
+                                if st.button("🔻1", key=f"dec_{row['id']}"):
+                                    if row['Quantita'] > 0:
+                                        update_generic("Inventario", row['id'], {"Quantita": row['Quantita'] - 1})
+                                        st.rerun()
+
         else: st.info("Magazzino vuoto.")
 
 # =========================================================
