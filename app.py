@@ -82,7 +82,7 @@ st.markdown("""
     .kpi-value { font-size: 36px; font-weight: 800; color: white; line-height: 1; letter-spacing: -1px; }
     .kpi-label { font-size: 11px; text-transform: uppercase; color: #a0aec0; margin-top: 8px; letter-spacing: 1.5px; font-weight: 600; }
 
-    /* --- PULSANTI DASHBOARD (SOTTO LE CARD) --- */
+    /* --- PULSANTI --- */
     div[data-testid="column"] .stButton > button {
         background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
         border: none !important;
@@ -121,7 +121,8 @@ st.markdown("""
     .border-orange { border-left: 4px solid #ed8936 !important; }
     .border-red { border-left: 4px solid #e53e3e !important; }
     .border-blue { border-left: 4px solid #0bc5ea !important; }
-    .border-purple { border-left: 4px solid #9f7aea !important; } /* Colore viola per preventivi */
+    .border-purple { border-left: 4px solid #9f7aea !important; } 
+    .border-yellow { border-left: 4px solid #ecc94b !important; } /* Giallo per Magazzino */
 
     /* --- PULSANTI AZIONE (Neutri & Eleganti) --- */
     div[data-testid="stHorizontalBlock"] button {
@@ -158,21 +159,16 @@ st.markdown("""
     input, select, textarea { background-color: rgba(13, 17, 23, 0.8) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: white !important; border-radius: 8px; }
 
     /* CSS EXTRA PER MAGAZZINO COMPATTO */
-    /* Riduco il padding dei container con bordo */
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        padding: 8px 15px !important;
-        margin-bottom: 8px !important;
+        padding: 10px !important;
+        margin-bottom: 5px !important;
         background-color: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.05);
     }
-    /* Riduco l'altezza delle barre di progresso */
     div[data-testid="stProgress"] > div > div {
         height: 6px !important;
     }
-    /* Testo piccolo per dettagli */
-    .small-text {
-        font-size: 12px;
-        color: #a0aec0;
-    }
+    .compact-text { font-size: 13px; color: #cbd5e0; margin: 0; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -221,13 +217,13 @@ def save_preventivo_temp(paziente, dettagli_str, totale, note):
     try: api.table(BASE_ID, "Preventivi_Salvati").create({"Paziente": paziente, "Dettagli": dettagli_str, "Totale": totale, "Note": note, "Data_Creazione": str(date.today())}, typecast=True); get_data.clear(); return True
     except: return False
 
-# NUOVA FUNZIONE PER SALVARE MATERIALI CON AREA E SOGLIE
+# FUNZIONE MAGAZZINO
 def save_materiale_avanzato(materiale, area, quantita, obiettivo, soglia):
     try: 
         api.table(BASE_ID, "Inventario").create({
             "Materiali": materiale, 
             "Area": area,
-            "Quantità": int(quantita), # Usa Quantità con accento
+            "Quantità": int(quantita), # Uso "Quantità" con accento
             "Obiettivo": int(obiettivo),
             "Soglia_Minima": int(soglia)
         }, typecast=True)
@@ -236,10 +232,6 @@ def save_materiale_avanzato(materiale, area, quantita, obiettivo, soglia):
     except Exception as e:
         st.error(f"Errore Salvataggio: {e}")
         return False
-
-def save_prodotto(prodotto, quantita):
-    try: api.table(BASE_ID, "Inventario").create({"Prodotto": prodotto, "Quantita": quantita}, typecast=True); get_data.clear(); return True
-    except: return False
 
 def save_prestito(paziente, oggetto, data_prestito):
     try: api.table(BASE_ID, "Prestiti").create({"Paziente": paziente, "Oggetto": oggetto, "Data_Prestito": str(data_prestito), "Restituito": False}, typecast=True); get_data.clear(); return True
@@ -251,27 +243,18 @@ def get_base64_image(image_path):
             return base64.b64encode(img_file.read()).decode()
     except: return ""
 
-# --- FUNZIONE HTML PDF (STYLE OTTIMIZZATO PER 1 PAGINA, B&W, LOGO CENTRATO) ---
+# --- FUNZIONE HTML PDF ---
 def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale_complessivo, logo_b64=None, auto_print=False):
     rows_html = ""
     for r in righe_preventivo:
         rows_html += f"<tr><td>{r['nome']}</td><td class='col-qty'>{r['qty']}</td><td class='col-price'>{r['tot']} €</td></tr>"
     
-    # Intestazione con Logo Centrato
     if logo_b64:
         header_content = f"<div style='text-align:center;'><img src='data:image/png;base64,{logo_b64}' class='logo-img'></div>"
     else:
-        # Fallback testuale se manca il logo
-        header_content = """
-        <div class='brand-text-container'>
-            <div class='brand-small'>studio</div>
-            <div class='brand-large'>FOCUS</div>
-            <div class='brand-medium'>RIABILITAZIONE SPECIALISTICA</div>
-        </div>
-        """
+        header_content = "<div class='brand-text-container'><div class='doc-brand-main'>FOCUS</div></div>"
 
     print_script = "<script>window.print();</script>" if auto_print else ""
-    # Nasconde barra pulsanti se stampa automatica
     action_bar_style = "display:none;" if auto_print else "display:flex;"
 
     return f"""
@@ -282,136 +265,45 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap');
             body {{ font-family: 'Segoe UI', sans-serif; background: #fff; margin: 0; padding: 20px; color: #000; }}
-            
-            /* BOTTONE DOWNLOAD */
             .action-bar {{ margin-bottom: 20px; justify-content: flex-end; {action_bar_style} }}
-            .btn-download {{
-                background-color: #333; color: white; border: none; padding: 10px 20px;
-                font-size: 14px; font-weight: bold; border-radius: 4px; cursor: pointer;
-            }}
-            .btn-download:hover {{ background-color: #555; }}
-
-            /* FOGLIO A4 COMPATTO */
-            .sheet-a4 {{
-                width: 210mm; 
-                min-height: 296mm; /* Altezza fissa per forzare 1 pagina */
-                padding: 10mm 15mm; 
-                margin: 0 auto;
-                background: white; 
-                box-sizing: border-box; 
-                position: relative;
-                box-shadow: 0 0 10px rgba(0,0,0,0.1);
-                overflow: hidden; /* Nasconde sbavature che creano pag 2 */
-            }}
-
-            /* Header Centrato */
+            .btn-download {{ background-color: #333; color: white; border: none; padding: 10px 20px; font-weight: bold; border-radius: 4px; cursor: pointer; }}
+            .sheet-a4 {{ width: 210mm; min-height: 296mm; padding: 10mm 15mm; margin: 0 auto; background: white; box-sizing: border-box; position: relative; box-shadow: 0 0 10px rgba(0,0,0,0.1); overflow: hidden; }}
             .logo-img {{ max-width: 150px; height: auto; display: block; margin: 0 auto 5px auto; }}
             .brand-text-container {{ text-align: center; margin-bottom: 20px; }}
             .doc-brand-main {{ font-size: 26px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; color: #000; }}
-
-            /* Titolo */
-            .doc-title {{ 
-                font-size: 18px; font-weight: 700; text-transform: uppercase; color: #000; 
-                border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 15px; margin-top: 10px;
-            }}
-
-            /* Info */
+            .doc-title {{ font-size: 18px; font-weight: 700; text-transform: uppercase; color: #000; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 15px; margin-top: 10px; }}
             .info-box {{ margin-bottom: 15px; font-size: 13px; display: flex; justify-content: space-between; }}
             .info-label {{ font-weight: bold; color: #000; margin-right: 5px; }}
-
-            /* Obiettivi - Box Grigio */
-            .obj-box {{ 
-                background-color: #f2f2f2; border-left: 4px solid #333; 
-                padding: 10px; margin-bottom: 20px; font-size: 12px; line-height: 1.3;
-            }}
-            .obj-title {{ font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 3px; font-size: 11px; color: #000; }}
-
-            /* Tabella B&W */
+            .obj-box {{ background-color: #f2f2f2; border-left: 4px solid #333; padding: 10px; margin-bottom: 20px; font-size: 12px; line-height: 1.3; }}
+            .obj-title {{ font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 3px; font-size: 11px; }}
             table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
-            th {{ 
-                background-color: #e0e0e0; text-align: left; padding: 6px 8px; 
-                text-transform: uppercase; font-size: 10px; font-weight: bold; border-bottom: 1px solid #000; color: #000;
-            }}
+            th {{ background-color: #e0e0e0; text-align: left; padding: 6px 8px; text-transform: uppercase; font-size: 10px; font-weight: bold; border-bottom: 1px solid #000; color: #000; }}
             td {{ padding: 6px 8px; border-bottom: 1px solid #ccc; font-size: 12px; vertical-align: middle; }}
             .col-qty {{ text-align: center; width: 10%; }}
             .col-price {{ text-align: right; width: 20%; }}
             .total-row td {{ font-weight: bold; font-size: 14px; border-top: 2px solid #000; padding-top: 8px; color: #000; }}
-
-            /* Pagamenti */
             .payment-section {{ border: 1px solid #999; padding: 10px; border-radius: 0; margin-bottom: 20px; }}
             .pay-title {{ font-weight: bold; text-transform: uppercase; font-size: 11px; margin-bottom: 8px; color: #000; }}
             .pay-line {{ display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; }}
             .dotted {{ border-bottom: 1px dotted #000; width: 80px; display: inline-block; }}
             .dotted-date {{ border-bottom: 1px dotted #000; width: 120px; display: inline-block; }}
-
-            /* Footer */
             .footer {{ margin-top: 40px; display: flex; justify-content: flex-end; }}
             .sign-box {{ text-align: center; width: 200px; }}
             .sign-line {{ border-bottom: 1px solid #000; margin-top: 30px; }}
             .page-num {{ position: absolute; bottom: 10mm; left: 15mm; font-size: 9px; color: #666; }}
-
-            /* REGOLE DI STAMPA CRITICHE */
-            @media print {{
-                @page {{ 
-                    size: A4; 
-                    margin: 0; /* RIMUOVE INTESTAZIONI BROWSER */
-                }}
-                body {{ 
-                    margin: 0; padding: 0; 
-                    background: none; 
-                    -webkit-print-color-adjust: exact !important; 
-                    print-color-adjust: exact !important; 
-                }}
-                .action-bar {{ display: none !important; }}
-                .sheet-a4 {{ 
-                    margin: 0; 
-                    box-shadow: none; 
-                    border: none; 
-                    width: 100%; 
-                    height: 100%; 
-                    page-break-after: avoid; 
-                    page-break-inside: avoid;
-                }}
-            }}
+            @media print {{ @page {{ size: A4; margin: 0; }} body {{ margin: 0; padding: 0; background: none; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }} .action-bar {{ display: none !important; }} .sheet-a4 {{ margin: 0; box-shadow: none; border: none; width: 100%; height: 100%; page-break-after: avoid; page-break-inside: avoid; }} }}
         </style>
     </head>
     <body>
-        <div class="action-bar">
-            <button class="btn-download" onclick="window.print()">📥 SALVA PDF</button>
-        </div>
+        <div class="action-bar"><button class="btn-download" onclick="window.print()">📥 SALVA PDF</button></div>
         <div class="sheet-a4">
             {header_content}
             <div class="doc-title">PREVENTIVO PERCORSO RIABILITATIVO</div>
-            <div class="info-box">
-                <div><span class="info-label">Paziente:</span> {paziente}</div>
-                <div><span class="info-label">Data:</span> {data_oggi}</div>
-            </div>
-            <div class="obj-box">
-                <span class="obj-title">Obiettivi e Descrizione del Percorso:</span>
-                {note}
-            </div>
-            <table>
-                <thead><tr><th>Trattamento</th><th class="col-qty">Q.ta</th><th class="col-price">Importo</th></tr></thead>
-                <tbody>
-                    {rows_html}
-                    <tr class="total-row">
-                        <td colspan="2" style="text-align:right">TOTALE COMPLESSIVO:</td>
-                        <td class="col-price">{totale_complessivo} €</td>
-                    </tr>
-                </tbody>
-            </table>
-            <div class="payment-section">
-                <div class="pay-title">Piano di Pagamento Concordato:</div>
-                <div class="pay-line"><span>1) € <span class="dotted"></span></span> <span>entro il <span class="dotted-date"></span></span></div>
-                <div class="pay-line"><span>2) € <span class="dotted"></span></span> <span>entro il <span class="dotted-date"></span></span></div>
-                <div class="pay-line"><span>3) € <span class="dotted"></span></span> <span>entro il <span class="dotted-date"></span></span></div>
-            </div>
-            <div class="footer">
-                <div class="sign-box">
-                    <div>Firma per accettazione:</div>
-                    <div class="sign-line"></div>
-                </div>
-            </div>
+            <div class="info-box"><div><span class="info-label">Paziente:</span> {paziente}</div><div><span class="info-label">Data:</span> {data_oggi}</div></div>
+            <div class="obj-box"><span class="obj-title">Obiettivi e Descrizione del Percorso:</span>{note}</div>
+            <table><thead><tr><th>Trattamento</th><th class="col-qty">Q.ta</th><th class="col-price">Importo</th></tr></thead><tbody>{rows_html}<tr class="total-row"><td colspan="2" style="text-align:right">TOTALE COMPLESSIVO:</td><td class="col-price">{totale_complessivo} €</td></tr></tbody></table>
+            <div class="payment-section"><div class="pay-title">Piano di Pagamento Concordato:</div><div class="pay-line"><span>1) € <span class="dotted"></span></span> <span>entro il <span class="dotted-date"></span></span></div><div class="pay-line"><span>2) € <span class="dotted"></span></span> <span>entro il <span class="dotted-date"></span></span></div><div class="pay-line"><span>3) € <span class="dotted"></span></span> <span>entro il <span class="dotted-date"></span></span></div></div>
+            <div class="footer"><div class="sign-box"><div>Firma per accettazione:</div><div class="sign-line"></div></div></div>
             <div class="page-num">Pagina 1</div>
         </div>
         {print_script}
@@ -424,12 +316,12 @@ with st.sidebar:
     LOGO_B64 = ""
     try: 
         st.image("logo.png", use_container_width=True)
-        LOGO_B64 = get_base64_image("logo.png") # Carica logo in memoria
+        LOGO_B64 = get_base64_image("logo.png")
     except: 
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v75 - Stable & Compact")
+    st.divider(); st.caption("App v76 - Final Fixed")
 
 # =========================================================
 # DASHBOARD
@@ -441,8 +333,8 @@ if menu == "⚡ Dashboard":
     if 'kpi_filter' not in st.session_state: st.session_state.kpi_filter = "None"
 
     df = get_data("Pazienti")
-    df_prev = get_data("Preventivi_Salvati") # Carico anche i preventivi
-    df_inv = get_data("Inventario") # Carico inventario per alert
+    df_prev = get_data("Preventivi_Salvati")
+    df_inv = get_data("Inventario")
     
     if not df.empty:
         # Preprocessing
@@ -466,7 +358,7 @@ if menu == "⚡ Dashboard":
         sette_giorni_fa = oggi - pd.Timedelta(days=7)
         visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
 
-        # Calcolo Preventivi Scaduti
+        # Preventivi
         cnt_prev = len(df_prev)
         prev_scaduti = pd.DataFrame()
         if not df_prev.empty:
@@ -474,32 +366,22 @@ if menu == "⚡ Dashboard":
             limite_prev = oggi - timedelta(days=7)
             prev_scaduti = df_prev[df_prev['Data_Creazione'] <= limite_prev]
 
-        # Calcolo Scorte Basse (FIX NOME COLONNA)
+        # Scorte Basse
         low_stock = pd.DataFrame()
         if not df_inv.empty:
-            # Rinomina per coerenza interna (da Airtable con accento a interno senza)
+            # FIX: Colonna Quantità da Airtable
             if 'Quantità' in df_inv.columns:
                 df_inv = df_inv.rename(columns={'Quantità': 'Quantita'})
-            
-            # Assicuro che le colonne esistano
             for c in ['Quantita', 'Soglia_Minima', 'Materiali']:
                 if c not in df_inv.columns: df_inv[c] = 0
-            
             low_stock = df_inv[df_inv['Quantita'] <= df_inv['Soglia_Minima']]
 
-        # KPI CARDS (5 COLONNE)
+        # KPI CARDS
         col1, col2, col3, col4, col5 = st.columns(5)
         def draw_kpi(col, icon, num, label, color, filter_key):
             with col:
-                st.markdown(f"""
-                <div class="glass-kpi" style="border-bottom: 4px solid {color};">
-                    <div class="kpi-icon" style="color:{color}; filter: drop-shadow(0 0 8px {color}88);">{icon}</div>
-                    <div class="kpi-value">{num}</div>
-                    <div class="kpi-label">{label}</div>
-                </div>
-                """, unsafe_allow_html=True)
-                if st.button("Vedi Lista", key=f"btn_{filter_key}"):
-                    st.session_state.kpi_filter = filter_key
+                st.markdown(f"""<div class="glass-kpi" style="border-bottom: 4px solid {color};"><div class="kpi-icon" style="color:{color};">{icon}</div><div class="kpi-value">{num}</div><div class="kpi-label">{label}</div></div>""", unsafe_allow_html=True)
+                if st.button("Vedi Lista", key=f"btn_{filter_key}"): st.session_state.kpi_filter = filter_key
 
         draw_kpi(col1, "👥", cnt_attivi, "Attivi", "#2ecc71", "Attivi")
         draw_kpi(col2, "📉", len(df_disdetti), "Disdetti", "#e53e3e", "Disdetti")
@@ -527,18 +409,27 @@ if menu == "⚡ Dashboard":
             st.divider()
 
         st.write("")
+        # AVVISI
         st.subheader("🔔 Avvisi e Scadenze")
         
-        # ALERT MAGAZZINO BASSO
+        # ALERT MAGAZZINO (GIALLO)
         if not low_stock.empty:
-            st.error(f"⚠️ ATTENZIONE: {len(low_stock)} prodotti in esaurimento!")
+            st.warning(f"⚠️ SCORTA BASSA: {len(low_stock)} prodotti in esaurimento!")
             for i, row in low_stock.iterrows():
-                mat_name = row.get('Materiali', 'Sconosciuto')
-                st.markdown(f"""<div class="alert-row-name border-red" style="justify-content: space-between;"><span>📦 {mat_name} (Zona: {row.get('Area','-')})</span><span>Qta: <strong>{row.get('Quantita',0)}</strong> (Min: {row.get('Soglia_Minima',0)})</span></div>""", unsafe_allow_html=True)
+                c_info, c_btn = st.columns([3, 1])
+                with c_info:
+                    mat_name = row.get('Materiali', 'Sconosciuto')
+                    st.markdown(f"""<div class="alert-row-name border-yellow">{mat_name} (Qta: {row.get('Quantita',0)})</div>""", unsafe_allow_html=True)
+                with c_btn:
+                    if st.button("🔄 Riordinato", key=f"restock_{row['id']}", type="primary"):
+                        # Ripristina a obiettivo
+                        target = int(row.get('Obiettivo', 5))
+                        update_generic("Inventario", row['id'], {"Quantità": target})
+                        st.rerun()
 
-        # ALERT PREVENTIVI SCADUTI
+        # ALERT PREVENTIVI (VIOLA)
         if not prev_scaduti.empty:
-            st.caption(f"⏳ Preventivi in Sospeso (> 7gg): {len(prev_scaduti)}")
+            st.caption(f"⏳ Preventivi > 7gg: {len(prev_scaduti)}")
             for i, row in prev_scaduti.iterrows():
                 c_info, c_btn1, c_btn2 = st.columns([3, 1, 1], gap="small")
                 with c_info: st.markdown(f"""<div class="alert-row-name border-purple">{row['Paziente']} ({row['Data_Creazione'].strftime('%d/%m')})</div>""", unsafe_allow_html=True)
@@ -547,6 +438,7 @@ if menu == "⚡ Dashboard":
                 with c_btn2:
                     if st.button("🗑️ Elimina", key=f"del_prev_{row['id']}", type="secondary"): delete_generic("Preventivi_Salvati", row['id']); st.rerun()
 
+        # RECALL (ARANCIO)
         if not da_richiamare.empty:
             st.caption(f"📞 Recall Necessari: {len(da_richiamare)}")
             for i, row in da_richiamare.iterrows():
@@ -556,6 +448,8 @@ if menu == "⚡ Dashboard":
                     if st.button("✅ Rientrato", key=f"rk_{row['id']}", type="primary"): update_generic("Pazienti", row['id'], {"Disdetto": False, "Data_Disdetta": None}); st.rerun()
                 with c_btn2: 
                     if st.button("📅 Rimandare", key=f"pk_{row['id']}", type="secondary"): update_generic("Pazienti", row['id'], {"Data_Disdetta": pd.Timestamp.now() + timedelta(days=7)}); st.rerun()
+        
+        # VISITE (ROSSO/BLU)
         if not visite_passate.empty:
             st.caption(f"⚠️ Visite Scadute: {len(visite_passate)}")
             for i, row in visite_passate.iterrows():
@@ -563,13 +457,18 @@ if menu == "⚡ Dashboard":
                 with c_info: st.markdown(f"""<div class="alert-row-name border-red">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
                 with c_btn1:
                     if st.button("✅ Rientrato", key=f"vk_{row['id']}", type="primary"): update_generic("Pazienti", row['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
+        
         if not visite_imminenti.empty:
             st.caption(f"👨‍⚕️ Visite Imminenti: {len(visite_imminenti)}")
             for i, row in visite_imminenti.iterrows():
                 st.markdown(f"""<div class="alert-row-name border-blue" style="justify-content: space-between;"><span>{row['Nome']} {row['Cognome']}</span><span style="color:#0bc5ea; font-size:13px;">{row['Data_Visita'].strftime('%d/%m')}</span></div>""", unsafe_allow_html=True)
+        
         if da_richiamare.empty and visite_passate.empty and visite_imminenti.empty and prev_scaduti.empty and low_stock.empty: st.success("Tutto tranquillo! Nessun avviso.")
         
-        st.divider(); st.subheader("📈 Performance Aree")
+        st.divider()
+
+        # GRAFICO (COLORI RIPRISTINATI)
+        st.subheader("📈 Performance Aree")
         df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
         all_areas = []
         if 'Area' in df_attivi.columns:
@@ -577,9 +476,18 @@ if menu == "⚡ Dashboard":
                 if isinstance(item, list): all_areas.extend(item)
                 elif isinstance(item, str): all_areas.extend([p.strip() for p in item.split(',')])
                 else: all_areas.append(str(item))
+        
         if all_areas:
-            counts = pd.Series(all_areas).value_counts().reset_index(); counts.columns = ['Area', 'Pazienti']
-            chart = alt.Chart(counts).mark_bar(cornerRadius=6, height=35).encode(x=alt.X('Pazienti', axis=None), y=alt.Y('Area', sort='-x', title=None), color=alt.Color('Area', legend=None), tooltip=['Area', 'Pazienti']).properties(height=400).configure(background='transparent').configure_view(strokeWidth=0).configure_axis(grid=False)
+            counts = pd.Series(all_areas).value_counts().reset_index()
+            counts.columns = ['Area', 'Pazienti']
+            domain = ["Mano-Polso", "Muscolo-Scheletrico", "Colonna", "ATM", "Gruppi", "Ortopedico"]
+            range_ = ["#0bc5ea", "#9f7aea", "#ecc94b", "#2ecc71", "#e53e3e", "#4a5568"]
+            chart = alt.Chart(counts).mark_bar(cornerRadius=6, height=35).encode(
+                x=alt.X('Pazienti', axis=None), 
+                y=alt.Y('Area', sort='-x', title=None, axis=alt.Axis(domain=False, ticks=False, labelColor="#cbd5e0", labelFontSize=14)),
+                color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None),
+                tooltip=['Area', 'Pazienti']
+            ).properties(height=400).configure(background='transparent').configure_view(strokeWidth=0).configure_axis(grid=False)
             st.altair_chart(chart, use_container_width=True, theme=None)
         else: st.info("Dati insufficienti.")
 
@@ -589,6 +497,7 @@ if menu == "⚡ Dashboard":
 elif menu == "👥 Pazienti":
     st.title("Anagrafica Pazienti")
     lista_aree = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Gruppi", "Ortopedico"]
+    
     with st.container(border=True):
         st.subheader("➕ Aggiungi Paziente")
         with st.form("form_paziente", clear_on_submit=True):
@@ -600,7 +509,9 @@ elif menu == "👥 Pazienti":
                 if st.session_state.new_name and st.session_state.new_surname:
                     save_paziente(st.session_state.new_name, st.session_state.new_surname, ", ".join(st.session_state.new_area), False)
                     st.success("Paziente salvato!"); st.rerun()
+    
     st.write(""); df_original = get_data("Pazienti")
+    
     if not df_original.empty:
         for c in ['Disdetto', 'Visita_Esterna', 'Dimissione']:
             if c not in df_original.columns: df_original[c] = False
@@ -768,27 +679,31 @@ elif menu == "📦 Magazzino":
                             
                             # RIGA COMPATTA CUSTOM
                             with st.container(border=True):
-                                c_info, c_stat, c_act = st.columns([3, 2, 1])
+                                # CSS inline per compattezza estrema di questa sezione
+                                st.markdown('<style>div[data-testid="stVerticalBlockBorderWrapper"] {padding: 8px 15px !important; margin-bottom: 5px !important;}</style>', unsafe_allow_html=True)
+                                
+                                c_info, c_stat, c_act = st.columns([3, 2, 1], gap="small")
                                 
                                 with c_info:
                                     mat_name = row.get('Materiali', 'Senza Nome')
                                     st.markdown(f"**{mat_name}**")
                                     if is_low: 
-                                        st.caption(":red[⚠️ BASSO]")
+                                        st.caption(":red[⚠️ SCORTA BASSA]")
                                     else:
-                                        st.caption(":green[OK]")
+                                        st.caption(":green[DISPONIBILE]")
 
                                 with c_stat:
                                     # Barra semplice
                                     val = min(row['Quantita'] / row['Obiettivo'], 1.0) if row['Obiettivo'] > 0 else 0
                                     st.progress(val)
-                                    st.caption(f"{row['Quantita']} / {row['Obiettivo']}")
+                                    st.caption(f"**{row['Quantita']}** / {row['Obiettivo']}")
 
                                 with c_act:
                                     st.write("") # Spacer
                                     # FIX TASTO: converto in int e uso la chiave con accento
                                     if st.button("🔻1", key=f"dec_{row['id']}", type="primary" if is_low else "secondary"):
                                         if row['Quantita'] > 0:
+                                            # IMPORTANTE: uso "Quantità" con accento per Airtable update
                                             new_qty = int(row['Quantita'] - 1)
                                             update_generic("Inventario", row['id'], {"Quantità": new_qty})
                                             st.rerun()
