@@ -82,7 +82,7 @@ st.markdown("""
     .kpi-value { font-size: 36px; font-weight: 800; color: white; line-height: 1; letter-spacing: -1px; }
     .kpi-label { font-size: 11px; text-transform: uppercase; color: #a0aec0; margin-top: 8px; letter-spacing: 1.5px; font-weight: 600; }
 
-    /* --- PULSANTI --- */
+    /* --- PULSANTI DASHBOARD (SOTTO LE CARD) --- */
     div[data-testid="column"] .stButton > button {
         background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
         border: none !important;
@@ -121,7 +121,7 @@ st.markdown("""
     .border-orange { border-left: 4px solid #ed8936 !important; }
     .border-red { border-left: 4px solid #e53e3e !important; }
     .border-blue { border-left: 4px solid #0bc5ea !important; }
-    .border-purple { border-left: 4px solid #9f7aea !important; }
+    .border-purple { border-left: 4px solid #9f7aea !important; } /* Colore viola per preventivi */
 
     /* --- PULSANTI AZIONE (Neutri & Eleganti) --- */
     div[data-testid="stHorizontalBlock"] button {
@@ -157,18 +157,17 @@ st.markdown("""
     div[data-testid="stDataFrame"] { background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; }
     input, select, textarea { background-color: rgba(13, 17, 23, 0.8) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: white !important; border-radius: 8px; }
 
-    /* STILI MAGAZZINO COMPATTO */
-    .compact-con {
-        margin-bottom: 5px !important;
-        padding: 5px !important;
-    }
-    /* Riduce padding dei container con bordo */
+    /* CSS EXTRA PER MAGAZZINO COMPATTO */
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        padding: 10px !important;
+        padding: 12px !important;
+        margin-bottom: 8px !important;
     }
-    /* Barre progresso più sottili */
-    div[data-testid="stProgress"] > div > div {
-        height: 6px !important;
+    div[data-testid="stProgress"] {
+        padding-top: 5px !important;
+    }
+    .compact-text {
+        font-size: 14px;
+        margin: 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -218,21 +217,25 @@ def save_preventivo_temp(paziente, dettagli_str, totale, note):
     try: api.table(BASE_ID, "Preventivi_Salvati").create({"Paziente": paziente, "Dettagli": dettagli_str, "Totale": totale, "Note": note, "Data_Creazione": str(date.today())}, typecast=True); get_data.clear(); return True
     except: return False
 
-# --- FUNZIONE SALVATAGGIO MAGAZZINO CON "MATERIALI" ---
+# FUNZIONE MAGAZZINO CON ERROR HANDLING
 def save_materiale_avanzato(materiale, area, quantita, obiettivo, soglia):
     try: 
         api.table(BASE_ID, "Inventario").create({
             "Materiali": materiale, 
             "Area": area,
-            "Quantità": int(quantita), # Uso "Quantità" (accento) per Airtable
+            "Quantità": int(quantita), # Nome corretto Airtable
             "Obiettivo": int(obiettivo),
             "Soglia_Minima": int(soglia)
         }, typecast=True)
         get_data.clear()
         return True
     except Exception as e:
-        st.error(f"Errore Salvataggio: {e}")
+        st.error(f"Errore DB: {e}")
         return False
+
+def save_prodotto(prodotto, quantita):
+    try: api.table(BASE_ID, "Inventario").create({"Prodotto": prodotto, "Quantita": quantita}, typecast=True); get_data.clear(); return True
+    except: return False
 
 def save_prestito(paziente, oggetto, data_prestito):
     try: api.table(BASE_ID, "Prestiti").create({"Paziente": paziente, "Oggetto": oggetto, "Data_Prestito": str(data_prestito), "Restituito": False}, typecast=True); get_data.clear(); return True
@@ -250,9 +253,11 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
     for r in righe_preventivo:
         rows_html += f"<tr><td>{r['nome']}</td><td class='col-qty'>{r['qty']}</td><td class='col-price'>{r['tot']} €</td></tr>"
     
+    # Intestazione con Logo Centrato
     if logo_b64:
         header_content = f"<div style='text-align:center;'><img src='data:image/png;base64,{logo_b64}' class='logo-img'></div>"
     else:
+        # Fallback testuale se manca il logo
         header_content = """
         <div class='brand-text-container'>
             <div class='brand-small'>studio</div>
@@ -262,6 +267,7 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
         """
 
     print_script = "<script>window.print();</script>" if auto_print else ""
+    # Nasconde barra pulsanti se stampa automatica
     action_bar_style = "display:none;" if auto_print else "display:flex;"
 
     return f"""
@@ -273,48 +279,102 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
             @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap');
             body {{ font-family: 'Segoe UI', sans-serif; background: #fff; margin: 0; padding: 20px; color: #000; }}
             
+            /* BOTTONE DOWNLOAD */
             .action-bar {{ margin-bottom: 20px; justify-content: flex-end; {action_bar_style} }}
-            .btn-download {{ background-color: #333; color: white; border: none; padding: 10px 20px; font-weight: bold; border-radius: 4px; cursor: pointer; }}
+            .btn-download {{
+                background-color: #333; color: white; border: none; padding: 10px 20px;
+                font-size: 14px; font-weight: bold; border-radius: 4px; cursor: pointer;
+            }}
             .btn-download:hover {{ background-color: #555; }}
 
+            /* FOGLIO A4 COMPATTO */
             .sheet-a4 {{
-                width: 210mm; min-height: 296mm; padding: 10mm 15mm; margin: 0 auto;
-                background: white; box-sizing: border-box; position: relative; box-shadow: 0 0 10px rgba(0,0,0,0.1); overflow: hidden;
+                width: 210mm; 
+                min-height: 296mm; /* Altezza fissa per forzare 1 pagina */
+                padding: 10mm 15mm; 
+                margin: 0 auto;
+                background: white; 
+                box-sizing: border-box; 
+                position: relative;
+                box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                overflow: hidden; /* Nasconde sbavature che creano pag 2 */
             }}
+
+            /* Header Centrato */
             .logo-img {{ max-width: 150px; height: auto; display: block; margin: 0 auto 5px auto; }}
             .brand-text-container {{ text-align: center; margin-bottom: 20px; }}
             .doc-brand-main {{ font-size: 26px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; color: #000; }}
-            .doc-title {{ font-size: 18px; font-weight: 700; text-transform: uppercase; color: #000; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 15px; margin-top: 10px; }}
+
+            /* Titolo */
+            .doc-title {{ 
+                font-size: 18px; font-weight: 700; text-transform: uppercase; color: #000; 
+                border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 15px; margin-top: 10px;
+            }}
+
+            /* Info */
             .info-box {{ margin-bottom: 15px; font-size: 13px; display: flex; justify-content: space-between; }}
             .info-label {{ font-weight: bold; color: #000; margin-right: 5px; }}
-            .obj-box {{ background-color: #f2f2f2; border-left: 4px solid #333; padding: 10px; margin-bottom: 20px; font-size: 12px; line-height: 1.3; }}
-            .obj-title {{ font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 3px; font-size: 11px; }}
+
+            /* Obiettivi - Box Grigio */
+            .obj-box {{ 
+                background-color: #f2f2f2; border-left: 4px solid #333; 
+                padding: 10px; margin-bottom: 20px; font-size: 12px; line-height: 1.3;
+            }}
+            .obj-title {{ font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 3px; font-size: 11px; color: #000; }}
+
+            /* Tabella B&W */
             table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
-            th {{ background-color: #e0e0e0; text-align: left; padding: 6px 8px; text-transform: uppercase; font-size: 10px; font-weight: bold; border-bottom: 1px solid #000; color: #000; }}
+            th {{ 
+                background-color: #e0e0e0; text-align: left; padding: 6px 8px; 
+                text-transform: uppercase; font-size: 10px; font-weight: bold; border-bottom: 1px solid #000; color: #000;
+            }}
             td {{ padding: 6px 8px; border-bottom: 1px solid #ccc; font-size: 12px; vertical-align: middle; }}
             .col-qty {{ text-align: center; width: 10%; }}
             .col-price {{ text-align: right; width: 20%; }}
             .total-row td {{ font-weight: bold; font-size: 14px; border-top: 2px solid #000; padding-top: 8px; color: #000; }}
+
+            /* Pagamenti */
             .payment-section {{ border: 1px solid #999; padding: 10px; border-radius: 0; margin-bottom: 20px; }}
             .pay-title {{ font-weight: bold; text-transform: uppercase; font-size: 11px; margin-bottom: 8px; color: #000; }}
             .pay-line {{ display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; }}
             .dotted {{ border-bottom: 1px dotted #000; width: 80px; display: inline-block; }}
             .dotted-date {{ border-bottom: 1px dotted #000; width: 120px; display: inline-block; }}
+
+            /* Footer */
             .footer {{ margin-top: 40px; display: flex; justify-content: flex-end; }}
             .sign-box {{ text-align: center; width: 200px; }}
             .sign-line {{ border-bottom: 1px solid #000; margin-top: 30px; }}
             .page-num {{ position: absolute; bottom: 10mm; left: 15mm; font-size: 9px; color: #666; }}
 
+            /* REGOLE DI STAMPA CRITICHE */
             @media print {{
-                @page {{ size: A4; margin: 0; }}
-                body {{ margin: 0; padding: 0; background: none; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }}
+                @page {{ 
+                    size: A4; 
+                    margin: 0; /* RIMUOVE INTESTAZIONI BROWSER */
+                }}
+                body {{ 
+                    margin: 0; padding: 0; 
+                    background: none; 
+                    -webkit-print-color-adjust: exact !important; 
+                    print-color-adjust: exact !important; 
+                }}
                 .action-bar {{ display: none !important; }}
-                .sheet-a4 {{ margin: 0; box-shadow: none; border: none; width: 100%; height: 100%; page-break-after: avoid; page-break-inside: avoid; }}
+                .sheet-a4 {{ 
+                    margin: 0; 
+                    box-shadow: none; 
+                    border: none; 
+                    width: 100%; 
+                    height: 100%; 
+                    page-break-after: avoid; 
+                    page-break-inside: avoid;
+                }}
             }}
         </style>
     </head>
     <body>
-        <div class="action-bar"><button class="btn-download" onclick="window.print()">📥 SALVA PDF</button></div>
+        <div class="action-bar">
+            <button class="btn-download" onclick="window.print()">📥 SALVA PDF</button>
+        </div>
         <div class="sheet-a4">
             {header_content}
             <div class="doc-title">PREVENTIVO PERCORSO RIABILITATIVO</div>
@@ -322,12 +382,18 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
                 <div><span class="info-label">Paziente:</span> {paziente}</div>
                 <div><span class="info-label">Data:</span> {data_oggi}</div>
             </div>
-            <div class="obj-box"><span class="obj-title">Obiettivi e Descrizione del Percorso:</span>{note}</div>
+            <div class="obj-box">
+                <span class="obj-title">Obiettivi e Descrizione del Percorso:</span>
+                {note}
+            </div>
             <table>
                 <thead><tr><th>Trattamento</th><th class="col-qty">Q.ta</th><th class="col-price">Importo</th></tr></thead>
                 <tbody>
                     {rows_html}
-                    <tr class="total-row"><td colspan="2" style="text-align:right">TOTALE COMPLESSIVO:</td><td class="col-price">{totale_complessivo} €</td></tr>
+                    <tr class="total-row">
+                        <td colspan="2" style="text-align:right">TOTALE COMPLESSIVO:</td>
+                        <td class="col-price">{totale_complessivo} €</td>
+                    </tr>
                 </tbody>
             </table>
             <div class="payment-section">
@@ -336,7 +402,12 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
                 <div class="pay-line"><span>2) € <span class="dotted"></span></span> <span>entro il <span class="dotted-date"></span></span></div>
                 <div class="pay-line"><span>3) € <span class="dotted"></span></span> <span>entro il <span class="dotted-date"></span></span></div>
             </div>
-            <div class="footer"><div class="sign-box"><div>Firma per accettazione:</div><div class="sign-line"></div></div></div>
+            <div class="footer">
+                <div class="sign-box">
+                    <div>Firma per accettazione:</div>
+                    <div class="sign-line"></div>
+                </div>
+            </div>
             <div class="page-num">Pagina 1</div>
         </div>
         {print_script}
@@ -349,7 +420,7 @@ with st.sidebar:
     LOGO_B64 = ""
     try: 
         st.image("logo.png", use_container_width=True)
-        LOGO_B64 = get_base64_image("logo.png")
+        LOGO_B64 = get_base64_image("logo.png") # Carica logo in memoria
     except: 
         st.title("Focus Rehab")
         
@@ -366,8 +437,8 @@ if menu == "⚡ Dashboard":
     if 'kpi_filter' not in st.session_state: st.session_state.kpi_filter = "None"
 
     df = get_data("Pazienti")
-    df_prev = get_data("Preventivi_Salvati")
-    df_inv = get_data("Inventario")
+    df_prev = get_data("Preventivi_Salvati") # Carico anche i preventivi
+    df_inv = get_data("Inventario") # Carico inventario per alert
     
     if not df.empty:
         # Preprocessing
@@ -402,20 +473,27 @@ if menu == "⚡ Dashboard":
         # Calcolo Scorte Basse
         low_stock = pd.DataFrame()
         if not df_inv.empty:
-            # FIX: Normalizzazione (Quantità con accento da Airtable)
+            # FIX: Normalizzazione del nome colonna per Airtable (Quantità con accento)
             if 'Quantità' in df_inv.columns:
                 df_inv = df_inv.rename(columns={'Quantità': 'Quantita'})
             
+            # Assicuro che le colonne esistano per evitare crash
             for c in ['Quantita', 'Soglia_Minima', 'Materiali']:
                 if c not in df_inv.columns: df_inv[c] = 0
             
             low_stock = df_inv[df_inv['Quantita'] <= df_inv['Soglia_Minima']]
 
-        # KPI CARDS (5 COLONNE)
+        # --- 1. KPI CARDS (MODIFICATO A 5 COLONNE) ---
         col1, col2, col3, col4, col5 = st.columns(5)
         def draw_kpi(col, icon, num, label, color, filter_key):
             with col:
-                st.markdown(f"""<div class="glass-kpi" style="border-bottom: 4px solid {color};"><div class="kpi-icon" style="color:{color};">{icon}</div><div class="kpi-value">{num}</div><div class="kpi-label">{label}</div></div>""", unsafe_allow_html=True)
+                st.markdown(f"""
+                <div class="glass-kpi" style="border-bottom: 4px solid {color};">
+                    <div class="kpi-icon" style="color:{color}; filter: drop-shadow(0 0 8px {color}88);">{icon}</div>
+                    <div class="kpi-value">{num}</div>
+                    <div class="kpi-label">{label}</div>
+                </div>
+                """, unsafe_allow_html=True)
                 if st.button("Vedi Lista", key=f"btn_{filter_key}"):
                     st.session_state.kpi_filter = filter_key
 
@@ -423,7 +501,7 @@ if menu == "⚡ Dashboard":
         draw_kpi(col2, "📉", len(df_disdetti), "Disdetti", "#e53e3e", "Disdetti")
         draw_kpi(col3, "💡", len(da_richiamare), "Recall", "#ed8936", "Recall")
         draw_kpi(col4, "🩺", len(visite_imminenti), "Visite", "#0bc5ea", "Visite")
-        draw_kpi(col5, "💳", cnt_prev, "Preventivi", "#9f7aea", "Preventivi")
+        draw_kpi(col5, "💳", cnt_prev, "Preventivi", "#9f7aea", "Preventivi") # Nuovo KPI
 
         st.write("")
         if st.session_state.kpi_filter != "None":
@@ -447,47 +525,78 @@ if menu == "⚡ Dashboard":
         st.write("")
         st.subheader("🔔 Avvisi e Scadenze")
         
-        # ALERT MAGAZZINO BASSO
+        # ALERT MAGAZZINO BASSO (NUOVO)
         if not low_stock.empty:
             st.error(f"⚠️ ATTENZIONE: {len(low_stock)} prodotti in esaurimento!")
             for i, row in low_stock.iterrows():
                 mat_name = row.get('Materiali', 'Sconosciuto')
-                st.markdown(f"""<div class="alert-row-name border-red" style="justify-content: space-between;"><span>📦 {mat_name} (Zona: {row.get('Area','-')})</span><span>Qta: <strong>{row.get('Quantita',0)}</strong> (Min: {row.get('Soglia_Minima',0)})</span></div>""", unsafe_allow_html=True)
+                st.markdown(f"""
+                <div class="alert-row-name border-red" style="justify-content: space-between;">
+                    <span>📦 {mat_name} (Zona: {row.get('Area','-')})</span>
+                    <span>Qta: <strong>{row.get('Quantita',0)}</strong> (Min: {row.get('Soglia_Minima',0)})</span>
+                </div>
+                """, unsafe_allow_html=True)
 
-        # ALERT PREVENTIVI SCADUTI
+        # ALERT PREVENTIVI SCADUTI (NUOVO)
         if not prev_scaduti.empty:
             st.caption(f"⏳ Preventivi in Sospeso (> 7gg): {len(prev_scaduti)}")
             for i, row in prev_scaduti.iterrows():
                 c_info, c_btn1, c_btn2 = st.columns([3, 1, 1], gap="small")
-                with c_info: st.markdown(f"""<div class="alert-row-name border-purple">{row['Paziente']} ({row['Data_Creazione'].strftime('%d/%m')})</div>""", unsafe_allow_html=True)
+                with c_info:
+                    st.markdown(f"""<div class="alert-row-name border-purple">{row['Paziente']} ({row['Data_Creazione'].strftime('%d/%m')})</div>""", unsafe_allow_html=True)
                 with c_btn1:
-                    if st.button("📞 Rinnova", key=f"ren_{row['id']}", type="primary"): update_generic("Preventivi_Salvati", row['id'], {"Data_Creazione": str(date.today())}); st.rerun()
+                    # Rinnova: Aggiorna data a oggi
+                    if st.button("📞 Rinnova", key=f"ren_{row['id']}", type="primary"):
+                        update_generic("Preventivi_Salvati", row['id'], {"Data_Creazione": str(date.today())}); st.rerun()
                 with c_btn2:
-                    if st.button("🗑️ Elimina", key=f"del_prev_{row['id']}", type="secondary"): delete_generic("Preventivi_Salvati", row['id']); st.rerun()
+                    # Elimina
+                    if st.button("🗑️ Elimina", key=f"del_prev_{row['id']}", type="secondary"):
+                        delete_generic("Preventivi_Salvati", row['id']); st.rerun()
 
+        # RECALL
         if not da_richiamare.empty:
             st.caption(f"📞 Recall Necessari: {len(da_richiamare)}")
             for i, row in da_richiamare.iterrows():
                 c_info, c_btn1, c_btn2 = st.columns([3, 1, 1], gap="small")
-                with c_info: st.markdown(f"""<div class="alert-row-name border-orange">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
-                with c_btn1: 
-                    if st.button("✅ Rientrato", key=f"rk_{row['id']}", type="primary"): update_generic("Pazienti", row['id'], {"Disdetto": False, "Data_Disdetta": None}); st.rerun()
-                with c_btn2: 
-                    if st.button("📅 Rimandare", key=f"pk_{row['id']}", type="secondary"): update_generic("Pazienti", row['id'], {"Data_Disdetta": pd.Timestamp.now() + timedelta(days=7)}); st.rerun()
+                with c_info:
+                    st.markdown(f"""<div class="alert-row-name border-orange">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
+                with c_btn1:
+                    if st.button("✅ Rientrato", key=f"rk_{row['id']}", use_container_width=True, type="primary"):
+                        update_generic("Pazienti", row['id'], {"Disdetto": False, "Data_Disdetta": None}); st.rerun()
+                with c_btn2:
+                    if st.button("📅 Rimandare", key=f"pk_{row['id']}", use_container_width=True, type="secondary"):
+                        new_date = pd.Timestamp.now() + timedelta(days=7)
+                        update_generic("Pazienti", row['id'], {"Data_Disdetta": new_date}); st.rerun()
+
+        # VISITE SCADUTE
         if not visite_passate.empty:
             st.caption(f"⚠️ Visite Scadute: {len(visite_passate)}")
             for i, row in visite_passate.iterrows():
                 c_info, c_btn1, c_void = st.columns([3, 1, 1], gap="small")
-                with c_info: st.markdown(f"""<div class="alert-row-name border-red">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
+                with c_info:
+                    st.markdown(f"""<div class="alert-row-name border-red">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
                 with c_btn1:
-                    if st.button("✅ Rientrato", key=f"vk_{row['id']}", type="primary"): update_generic("Pazienti", row['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
+                    if st.button("✅ Rientrato", key=f"vk_{row['id']}", use_container_width=True, type="primary"):
+                        update_generic("Pazienti", row['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
+
+        # VISITE IMMINENTI
         if not visite_imminenti.empty:
             st.caption(f"👨‍⚕️ Visite Imminenti: {len(visite_imminenti)}")
             for i, row in visite_imminenti.iterrows():
-                st.markdown(f"""<div class="alert-row-name border-blue" style="justify-content: space-between;"><span>{row['Nome']} {row['Cognome']}</span><span style="color:#0bc5ea; font-size:13px;">{row['Data_Visita'].strftime('%d/%m')}</span></div>""", unsafe_allow_html=True)
-        if da_richiamare.empty and visite_passate.empty and visite_imminenti.empty and prev_scaduti.empty and low_stock.empty: st.success("Tutto tranquillo! Nessun avviso.")
-        
-        st.divider(); st.subheader("📈 Performance Aree")
+                st.markdown(f"""
+                <div class="alert-row-name border-blue" style="justify-content: space-between;">
+                    <span>{row['Nome']} {row['Cognome']}</span>
+                    <span style="color:#0bc5ea; font-size:13px;">{row['Data_Visita'].strftime('%d/%m')}</span>
+                </div>
+                """, unsafe_allow_html=True)
+
+        if da_richiamare.empty and visite_passate.empty and visite_imminenti.empty and prev_scaduti.empty and low_stock.empty:
+            st.success("Tutto tranquillo! Nessun avviso.")
+
+        st.divider()
+
+        # --- 4. GRAFICO ---
+        st.subheader("📈 Performance Aree")
         df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
         all_areas = []
         if 'Area' in df_attivi.columns:
@@ -511,7 +620,9 @@ elif menu == "👥 Pazienti":
         st.subheader("➕ Aggiungi Paziente")
         with st.form("form_paziente", clear_on_submit=True):
             c1, c2, c3 = st.columns([2, 2, 1])
-            c1.text_input("Nome", key="new_name"); c2.text_input("Cognome", key="new_surname"); c3.multiselect("Area", lista_aree, key="new_area")
+            c1.text_input("Nome", key="new_name", placeholder="Es. Mario")
+            c2.text_input("Cognome", key="new_surname", placeholder="Es. Rossi")
+            c3.multiselect("Area", lista_aree, key="new_area")
             if st.form_submit_button("Salva Paziente", use_container_width=True, type="primary"):
                 if st.session_state.new_name and st.session_state.new_surname:
                     save_paziente(st.session_state.new_name, st.session_state.new_surname, ", ".join(st.session_state.new_area), False)
@@ -584,7 +695,12 @@ elif menu == "💳 Preventivi":
                 st.divider(); st.subheader("Dettaglio Costi")
                 for s in servizi_scelti:
                     c1, c2, c3 = st.columns([3, 1, 1]); c1.write(f"**{s}**"); def_qty = st.session_state.get(f"qty_preload_{s}", 1)
-                    qty = c2.number_input(f"Q.tà", 1, 50, def_qty, key=f"q_{s}"); costo = listino_dict[s] * qty; c3.markdown(f"**{costo} €**"); totale += costo; righe_preventivo.append({"nome": s, "qty": qty, "tot": costo})
+                    qty = c2.number_input(f"Q.tà", 1, 50, def_qty, key=f"q_{s}", label_visibility="collapsed")
+                    with c3: 
+                        costo = listino_dict[s] * qty
+                        st.markdown(f"<div style='text-align:right; font-weight:bold'>{costo} €</div>", unsafe_allow_html=True)
+                    totale += costo
+                    righe_preventivo.append({"nome": s, "qty": qty, "tot": costo})
                 st.divider(); c_tot, c_btn = st.columns([2, 1]); c_tot.markdown(f"### TOTALE: {totale} €")
                 with c_btn:
                     if st.button("💾 Salva in Archivio", use_container_width=True):
@@ -618,7 +734,7 @@ elif menu == "💳 Preventivi":
         else: st.info("Archivio vuoto.")
 
 # =========================================================
-# SEZIONE 4: MAGAZZINO (RIFATTA: COMPATTA E FUNZIONANTE)
+# SEZIONE 4: MAGAZZINO (BEAUTIFUL UI & COMPACT)
 # =========================================================
 elif menu == "📦 Magazzino":
     st.title("Magazzino & Materiali")
@@ -647,7 +763,7 @@ elif menu == "📦 Magazzino":
                         st.success("Aggiunto!"); st.rerun()
                     else: st.error("Inserisci nome.")
 
-    # B. VISUALIZZAZIONE PER STANZE (COMPATTA)
+    # B. VISUALIZZAZIONE PER STANZE (COMPATTA E FIXATA)
     with col_view:
         df_inv = get_data("Inventario")
         if not df_inv.empty:
@@ -677,11 +793,9 @@ elif menu == "📦 Magazzino":
                             # Calcolo stato scorta
                             is_low = row['Quantita'] <= row['Soglia_Minima']
                             
-                            # RIGA COMPATTA CUSTOM
+                            # RIGA COMPATTA
                             with st.container(border=True):
-                                # CSS per ridurre padding
-                                st.markdown('<style>div[data-testid="stVerticalBlockBorderWrapper"] {padding: 10px !important;}</style>', unsafe_allow_html=True)
-                                
+                                # Layout a 3 colonne per compattezza
                                 c_info, c_stat, c_act = st.columns([3, 2, 1])
                                 
                                 with c_info:
@@ -693,17 +807,17 @@ elif menu == "📦 Magazzino":
                                         st.caption(":green[OK]")
 
                                 with c_stat:
-                                    # Barra semplice
-                                    val = min(row['Quantita'] / row['Obiettivo'], 1.0)
+                                    # Barra semplice e numeri
+                                    val = min(row['Quantita'] / row['Obiettivo'], 1.0) if row['Obiettivo'] > 0 else 0
                                     st.progress(val)
-                                    st.caption(f"{row['Quantita']} / {row['Obiettivo']}")
+                                    st.caption(f"**{row['Quantita']}** / {row['Obiettivo']}")
 
                                 with c_act:
-                                    st.write("") # Spacer
+                                    st.write("") # Spacer verticale
+                                    # Tasto Funzionante: Aggiorna con int()
                                     if st.button("🔻1", key=f"dec_{row['id']}", type="primary" if is_low else "secondary"):
                                         if row['Quantita'] > 0:
-                                            # Aggiorno usando la chiave corretta per Airtable (Quantità con accento)
-                                            # IMPORTANTE: Converto in int python nativo per evitare errori JSON
+                                            # IMPORTANTE: uso "Quantità" con accento per Airtable update
                                             new_qty = int(row['Quantita'] - 1)
                                             update_generic("Inventario", row['id'], {"Quantità": new_qty})
                                             st.rerun()
