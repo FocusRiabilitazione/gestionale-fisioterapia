@@ -117,7 +117,7 @@ st.markdown("""
     .border-purple { border-left: 4px solid #9f7aea !important; }
     .border-yellow { border-left: 4px solid #ecc94b !important; }
     .border-green { border-left: 4px solid #2ecc71 !important; }
-    .border-gray { border-left: 4px solid #a0aec0 !important; } /* NUOVO GRIGIO */
+    .border-gray { border-left: 4px solid #a0aec0 !important; }
 
     /* --- PULSANTI AZIONE --- */
     div[data-testid="stHorizontalBlock"] button {
@@ -239,7 +239,6 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
     .info-box {{ margin-bottom: 15px; font-size: 13px; display: flex; justify-content: space-between; }}
     .info-label {{ font-weight: bold; color: #000; margin-right: 5px; }}
     
-    /* MODIFICA FONDAMENTALE: white-space: pre-wrap per rispettare gli 'a capo' */
     .obj-box {{ 
         background-color: #f2f2f2; 
         border-left: 4px solid #333; 
@@ -286,7 +285,7 @@ with st.sidebar:
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📨 Consegne", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v89 - Consegne Alert")
+    st.divider(); st.caption("App v90 - Fix Nan & Areas")
 
 # =========================================================
 # DASHBOARD
@@ -342,11 +341,16 @@ if menu == "⚡ Dashboard":
                 if c not in df_inv.columns: df_inv[c] = 0
             low_stock = df_inv[df_inv['Quantita'] <= df_inv['Soglia_Minima']]
 
-        # Consegne
+        # Consegne: Filtro dati sporchi
         consegne_pendenti = pd.DataFrame()
         if not df_cons.empty:
             if 'Completato' not in df_cons.columns: df_cons['Completato'] = False
             if 'Data_Scadenza' not in df_cons.columns: df_cons['Data_Scadenza'] = None
+            if 'Paziente' not in df_cons.columns: df_cons['Paziente'] = None
+            
+            # FILTRO CRITICO: Rimuove righe senza nome paziente (evita "nan: nan")
+            df_cons = df_cons.dropna(subset=['Paziente'])
+            
             df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza'], errors='coerce')
             consegne_pendenti = df_cons[df_cons['Completato'] != True]
 
@@ -384,7 +388,7 @@ if menu == "⚡ Dashboard":
         st.write("")
         st.subheader("🔔 Avvisi e Scadenze")
         
-        # 1. Consegne (Grigio) - NEW
+        # 1. Consegne (Grigio)
         if not consegne_pendenti.empty:
             st.caption(f"📨 Consegne in sospeso: {len(consegne_pendenti)}")
             for i, row in consegne_pendenti.iterrows():
@@ -671,7 +675,7 @@ elif menu == "💳 Preventivi":
                     if st.button("Elimina", key=f"del_{r['id']}"): delete_generic("Preventivi_Salvati", r['id']); st.rerun()
 
 # =========================================================
-# SEZIONE NUOVA: CONSEGNE
+# SEZIONE NUOVA: CONSEGNE (FIXED AREE)
 # =========================================================
 elif menu == "📨 Consegne":
     st.title("📨 Consegne Pazienti")
@@ -682,7 +686,8 @@ elif menu == "📨 Consegne":
         with st.form("new_cons"):
             c1, c2 = st.columns(2)
             paz = c1.selectbox("Paziente", nomi_paz)
-            area = c2.selectbox("Area Competenza", ["Mano-Polso", "Colonna", "Sport", "Altro"])
+            # Aree corrette come da richiesta
+            area = c2.selectbox("Area Competenza", ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico"])
             ind = st.text_input("Cosa consegnare? (es. Referto, Scheda Esercizi)")
             scad = st.date_input("Entro quando?", date.today() + timedelta(days=3))
             if st.form_submit_button("Salva Promemoria"):
@@ -690,11 +695,17 @@ elif menu == "📨 Consegne":
                     save_consegna(paz, area, ind, scad); st.success("Salvato!"); st.rerun()
                 else: st.error("Compila i campi.")
 
-    st.write(""); tabs = st.tabs(["Mano-Polso", "Colonna", "Sport", "Altro"])
+    st.write(""); 
+    # Tabs corrette come da richiesta
+    tabs = st.tabs(["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico"])
+    
     if not df_cons.empty:
         if 'Data_Scadenza' in df_cons.columns: df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza']).dt.date
         if 'Completato' not in df_cons.columns: df_cons['Completato'] = False
-        mapping = ["Mano-Polso", "Colonna", "Sport", "Altro"]
+        
+        # Mapping corretto
+        mapping = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico"]
+        
         for i, tab_name in enumerate(mapping):
             with tabs[i]:
                 items = df_cons[ (df_cons['Area'] == tab_name) & (df_cons['Completato'] != True) ]
