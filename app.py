@@ -285,7 +285,7 @@ with st.sidebar:
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📨 Consegne", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v87 - PDF Layout Fix")
+    st.divider(); st.caption("App v88 - Titles Added")
 
 # =========================================================
 # DASHBOARD
@@ -579,13 +579,13 @@ elif menu == "💳 Preventivi":
             
             # Definizioni Ufficiali
             if c_btn1.button("🔥 Fase Infiammatoria"): 
-                append_note("\n\nIl primo obiettivo è ridurre l'infiammazione e controllare il dolore, associando la prima fase di riabilitazione alla gestione del movimento e del carico.")
+                append_note("\n\nFase Infiammatoria: Il primo obiettivo è ridurre l'infiammazione e controllare il dolore, associando la prima fase di riabilitazione alla gestione del movimento e del carico.")
             if c_btn2.button("🤸 Fase Sub-Acuta"): 
-                append_note("\n\nL'obiettivo è recuperare la completa mobilità e la qualità del movimento, reintroducendo gradualmente i carichi per riabituare i tessuti allo sforzo.")
+                append_note("\n\nFase Sub-Acuta: L'obiettivo è recuperare la completa mobilità e la qualità del movimento, reintroducendo gradualmente i carichi per riabituare i tessuti allo sforzo.")
             if c_btn3.button("💪 Fase Rinforzo"): 
-                append_note("\n\nL'obiettivo è recuperare e incrementare la forza e la resistenza dei tessuti interessati, per una ripresa completa delle attività quotidiane e sportive, prevenendo future recidive.")
+                append_note("\n\nFase Rinforzo: L'obiettivo è recuperare e incrementare la forza e la resistenza dei tessuti interessati, per una ripresa completa delle attività quotidiane e sportive, prevenendo future recidive.")
             if c_btn4.button("🏃 Fase Riatletizzazione"): 
-                append_note("\n\nL'obiettivo è recuperare il gesto specifico e la performance, lavorando su forza, resistenza ed esplosività per un ritorno allo sport in sicurezza.")
+                append_note("\n\nFase Riatletizzazione: L'obiettivo è recuperare il gesto specifico e la performance, lavorando su forza, resistenza ed esplosività per un ritorno allo sport in sicurezza.")
             
             c_prog1, c_prog2 = st.columns([1, 3])
             settimane = c_prog1.number_input("Settimane", 1, 52, 4)
