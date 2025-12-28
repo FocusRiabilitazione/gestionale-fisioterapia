@@ -55,7 +55,7 @@ st.markdown("""
     .glass-kpi {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 20px; /* Più arrotondato */
+        border-radius: 20px;
         padding: 20px;
         text-align: center;
         height: 140px;
@@ -68,16 +68,14 @@ st.markdown("""
         background: rgba(255, 255, 255, 0.06);
     }
     
-    /* Icone animate e illuminate */
+    /* Icone animate */
     .kpi-icon { 
         font-size: 32px; 
         margin-bottom: 8px; 
         transition: transform 0.3s ease;
-        filter: drop-shadow(0 0 5px rgba(255,255,255,0.3)); /* Base Glow */
+        filter: drop-shadow(0 0 5px rgba(255,255,255,0.3));
     }
-    .glass-kpi:hover .kpi-icon {
-        transform: scale(1.1);
-    }
+    .glass-kpi:hover .kpi-icon { transform: scale(1.1); }
 
     .kpi-value { font-size: 36px; font-weight: 800; color: white; line-height: 1; letter-spacing: -1px; }
     .kpi-label { font-size: 11px; text-transform: uppercase; color: #a0aec0; margin-top: 8px; letter-spacing: 1.5px; font-weight: 600; }
@@ -106,73 +104,37 @@ st.markdown("""
         border-radius: 10px;
         padding: 0 15px;
         height: 42px;    
-        display: flex;
-        align-items: center;
+        display: flex; align-items: center;
         border: 1px solid rgba(255, 255, 255, 0.05);
-        font-weight: 600;
-        color: #fff;
-        font-size: 14px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        font-weight: 600; color: #fff; font-size: 14px;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
-    /* Bordi colorati laterali */
+    /* Bordi colorati */
     .border-orange { border-left: 4px solid #ed8936 !important; }
     .border-red { border-left: 4px solid #e53e3e !important; }
     .border-blue { border-left: 4px solid #0bc5ea !important; }
-    .border-purple { border-left: 4px solid #9f7aea !important; } /* Colore viola per preventivi */
-    .border-yellow { border-left: 4px solid #ecc94b !important; } /* Giallo per Magazzino */
+    .border-purple { border-left: 4px solid #9f7aea !important; }
+    .border-yellow { border-left: 4px solid #ecc94b !important; }
+    .border-green { border-left: 4px solid #2ecc71 !important; }
 
-    /* --- PULSANTI AZIONE (Neutri & Eleganti) --- */
+    /* --- PULSANTI AZIONE --- */
     div[data-testid="stHorizontalBlock"] button {
-        padding: 2px 12px !important;
-        font-size: 11px !important;
-        min-height: 0px !important;
-        height: 32px !important;
-        line-height: 1 !important;
-        border-radius: 8px !important;
-        margin-top: 6px !important;
-        font-weight: 500 !important;
+        padding: 2px 12px !important; font-size: 11px !important; min-height: 0px !important;
+        height: 32px !important; line-height: 1 !important; border-radius: 8px !important;
+        margin-top: 6px !important; font-weight: 500 !important;
     }
-    
-    button[kind="primary"] {
-        background: linear-gradient(135deg, #3182ce, #2b6cb0) !important;
-        border: none !important;
-        color: white !important;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
-    }
-    
-    button[kind="secondary"] {
-        background: rgba(255, 255, 255, 0.08) !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        color: #cbd5e0 !important;
-    }
-    button[kind="secondary"]:hover {
-        background: rgba(255, 255, 255, 0.15) !important;
-        border-color: #a0aec0 !important;
-        color: white !important;
-    }
+    button[kind="primary"] { background: linear-gradient(135deg, #3182ce, #2b6cb0) !important; border: none !important; color: white !important; }
+    button[kind="secondary"] { background: rgba(255, 255, 255, 0.08) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: #cbd5e0 !important; }
+    button[kind="secondary"]:hover { border-color: #a0aec0 !important; color: white !important; }
 
     /* --- ALTRI --- */
     div[data-testid="stDataFrame"] { background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; }
     input, select, textarea { background-color: rgba(13, 17, 23, 0.8) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: white !important; border-radius: 8px; }
 
-    /* CSS EXTRA PER MAGAZZINO COMPATTO */
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        padding: 10px !important;
-        margin-bottom: 5px !important;
-        background-color: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    div[data-testid="stProgress"] > div > div {
-        height: 6px !important;
-    }
-    .compact-text {
-        font-size: 13px;
-        color: #cbd5e0;
-        margin: 0;
-    }
+    /* CSS MAGAZZINO COMPATTO */
+    div[data-testid="stVerticalBlockBorderWrapper"] { padding: 10px !important; margin-bottom: 5px !important; background-color: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); }
+    div[data-testid="stProgress"] > div > div { height: 6px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -221,24 +183,26 @@ def save_preventivo_temp(paziente, dettagli_str, totale, note):
     try: api.table(BASE_ID, "Preventivi_Salvati").create({"Paziente": paziente, "Dettagli": dettagli_str, "Totale": totale, "Note": note, "Data_Creazione": str(date.today())}, typecast=True); get_data.clear(); return True
     except: return False
 
-# FUNZIONE MAGAZZINO AVANZATA
 def save_materiale_avanzato(materiale, area, quantita, obiettivo, soglia):
     try: 
         api.table(BASE_ID, "Inventario").create({
             "Materiali": materiale, 
             "Area": area,
-            "Quantità": int(quantita), # Scrive sulla colonna con Accento
+            "Quantità": int(quantita),
             "Obiettivo": int(obiettivo),
             "Soglia_Minima": int(soglia)
         }, typecast=True)
         get_data.clear()
         return True
-    except Exception as e:
-        st.error(f"Errore Salvataggio: {e}")
-        return False
+    except Exception as e: st.error(f"Errore Salvataggio: {e}"); return False
 
-def save_prodotto(prodotto, quantita):
-    try: api.table(BASE_ID, "Inventario").create({"Prodotto": prodotto, "Quantita": quantita}, typecast=True); get_data.clear(); return True
+def save_consegna(paziente, area, indicazione, scadenza):
+    try:
+        api.table(BASE_ID, "Consegne").create({
+            "Paziente": paziente, "Area": area, "Indicazione": indicazione, 
+            "Data_Scadenza": str(scadenza), "Completato": False
+        }, typecast=True)
+        get_data.clear(); return True
     except: return False
 
 def save_prestito(paziente, oggetto, data_prestito):
@@ -247,76 +211,56 @@ def save_prestito(paziente, oggetto, data_prestito):
 
 def get_base64_image(image_path):
     try:
-        with open(image_path, "rb") as img_file:
-            return base64.b64encode(img_file.read()).decode()
+        with open(image_path, "rb") as img_file: return base64.b64encode(img_file.read()).decode()
     except: return ""
 
-# --- FUNZIONE HTML PDF ---
+# --- PDF GENERATOR ---
 def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale_complessivo, logo_b64=None, auto_print=False):
     rows_html = ""
     for r in righe_preventivo:
         rows_html += f"<tr><td>{r['nome']}</td><td class='col-qty'>{r['qty']}</td><td class='col-price'>{r['tot']} €</td></tr>"
     
-    if logo_b64:
-        header_content = f"<div style='text-align:center;'><img src='data:image/png;base64,{logo_b64}' class='logo-img'></div>"
-    else:
-        header_content = "<div class='brand-text-container'><div class='doc-brand-main'>FOCUS</div></div>"
-
+    header_content = f"<div style='text-align:center;'><img src='data:image/png;base64,{logo_b64}' class='logo-img'></div>" if logo_b64 else "<div class='brand-text-container'><div class='doc-brand-main'>FOCUS</div></div>"
     print_script = "<script>window.print();</script>" if auto_print else ""
     action_bar_style = "display:none;" if auto_print else "display:flex;"
 
     return f"""
-    <!DOCTYPE html>
-    <html lang="it">
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap');
-            body {{ font-family: 'Segoe UI', sans-serif; background: #fff; margin: 0; padding: 20px; color: #000; }}
-            .action-bar {{ margin-bottom: 20px; justify-content: flex-end; {action_bar_style} }}
-            .btn-download {{ background-color: #333; color: white; border: none; padding: 10px 20px; font-weight: bold; border-radius: 4px; cursor: pointer; }}
-            .sheet-a4 {{ width: 210mm; min-height: 296mm; padding: 10mm 15mm; margin: 0 auto; background: white; box-sizing: border-box; position: relative; box-shadow: 0 0 10px rgba(0,0,0,0.1); overflow: hidden; }}
-            .logo-img {{ max-width: 150px; height: auto; display: block; margin: 0 auto 5px auto; }}
-            .brand-text-container {{ text-align: center; margin-bottom: 20px; }}
-            .doc-brand-main {{ font-size: 26px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; color: #000; }}
-            .doc-title {{ font-size: 18px; font-weight: 700; text-transform: uppercase; color: #000; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 15px; margin-top: 10px; }}
-            .info-box {{ margin-bottom: 15px; font-size: 13px; display: flex; justify-content: space-between; }}
-            .info-label {{ font-weight: bold; color: #000; margin-right: 5px; }}
-            .obj-box {{ background-color: #f2f2f2; border-left: 4px solid #333; padding: 10px; margin-bottom: 20px; font-size: 12px; line-height: 1.3; }}
-            .obj-title {{ font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 3px; font-size: 11px; }}
-            table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
-            th {{ background-color: #e0e0e0; text-align: left; padding: 6px 8px; text-transform: uppercase; font-size: 10px; font-weight: bold; border-bottom: 1px solid #000; color: #000; }}
-            td {{ padding: 6px 8px; border-bottom: 1px solid #ccc; font-size: 12px; vertical-align: middle; }}
-            .col-qty {{ text-align: center; width: 10%; }}
-            .col-price {{ text-align: right; width: 20%; }}
-            .total-row td {{ font-weight: bold; font-size: 14px; border-top: 2px solid #000; padding-top: 8px; color: #000; }}
-            .payment-section {{ border: 1px solid #999; padding: 10px; border-radius: 0; margin-bottom: 20px; }}
-            .pay-title {{ font-weight: bold; text-transform: uppercase; font-size: 11px; margin-bottom: 8px; color: #000; }}
-            .pay-line {{ display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; }}
-            .dotted {{ border-bottom: 1px dotted #000; width: 80px; display: inline-block; }}
-            .dotted-date {{ border-bottom: 1px dotted #000; width: 120px; display: inline-block; }}
-            .footer {{ margin-top: 40px; display: flex; justify-content: flex-end; }}
-            .sign-box {{ text-align: center; width: 200px; }}
-            .sign-line {{ border-bottom: 1px solid #000; margin-top: 30px; }}
-            .page-num {{ position: absolute; bottom: 10mm; left: 15mm; font-size: 9px; color: #666; }}
-            @media print {{ @page {{ size: A4; margin: 0; }} body {{ margin: 0; padding: 0; background: none; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }} .action-bar {{ display: none !important; }} .sheet-a4 {{ margin: 0; box-shadow: none; border: none; width: 100%; height: 100%; page-break-after: avoid; page-break-inside: avoid; }} }}
-        </style>
-    </head>
-    <body>
-        <div class="action-bar"><button class="btn-download" onclick="window.print()">📥 SALVA PDF</button></div>
-        <div class="sheet-a4">
-            {header_content}
-            <div class="doc-title">PREVENTIVO PERCORSO RIABILITATIVO</div>
-            <div class="info-box"><div><span class="info-label">Paziente:</span> {paziente}</div><div><span class="info-label">Data:</span> {data_oggi}</div></div>
-            <div class="obj-box"><span class="obj-title">Obiettivi e Descrizione del Percorso:</span>{note}</div>
-            <table><thead><tr><th>Trattamento</th><th class="col-qty">Q.ta</th><th class="col-price">Importo</th></tr></thead><tbody>{rows_html}<tr class="total-row"><td colspan="2" style="text-align:right">TOTALE COMPLESSIVO:</td><td class="col-price">{totale_complessivo} €</td></tr></tbody></table>
-            <div class="payment-section"><div class="pay-title">Piano di Pagamento Concordato:</div><div class="pay-line"><span>1) € <span class="dotted"></span></span> <span>entro il <span class="dotted-date"></span></span></div><div class="pay-line"><span>2) € <span class="dotted"></span></span> <span>entro il <span class="dotted-date"></span></span></div><div class="pay-line"><span>3) € <span class="dotted"></span></span> <span>entro il <span class="dotted-date"></span></span></div></div>
-            <div class="footer"><div class="sign-box"><div>Firma per accettazione:</div><div class="sign-line"></div></div></div>
-            <div class="page-num">Pagina 1</div>
-        </div>
-        {print_script}
-    </body>
-    </html>
+    <!DOCTYPE html> <html lang="it"> <head> <meta charset="UTF-8"> <style>
+    @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap');
+    body {{ font-family: 'Segoe UI', sans-serif; background: #fff; margin: 0; padding: 20px; color: #000; }}
+    .action-bar {{ margin-bottom: 20px; justify-content: flex-end; {action_bar_style} }}
+    .btn-download {{ background-color: #333; color: white; border: none; padding: 10px 20px; font-weight: bold; border-radius: 4px; cursor: pointer; }}
+    .sheet-a4 {{ width: 210mm; min-height: 296mm; padding: 10mm 15mm; margin: 0 auto; background: white; box-sizing: border-box; position: relative; box-shadow: 0 0 10px rgba(0,0,0,0.1); overflow: hidden; }}
+    .logo-img {{ max-width: 150px; height: auto; display: block; margin: 0 auto 5px auto; }}
+    .doc-brand-main {{ font-size: 26px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; color: #000; text-align: center; }}
+    .doc-title {{ font-size: 18px; font-weight: 700; text-transform: uppercase; color: #000; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 15px; margin-top: 10px; }}
+    .info-box {{ margin-bottom: 15px; font-size: 13px; display: flex; justify-content: space-between; }}
+    .info-label {{ font-weight: bold; color: #000; margin-right: 5px; }}
+    .obj-box {{ background-color: #f2f2f2; border-left: 4px solid #333; padding: 10px; margin-bottom: 20px; font-size: 12px; line-height: 1.3; }}
+    .obj-title {{ font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 3px; font-size: 11px; }}
+    table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
+    th {{ background-color: #e0e0e0; text-align: left; padding: 6px 8px; text-transform: uppercase; font-size: 10px; font-weight: bold; border-bottom: 1px solid #000; color: #000; }}
+    td {{ padding: 6px 8px; border-bottom: 1px solid #ccc; font-size: 12px; vertical-align: middle; }}
+    .col-qty {{ text-align: center; width: 10%; }} .col-price {{ text-align: right; width: 20%; }}
+    .total-row td {{ font-weight: bold; font-size: 14px; border-top: 2px solid #000; padding-top: 8px; color: #000; }}
+    .payment-section {{ border: 1px solid #999; padding: 10px; border-radius: 0; margin-bottom: 20px; }}
+    .pay-title {{ font-weight: bold; text-transform: uppercase; font-size: 11px; margin-bottom: 8px; color: #000; }}
+    .pay-line {{ display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; }}
+    .dotted {{ border-bottom: 1px dotted #000; width: 80px; display: inline-block; }} .dotted-date {{ border-bottom: 1px dotted #000; width: 120px; display: inline-block; }}
+    .footer {{ margin-top: 40px; display: flex; justify-content: flex-end; }}
+    .sign-box {{ text-align: center; width: 200px; }} .sign-line {{ border-bottom: 1px solid #000; margin-top: 30px; }}
+    .page-num {{ position: absolute; bottom: 10mm; left: 15mm; font-size: 9px; color: #666; }}
+    @media print {{ @page {{ size: A4; margin: 0; }} body {{ margin: 0; padding: 0; background: none; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }} .action-bar {{ display: none !important; }} .sheet-a4 {{ margin: 0; box-shadow: none; border: none; width: 100%; height: 100%; page-break-after: avoid; page-break-inside: avoid; }} }}
+    </style> </head> <body>
+    <div class="action-bar"><button class="btn-download" onclick="window.print()">📥 SALVA PDF</button></div>
+    <div class="sheet-a4"> {header_content}
+    <div class="doc-title">PREVENTIVO PERCORSO RIABILITATIVO</div>
+    <div class="info-box"><div><span class="info-label">Paziente:</span> {paziente}</div><div><span class="info-label">Data:</span> {data_oggi}</div></div>
+    <div class="obj-box"><span class="obj-title">Obiettivi e Descrizione del Percorso:</span>{note}</div>
+    <table><thead><tr><th>Trattamento</th><th class="col-qty">Q.ta</th><th class="col-price">Importo</th></tr></thead><tbody>{rows_html}<tr class="total-row"><td colspan="2" style="text-align:right">TOTALE COMPLESSIVO:</td><td class="col-price">{totale_complessivo} €</td></tr></tbody></table>
+    <div class="payment-section"><div class="pay-title">Piano di Pagamento Concordato:</div><div class="pay-line"><span>1) € <span class="dotted"></span></span> <span>entro il <span class="dotted-date"></span></span></div><div class="pay-line"><span>2) € <span class="dotted"></span></span> <span>entro il <span class="dotted-date"></span></span></div><div class="pay-line"><span>3) € <span class="dotted"></span></span> <span>entro il <span class="dotted-date"></span></span></div></div>
+    <div class="footer"><div class="sign-box"><div>Firma per accettazione:</div><div class="sign-line"></div></div></div>
+    <div class="page-num">Pagina 1</div> </div> {print_script} </body> </html>
     """
 
 # --- 3. INTERFACCIA ---
@@ -328,8 +272,8 @@ with st.sidebar:
     except: 
         st.title("Focus Rehab")
         
-    menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v77 - Final Style Fix")
+    menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📨 Consegne", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
+    st.divider(); st.caption("App v78 - Full Upgrade")
 
 # =========================================================
 # DASHBOARD
@@ -358,13 +302,21 @@ if menu == "⚡ Dashboard":
         df_disdetti = df[ (df['Disdetto'] == True) | (df['Disdetto'] == 1) ]
         cnt_attivi = totali - len(df_disdetti)
         oggi = pd.Timestamp.now().normalize()
-        limite_recall = oggi - pd.Timedelta(days=10)
+        
+        # LOGICA RECALL AGGIORNATA (7 GIORNI)
+        limite_recall = oggi - pd.Timedelta(days=7)
         da_richiamare = df_disdetti[ (df_disdetti['Data_Disdetta'].notna()) & (df_disdetti['Data_Disdetta'] <= limite_recall) ]
+        
         df_visite = df[ (df['Visita_Esterna'] == True) | (df['Visita_Esterna'] == 1) ]
         domani = oggi + pd.Timedelta(days=1)
         visite_imminenti = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] >= oggi) & (df_visite['Data_Visita'] <= domani) ]
-        sette_giorni_fa = oggi - pd.Timedelta(days=7)
-        visite_passate = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] <= sette_giorni_fa) ]
+        
+        # NUOVA LOGICA ALERT VISITE (SETTIMANA E POST-VISITA)
+        curr_week = oggi.isocalendar()[1]
+        visite_settimana = df_visite[ df_visite['Data_Visita'].apply(lambda x: x.isocalendar()[1] if pd.notnull(x) else -1) == curr_week ]
+        
+        # Recall post visita (2 giorni dopo)
+        visite_da_reinserire = df_visite[ (df_visite['Data_Visita'].notna()) & (oggi >= (df_visite['Data_Visita'] + pd.Timedelta(days=2))) ]
 
         # Preventivi
         cnt_prev = len(df_prev)
@@ -377,9 +329,7 @@ if menu == "⚡ Dashboard":
         # Scorte Basse
         low_stock = pd.DataFrame()
         if not df_inv.empty:
-            # FIX: Normalizzazione (Quantità con accento da Airtable)
-            if 'Quantità' in df_inv.columns:
-                df_inv = df_inv.rename(columns={'Quantità': 'Quantita'})
+            if 'Quantità' in df_inv.columns: df_inv = df_inv.rename(columns={'Quantità': 'Quantita'})
             for c in ['Quantita', 'Soglia_Minima', 'Materiali']:
                 if c not in df_inv.columns: df_inv[c] = 0
             low_stock = df_inv[df_inv['Quantita'] <= df_inv['Soglia_Minima']]
@@ -388,15 +338,8 @@ if menu == "⚡ Dashboard":
         col1, col2, col3, col4, col5 = st.columns(5)
         def draw_kpi(col, icon, num, label, color, filter_key):
             with col:
-                st.markdown(f"""
-                <div class="glass-kpi" style="border-bottom: 4px solid {color};">
-                    <div class="kpi-icon" style="color:{color}; filter: drop-shadow(0 0 8px {color}88);">{icon}</div>
-                    <div class="kpi-value">{num}</div>
-                    <div class="kpi-label">{label}</div>
-                </div>
-                """, unsafe_allow_html=True)
-                if st.button("Vedi Lista", key=f"btn_{filter_key}"):
-                    st.session_state.kpi_filter = filter_key
+                st.markdown(f"""<div class="glass-kpi" style="border-bottom: 4px solid {color};"><div class="kpi-icon" style="color:{color};">{icon}</div><div class="kpi-value">{num}</div><div class="kpi-label">{label}</div></div>""", unsafe_allow_html=True)
+                if st.button("Vedi Lista", key=f"btn_{filter_key}"): st.session_state.kpi_filter = filter_key
 
         draw_kpi(col1, "👥", cnt_attivi, "Attivi", "#2ecc71", "Attivi")
         draw_kpi(col2, "📉", len(df_disdetti), "Disdetti", "#e53e3e", "Disdetti")
@@ -424,29 +367,25 @@ if menu == "⚡ Dashboard":
             st.divider()
 
         st.write("")
-        # AVVISI
         st.subheader("🔔 Avvisi e Scadenze")
         
-        # ALERT MAGAZZINO (GIALLO - STILE UNIFORMATO)
+        # ALERT MAGAZZINO (GIALLO)
         if not low_stock.empty:
             st.caption(f"⚠️ Prodotti in esaurimento: {len(low_stock)}")
             for i, row in low_stock.iterrows():
-                # Stessa struttura di colonne di Recall e Visite: 3, 1, 1 (il terzo vuoto o per allineamento)
                 c_info, c_btn, c_void = st.columns([3, 1, 1], gap="small")
                 with c_info:
                     mat_name = row.get('Materiali', 'Sconosciuto')
                     st.markdown(f"""<div class="alert-row-name border-yellow">{mat_name} (Qta: {row.get('Quantita',0)})</div>""", unsafe_allow_html=True)
                 with c_btn:
                     if st.button("🔄 Riordinato", key=f"restock_{row['id']}", type="primary", use_container_width=True):
-                        # Ripristina a obiettivo
                         target = int(row.get('Obiettivo', 5))
-                        # Aggiorna la colonna corretta su Airtable: Quantità con accento
                         update_generic("Inventario", row['id'], {"Quantità": target})
                         st.rerun()
 
         # ALERT PREVENTIVI (VIOLA)
         if not prev_scaduti.empty:
-            st.caption(f"⏳ Preventivi in Sospeso (> 7gg): {len(prev_scaduti)}")
+            st.caption(f"⏳ Preventivi > 7gg: {len(prev_scaduti)}")
             for i, row in prev_scaduti.iterrows():
                 c_info, c_btn1, c_btn2 = st.columns([3, 1, 1], gap="small")
                 with c_info: st.markdown(f"""<div class="alert-row-name border-purple">{row['Paziente']} ({row['Data_Creazione'].strftime('%d/%m')})</div>""", unsafe_allow_html=True)
@@ -455,7 +394,7 @@ if menu == "⚡ Dashboard":
                 with c_btn2:
                     if st.button("🗑️ Elimina", key=f"del_prev_{row['id']}", type="secondary", use_container_width=True): delete_generic("Preventivi_Salvati", row['id']); st.rerun()
 
-        # RECALL (ARANCIO)
+        # RECALL DISDETTI (ARANCIO - FIX LOGICA)
         if not da_richiamare.empty:
             st.caption(f"📞 Recall Necessari: {len(da_richiamare)}")
             for i, row in da_richiamare.iterrows():
@@ -464,23 +403,26 @@ if menu == "⚡ Dashboard":
                 with c_btn1: 
                     if st.button("✅ Rientrato", key=f"rk_{row['id']}", type="primary", use_container_width=True): update_generic("Pazienti", row['id'], {"Disdetto": False, "Data_Disdetta": None}); st.rerun()
                 with c_btn2: 
-                    if st.button("📅 Rimandare", key=f"pk_{row['id']}", type="secondary", use_container_width=True): update_generic("Pazienti", row['id'], {"Data_Disdetta": pd.Timestamp.now() + timedelta(days=7)}); st.rerun()
+                    # Setto data a OGGI, così il controllo (oggi - 7) sarà falso per 7 giorni
+                    if st.button("📅 Rimandare", key=f"pk_{row['id']}", type="secondary", use_container_width=True): update_generic("Pazienti", row['id'], {"Data_Disdetta": str(date.today())}); st.rerun()
         
-        # VISITE (ROSSO/BLU)
-        if not visite_passate.empty:
-            st.caption(f"⚠️ Visite Scadute: {len(visite_passate)}")
-            for i, row in visite_passate.iterrows():
+        # VISITE (ROSSO/BLU - NUOVE LOGICHE)
+        # 1. Visite Scadute (Passate da più di 2 giorni) -> Recall reinserimento
+        if not visite_da_reinserire.empty:
+            st.caption(f"🛑 Reinserimento Post-Visita: {len(visite_da_reinserire)}")
+            for i, row in visite_da_reinserire.iterrows():
                 c_info, c_btn1, c_void = st.columns([3, 1, 1], gap="small")
-                with c_info: st.markdown(f"""<div class="alert-row-name border-red">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
+                with c_info: st.markdown(f"""<div class="alert-row-name border-red">{row['Nome']} {row['Cognome']} (Visitato il {row['Data_Visita'].strftime('%d/%m')})</div>""", unsafe_allow_html=True)
                 with c_btn1:
                     if st.button("✅ Rientrato", key=f"vk_{row['id']}", type="primary", use_container_width=True): update_generic("Pazienti", row['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
         
-        if not visite_imminenti.empty:
-            st.caption(f"👨‍⚕️ Visite Imminenti: {len(visite_imminenti)}")
-            for i, row in visite_imminenti.iterrows():
-                st.markdown(f"""<div class="alert-row-name border-blue" style="justify-content: space-between;"><span>{row['Nome']} {row['Cognome']}</span><span style="color:#0bc5ea; font-size:13px;">{row['Data_Visita'].strftime('%d/%m')}</span></div>""", unsafe_allow_html=True)
+        # 2. Visite Settimana Corrente (Alert Lunedì)
+        if not visite_settimana.empty:
+            st.caption(f"📅 Visite questa settimana: {len(visite_settimana)}")
+            for i, row in visite_settimana.iterrows():
+                st.markdown(f"""<div class="alert-row-name border-blue" style="justify-content: space-between;"><span>{row['Nome']} {row['Cognome']}</span><span style="color:#0bc5ea; font-size:13px;">{row['Data_Visita'].strftime('%A %d/%m')}</span></div>""", unsafe_allow_html=True)
         
-        if da_richiamare.empty and visite_passate.empty and visite_imminenti.empty and prev_scaduti.empty and low_stock.empty: st.success("Tutto tranquillo! Nessun avviso.")
+        if da_richiamare.empty and visite_da_reinserire.empty and visite_settimana.empty and prev_scaduti.empty and low_stock.empty: st.success("Tutto tranquillo! Nessun avviso.")
         
         st.divider()
 
@@ -528,7 +470,6 @@ elif menu == "👥 Pazienti":
                     st.success("Paziente salvato!"); st.rerun()
     
     st.write(""); df_original = get_data("Pazienti")
-    
     if not df_original.empty:
         for c in ['Disdetto', 'Visita_Esterna', 'Dimissione']:
             if c not in df_original.columns: df_original[c] = False
@@ -569,83 +510,148 @@ elif menu == "💳 Preventivi":
     st.title("Preventivi & Proposte")
     tab1, tab2 = st.tabs(["📝 Generatore", "📂 Archivio Salvati"])
     df_srv = get_data("Servizi"); df_paz = get_data("Pazienti"); df_std = get_data("Preventivi_Standard")
+    
+    # Init session per note
+    if 'note_prev' not in st.session_state: st.session_state.note_prev = ""
+
     with tab1:
-        with st.expander("📋 Listino Prezzi", expanded=False):
-            if not df_srv.empty and 'Area' in df_srv.columns:
-                for i, area in enumerate(df_srv['Area'].unique()):
-                    st.markdown(f"**{area}**"); st.caption(", ".join([f"{r['Servizio']} ({r['Prezzo']}€)" for _, r in df_srv[df_srv['Area']==area].iterrows()]))
         with st.container(border=True):
-            st.subheader("Creazione Nuovo Preventivo"); selected_services_default = []; default_descrizione = ""
-            if not df_std.empty and 'Nome' in df_std.columns:
+            st.subheader("Creazione Nuovo Preventivo")
+            selected_services_default = []
+            
+            # Selezione Standard e Autocompilazione
+            if not df_std.empty:
                 scelta_std = st.selectbox("Carica Pacchetto Standard (Opzionale):", ["-- Seleziona --"] + sorted(list(df_std['Nome'].unique())))
                 if scelta_std != "-- Seleziona --":
-                    row_std = df_std[df_std['Nome'] == scelta_std].iloc[0]; default_descrizione = row_std.get('Descrizione', '')
+                    row_std = df_std[df_std['Nome'] == scelta_std].iloc[0]
+                    # Carica descrizione se vuota
+                    if not st.session_state.note_prev: st.session_state.note_prev = row_std.get('Descrizione', '')
                     if row_std.get('Contenuto'):
                         for p in row_std['Contenuto'].split(','):
-                            if ' x' in p: srv_name, srv_qty = p.split(' x'); selected_services_default.append(srv_name); st.session_state[f"qty_preload_{srv_name}"] = int(srv_qty)
+                            if ' x' in p: srv, qty = p.split(' x'); selected_services_default.append(srv); st.session_state[f"qty_{srv}"] = int(qty)
+
             nomi_pazienti = ["Seleziona..."] + sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows()]) if not df_paz.empty else []
             c_paz, c_serv = st.columns([1, 2])
             paziente_scelto = c_paz.selectbox("Intestato a:", nomi_pazienti)
             listino_dict = {str(r['Servizio']): float(r.get('Prezzo', 0) or 0) for i, r in df_srv.iterrows() if r.get('Servizio')}
-            valid_defaults = [s for s in selected_services_default if s in listino_dict]
-            servizi_scelti = c_serv.multiselect("Trattamenti:", sorted(list(listino_dict.keys())), default=valid_defaults)
-            note_preventivo = st.text_area("Descrizione del Percorso:", value=default_descrizione, height=100)
+            servizi_scelti = c_serv.multiselect("Trattamenti:", sorted(list(listino_dict.keys())), default=selected_services_default)
+
+            st.write("---")
+            # --- NUOVI PULSANTI STANDARD ---
+            st.caption("Inserimento Rapido Note:")
+            c_btn1, c_btn2, c_btn3, c_btn4 = st.columns(4)
+            if c_btn1.button("🔥 Fase Infiammatoria"): st.session_state.note_prev += "\n\nFase Infiammatoria: Gestione del dolore e riduzione dell'infiammazione locale."
+            if c_btn2.button("💪 Fase Rinforzo"): st.session_state.note_prev += "\n\nFase Rinforzo: Recupero del tono muscolare e stabilità articolare."
+            if c_btn3.button("🏃 Riatletizzazione"): st.session_state.note_prev += "\n\nFase Riatletizzazione: Recupero gesto specifico e ritorno all'attività."
             
-            righe_preventivo = []; totale = 0
+            # --- CALCOLO PROGNOSI ---
+            c_prog1, c_prog2 = st.columns([1, 3])
+            settimane = c_prog1.number_input("Settimane", 1, 52, 4)
+            if c_prog2.button("Genera Prognosi"): st.session_state.note_prev += f"\n\nPrognosi stimata: {settimane} settimane di trattamento."
+
+            note_preventivo = st.text_area("Dettagli del Percorso:", value=st.session_state.note_prev, height=150, key="txt_note")
+            # Aggiorna stato al cambio manuale
+            st.session_state.note_prev = note_preventivo 
+            
+            righe = []; tot = 0
             if servizi_scelti:
-                st.divider(); st.subheader("Dettaglio Costi")
                 for s in servizi_scelti:
-                    c1, c2, c3 = st.columns([3, 1, 1]); c1.write(f"**{s}**"); def_qty = st.session_state.get(f"qty_preload_{s}", 1)
-                    qty = c2.number_input(f"Q.tà", 1, 50, def_qty, key=f"q_{s}", label_visibility="collapsed")
-                    with c3: 
-                        costo = listino_dict[s] * qty
-                        st.markdown(f"<div style='text-align:right; font-weight:bold'>{costo} €</div>", unsafe_allow_html=True)
-                    totale += costo
-                    righe_preventivo.append({"nome": s, "qty": qty, "tot": costo})
-                st.divider(); c_tot, c_btn = st.columns([2, 1]); c_tot.markdown(f"### TOTALE: {totale} €")
+                    c1, c2, c3 = st.columns([3, 1, 1])
+                    qty = c2.number_input(f"Qta {s}", 1, 50, st.session_state.get(f"qty_{s}", 1), key=f"n_{s}")
+                    cost = listino_dict[s] * qty; tot += cost
+                    c1.write(f"**{s}**"); c3.write(f"**{cost} €**")
+                    righe.append({"nome": s, "qty": qty, "tot": cost})
+                
+                st.divider(); c_tot, c_btn = st.columns([2, 1]); c_tot.markdown(f"### TOTALE: {tot} €")
                 with c_btn:
-                    if st.button("💾 Salva in Archivio", use_container_width=True):
-                        if paziente_scelto == "Seleziona...": st.error("Manca il paziente!")
-                        else: save_preventivo_temp(paziente_scelto, " | ".join([f"{r['nome']} x{r['qty']} ({r['tot']}€)" for r in righe_preventivo]), totale, note_preventivo); st.success("Salvato!")
-                    if st.button("🖨️ Genera Anteprima", type="primary", use_container_width=True):
-                        if paziente_scelto == "Seleziona...": st.error("Manca il paziente!")
-                        else: st.session_state['show_html_preview'] = True
-            if st.session_state.get('show_html_preview'):
-                st.divider(); st.subheader("Anteprima")
-                html_code = generate_html_preventivo(paziente_scelto, date.today().strftime("%d/%m/%Y"), note_preventivo, righe_preventivo, totale, LOGO_B64)
-                components.html(html_code, height=800, scrolling=True)
-                if st.button("❌ Chiudi"): st.session_state['show_html_preview'] = False; st.rerun()
+                    if st.button("💾 Salva", type="primary", use_container_width=True):
+                        if paziente_scelto != "Seleziona...":
+                            dett = " | ".join([f"{r['nome']} x{r['qty']} ({r['tot']}€)" for r in righe])
+                            save_preventivo_temp(paziente_scelto, dett, tot, note_preventivo); st.success("Salvato!")
+                    if st.button("🖨️ Anteprima", use_container_width=True): st.session_state.show_html = True
+
+            if st.session_state.get('show_html'):
+                html = generate_html_preventivo(paziente_scelto, date.today().strftime("%d/%m/%Y"), note_preventivo, righe, tot, LOGO_B64)
+                components.html(html, height=800, scrolling=True)
+                if st.button("Chiudi"): st.session_state.show_html = False; st.rerun()
 
     with tab2:
-        st.subheader("Archivio Preventivi"); df_prev = get_data("Preventivi_Salvati")
+        st.subheader("Archivio"); df_prev = get_data("Preventivi_Salvati")
         if not df_prev.empty:
-            for i, row in df_prev.iterrows():
-                rec_id = row['id']; paz = row.get('Paziente', 'Sconosciuto'); tot = row.get('Totale', 0); dett = str(row.get('Dettagli', '')); note_saved = str(row.get('Note', '')); data_c = row.get('Data_Creazione', '')
-                with st.container(border=True):
-                    c1, c2, c3 = st.columns([3, 1, 1]); c1.markdown(f"**{paz}** ({data_c})"); c1.caption(f"Tot: {tot} €")
-                    righe_pdf = []
-                    if dett:
-                        for it in dett.split(" | "):
-                            try: parts = it.split(" x"); righe_pdf.append({"nome": parts[0], "qty": parts[1].split(" (")[0], "tot": parts[1].split(" (")[1].replace("€)", "")})
-                            except: pass
-                    if c2.button("🖨️ Stampa", key=f"p_{rec_id}", use_container_width=True):
-                        html_archive = generate_html_preventivo(paz, data_c, note_saved, righe_pdf, tot, LOGO_B64, auto_print=True)
-                        components.html(html_archive, height=0, width=0, scrolling=False)
-                    if c3.button("🗑️ Elimina", key=f"d_{rec_id}", use_container_width=True): delete_generic("Preventivi_Salvati", rec_id); st.rerun()
-        else: st.info("Archivio vuoto.")
+            for i, r in df_prev.iterrows():
+                with st.expander(f"{r['Paziente']} - {r['Totale']}€ ({r['Data_Creazione']})"):
+                    st.write(r['Dettagli'])
+                    if st.button("Elimina", key=f"del_{r['id']}"): delete_generic("Preventivi_Salvati", r['id']); st.rerun()
+
+# =========================================================
+# NUOVA SEZIONE: CONSEGNE (4 AREE + SEMAFORO)
+# =========================================================
+elif menu == "📨 Consegne":
+    st.title("📨 Consegne Pazienti")
+    
+    # Recupero Dati
+    df_cons = get_data("Consegne")
+    df_paz = get_data("Pazienti")
+    nomi_paz = ["-- Seleziona --"] + sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows()]) if not df_paz.empty else []
+    
+    # 1. FORM AGGIUNTA
+    with st.expander("➕ Nuova Consegna", expanded=True):
+        with st.form("new_cons"):
+            c1, c2 = st.columns(2)
+            paz = c1.selectbox("Paziente", nomi_paz)
+            area = c2.selectbox("Area Competenza", ["Mano-Polso", "Colonna", "Sport", "Altro"])
+            ind = st.text_input("Cosa consegnare? (es. Referto, Scheda Esercizi)")
+            scad = st.date_input("Entro quando?", date.today() + timedelta(days=3))
+            if st.form_submit_button("Salva Promemoria"):
+                if paz != "-- Seleziona --" and ind:
+                    save_consegna(paz, area, ind, scad); st.success("Salvato!"); st.rerun()
+                else: st.error("Compila i campi.")
+
+    # 2. VISUALIZZAZIONE TABS
+    st.write("")
+    tabs = st.tabs(["Mano-Polso", "Colonna", "Sport", "Altro"])
+    
+    # Filtro e mostro
+    if not df_cons.empty:
+        # Preprocessing
+        if 'Data_Scadenza' in df_cons.columns: df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza']).dt.date
+        if 'Completato' not in df_cons.columns: df_cons['Completato'] = False
+        
+        # Mapping tabs
+        mapping = ["Mano-Polso", "Colonna", "Sport", "Altro"]
+        
+        for i, tab_name in enumerate(mapping):
+            with tabs[i]:
+                items = df_cons[ (df_cons['Area'] == tab_name) & (df_cons['Completato'] != True) ]
+                if items.empty:
+                    st.info("Nessuna consegna in attesa.")
+                else:
+                    for _, row in items.iterrows():
+                        # Calcolo Semaforo
+                        delta = (row['Data_Scadenza'] - date.today()).days
+                        color = "border-green" if delta > 3 else "border-yellow" if delta >= 0 else "border-red"
+                        status_text = f"Scade tra {delta} gg" if delta >= 0 else f"SCADUTO da {abs(delta)} gg"
+                        
+                        # Card
+                        c_chk, c_info, c_date = st.columns([1, 6, 2])
+                        with c_chk:
+                            if st.button("✅", key=f"ok_{row['id']}"):
+                                update_generic("Consegne", row['id'], {"Completato": True}); st.rerun()
+                        with c_info:
+                            st.markdown(f"""<div class="alert-row-name {color}">
+                                <b>{row['Paziente']}</b>: {row['Indicazione']}
+                            </div>""", unsafe_allow_html=True)
+                        with c_date:
+                            st.caption(f"{row['Data_Scadenza'].strftime('%d/%m')}\n({status_text})")
 
 # =========================================================
 # SEZIONE 4: MAGAZZINO (RIFATTA: COMPATTA E FUNZIONANTE)
 # =========================================================
 elif menu == "📦 Magazzino":
     st.title("Magazzino & Materiali")
-    
-    # Elenco stanze
     STANZE = ["Segreteria", "Mano", "Stanze", "Medicinali", "Pulizie"]
-    
     col_add, col_view = st.columns([1, 2])
     
-    # A. FORM AGGIUNTA PRODOTTO
     with col_add:
         with st.container(border=True):
             st.subheader("Nuovo Articolo")
@@ -656,77 +662,47 @@ elif menu == "📦 Magazzino":
                 qty_now = c_q1.number_input("Q.tà Attuale", 0, 1000, 1)
                 qty_target = c_q2.number_input("Obiettivo", 1, 1000, 5)
                 qty_min = c_q3.number_input("Soglia Minima", 0, 100, 2)
-                
                 if st.form_submit_button("Aggiungi", use_container_width=True, type="primary"):
                     if new_mat:
-                        # Salva usando la colonna "Materiali" e "Quantità" con accento
                         save_materiale_avanzato(new_mat, new_area, qty_now, qty_target, qty_min)
                         st.success("Aggiunto!"); st.rerun()
-                    else: st.error("Inserisci nome.")
 
-    # B. VISUALIZZAZIONE PER STANZE (COMPATTA E FIXATA)
     with col_view:
         df_inv = get_data("Inventario")
         if not df_inv.empty:
-            # FIX: Normalizzazione del nome colonna per Airtable (Quantità con accento)
-            if 'Quantità' in df_inv.columns:
-                df_inv = df_inv.rename(columns={'Quantità': 'Quantita'})
-
-            # Assicuro colonne
-            for c in ['Materiali', 'Area', 'Quantita', 'Obiettivo', 'Soglia_Minima']:
-                if c not in df_inv.columns: df_inv[c] = None
+            if 'Quantità' in df_inv.columns: df_inv = df_inv.rename(columns={'Quantità': 'Quantita'})
+            for c in ['Quantita', 'Soglia_Minima', 'Materiali', 'Obiettivo']:
+                if c not in df_inv.columns: df_inv[c] = 0
             
-            # Normalizzo
             df_inv['Quantita'] = df_inv['Quantita'].fillna(0).astype(int)
-            df_inv['Obiettivo'] = df_inv['Obiettivo'].fillna(1).astype(int)
-            df_inv['Soglia_Minima'] = df_inv['Soglia_Minima'].fillna(0).astype(int)
             
-            # Tabs
             tabs = st.tabs(STANZE)
-            
             for i, stanza in enumerate(STANZE):
                 with tabs[i]:
                     items = df_inv[df_inv['Area'] == stanza]
-                    if items.empty:
-                        st.caption("Nessun articolo.")
+                    if items.empty: st.caption("Nessun articolo.")
                     else:
                         for _, row in items.iterrows():
-                            # Calcolo stato scorta
                             is_low = row['Quantita'] <= row['Soglia_Minima']
-                            
-                            # RIGA COMPATTA CUSTOM
                             with st.container(border=True):
-                                # CSS inline per compattezza estrema di questa sezione
                                 st.markdown('<style>div[data-testid="stVerticalBlockBorderWrapper"] {padding: 8px 15px !important; margin-bottom: 5px !important;}</style>', unsafe_allow_html=True)
-                                
                                 c_info, c_stat, c_act = st.columns([3, 2, 1], gap="small")
-                                
                                 with c_info:
                                     mat_name = row.get('Materiali', 'Senza Nome')
                                     st.markdown(f"**{mat_name}**")
-                                    if is_low: 
-                                        st.caption(":red[⚠️ BASSO]")
-                                    else:
-                                        st.caption(":green[OK]")
-
+                                    if is_low: st.caption(":red[⚠️ BASSO]")
+                                    else: st.caption(":green[OK]")
                                 with c_stat:
-                                    # Barra semplice
-                                    val = min(row['Quantita'] / row['Obiettivo'], 1.0) if row['Obiettivo'] > 0 else 0
+                                    val = min(row['Quantita'] / max(row['Obiettivo'], 1), 1.0)
                                     st.progress(val)
                                     st.caption(f"**{row['Quantita']}** / {row['Obiettivo']}")
-
                                 with c_act:
-                                    st.write("") # Spacer
-                                    # FIX TASTO: converto in int e uso la chiave con accento
+                                    st.write("") 
                                     if st.button("🔻1", key=f"dec_{row['id']}", type="primary" if is_low else "secondary"):
                                         if row['Quantita'] > 0:
-                                            # IMPORTANTE: uso "Quantità" con accento per Airtable update
                                             new_qty = int(row['Quantita'] - 1)
                                             update_generic("Inventario", row['id'], {"Quantità": new_qty})
                                             st.rerun()
-                                        else:
-                                            st.error("Finito!")
-
         else: st.info("Magazzino vuoto.")
 
 # =========================================================
