@@ -273,7 +273,7 @@ with st.sidebar:
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📨 Consegne", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v78 - Full Upgrade")
+    st.divider(); st.caption("App v79 - Final Fix")
 
 # =========================================================
 # DASHBOARD
@@ -303,7 +303,7 @@ if menu == "⚡ Dashboard":
         cnt_attivi = totali - len(df_disdetti)
         oggi = pd.Timestamp.now().normalize()
         
-        # LOGICA RECALL AGGIORNATA (7 GIORNI)
+        # RECALL (7 giorni)
         limite_recall = oggi - pd.Timedelta(days=7)
         da_richiamare = df_disdetti[ (df_disdetti['Data_Disdetta'].notna()) & (df_disdetti['Data_Disdetta'] <= limite_recall) ]
         
@@ -311,11 +311,9 @@ if menu == "⚡ Dashboard":
         domani = oggi + pd.Timedelta(days=1)
         visite_imminenti = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] >= oggi) & (df_visite['Data_Visita'] <= domani) ]
         
-        # NUOVA LOGICA ALERT VISITE (SETTIMANA E POST-VISITA)
+        # ALTRI FILTRI VISITE
         curr_week = oggi.isocalendar()[1]
         visite_settimana = df_visite[ df_visite['Data_Visita'].apply(lambda x: x.isocalendar()[1] if pd.notnull(x) else -1) == curr_week ]
-        
-        # Recall post visita (2 giorni dopo)
         visite_da_reinserire = df_visite[ (df_visite['Data_Visita'].notna()) & (oggi >= (df_visite['Data_Visita'] + pd.Timedelta(days=2))) ]
 
         # Preventivi
@@ -344,7 +342,8 @@ if menu == "⚡ Dashboard":
         draw_kpi(col1, "👥", cnt_attivi, "Attivi", "#2ecc71", "Attivi")
         draw_kpi(col2, "📉", len(df_disdetti), "Disdetti", "#e53e3e", "Disdetti")
         draw_kpi(col3, "💡", len(da_richiamare), "Recall", "#ed8936", "Recall")
-        draw_kpi(col4, "🩺", len(visite_imminenti), "Visite", "#0bc5ea", "Visite")
+        # FIX: Conto totale visite esterne attive, non solo imminenti
+        draw_kpi(col4, "🩺", len(df_visite), "Visite", "#0bc5ea", "Visite") 
         draw_kpi(col5, "💳", cnt_prev, "Preventivi", "#9f7aea", "Preventivi")
 
         st.write("")
@@ -394,7 +393,7 @@ if menu == "⚡ Dashboard":
                 with c_btn2:
                     if st.button("🗑️ Elimina", key=f"del_prev_{row['id']}", type="secondary", use_container_width=True): delete_generic("Preventivi_Salvati", row['id']); st.rerun()
 
-        # RECALL DISDETTI (ARANCIO - FIX LOGICA)
+        # RECALL (ARANCIO)
         if not da_richiamare.empty:
             st.caption(f"📞 Recall Necessari: {len(da_richiamare)}")
             for i, row in da_richiamare.iterrows():
@@ -403,11 +402,9 @@ if menu == "⚡ Dashboard":
                 with c_btn1: 
                     if st.button("✅ Rientrato", key=f"rk_{row['id']}", type="primary", use_container_width=True): update_generic("Pazienti", row['id'], {"Disdetto": False, "Data_Disdetta": None}); st.rerun()
                 with c_btn2: 
-                    # Setto data a OGGI, così il controllo (oggi - 7) sarà falso per 7 giorni
                     if st.button("📅 Rimandare", key=f"pk_{row['id']}", type="secondary", use_container_width=True): update_generic("Pazienti", row['id'], {"Data_Disdetta": str(date.today())}); st.rerun()
         
-        # VISITE (ROSSO/BLU - NUOVE LOGICHE)
-        # 1. Visite Scadute (Passate da più di 2 giorni) -> Recall reinserimento
+        # VISITE (ROSSO/BLU)
         if not visite_da_reinserire.empty:
             st.caption(f"🛑 Reinserimento Post-Visita: {len(visite_da_reinserire)}")
             for i, row in visite_da_reinserire.iterrows():
@@ -416,7 +413,6 @@ if menu == "⚡ Dashboard":
                 with c_btn1:
                     if st.button("✅ Rientrato", key=f"vk_{row['id']}", type="primary", use_container_width=True): update_generic("Pazienti", row['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
         
-        # 2. Visite Settimana Corrente (Alert Lunedì)
         if not visite_settimana.empty:
             st.caption(f"📅 Visite questa settimana: {len(visite_settimana)}")
             for i, row in visite_settimana.iterrows():
@@ -426,7 +422,7 @@ if menu == "⚡ Dashboard":
         
         st.divider()
 
-        # GRAFICO (COLORI RIPRISTINATI)
+        # GRAFICO
         st.subheader("📈 Performance Aree")
         df_attivi = df[ (df['Disdetto'] == False) | (df['Disdetto'] == 0) ]
         all_areas = []
@@ -470,6 +466,7 @@ elif menu == "👥 Pazienti":
                     st.success("Paziente salvato!"); st.rerun()
     
     st.write(""); df_original = get_data("Pazienti")
+    
     if not df_original.empty:
         for c in ['Disdetto', 'Visita_Esterna', 'Dimissione']:
             if c not in df_original.columns: df_original[c] = False
@@ -511,7 +508,6 @@ elif menu == "💳 Preventivi":
     tab1, tab2 = st.tabs(["📝 Generatore", "📂 Archivio Salvati"])
     df_srv = get_data("Servizi"); df_paz = get_data("Pazienti"); df_std = get_data("Preventivi_Standard")
     
-    # Init session per note
     if 'note_prev' not in st.session_state: st.session_state.note_prev = ""
 
     with tab1:
@@ -519,12 +515,10 @@ elif menu == "💳 Preventivi":
             st.subheader("Creazione Nuovo Preventivo")
             selected_services_default = []
             
-            # Selezione Standard e Autocompilazione
             if not df_std.empty:
                 scelta_std = st.selectbox("Carica Pacchetto Standard (Opzionale):", ["-- Seleziona --"] + sorted(list(df_std['Nome'].unique())))
                 if scelta_std != "-- Seleziona --":
                     row_std = df_std[df_std['Nome'] == scelta_std].iloc[0]
-                    # Carica descrizione se vuota
                     if not st.session_state.note_prev: st.session_state.note_prev = row_std.get('Descrizione', '')
                     if row_std.get('Contenuto'):
                         for p in row_std['Contenuto'].split(','):
@@ -537,20 +531,17 @@ elif menu == "💳 Preventivi":
             servizi_scelti = c_serv.multiselect("Trattamenti:", sorted(list(listino_dict.keys())), default=selected_services_default)
 
             st.write("---")
-            # --- NUOVI PULSANTI STANDARD ---
             st.caption("Inserimento Rapido Note:")
             c_btn1, c_btn2, c_btn3, c_btn4 = st.columns(4)
             if c_btn1.button("🔥 Fase Infiammatoria"): st.session_state.note_prev += "\n\nFase Infiammatoria: Gestione del dolore e riduzione dell'infiammazione locale."
             if c_btn2.button("💪 Fase Rinforzo"): st.session_state.note_prev += "\n\nFase Rinforzo: Recupero del tono muscolare e stabilità articolare."
             if c_btn3.button("🏃 Riatletizzazione"): st.session_state.note_prev += "\n\nFase Riatletizzazione: Recupero gesto specifico e ritorno all'attività."
             
-            # --- CALCOLO PROGNOSI ---
             c_prog1, c_prog2 = st.columns([1, 3])
             settimane = c_prog1.number_input("Settimane", 1, 52, 4)
             if c_prog2.button("Genera Prognosi"): st.session_state.note_prev += f"\n\nPrognosi stimata: {settimane} settimane di trattamento."
 
             note_preventivo = st.text_area("Dettagli del Percorso:", value=st.session_state.note_prev, height=150, key="txt_note")
-            # Aggiorna stato al cambio manuale
             st.session_state.note_prev = note_preventivo 
             
             righe = []; tot = 0
@@ -584,17 +575,13 @@ elif menu == "💳 Preventivi":
                     if st.button("Elimina", key=f"del_{r['id']}"): delete_generic("Preventivi_Salvati", r['id']); st.rerun()
 
 # =========================================================
-# NUOVA SEZIONE: CONSEGNE (4 AREE + SEMAFORO)
+# SEZIONE NUOVA: CONSEGNE
 # =========================================================
 elif menu == "📨 Consegne":
     st.title("📨 Consegne Pazienti")
-    
-    # Recupero Dati
-    df_cons = get_data("Consegne")
-    df_paz = get_data("Pazienti")
+    df_cons = get_data("Consegne"); df_paz = get_data("Pazienti")
     nomi_paz = ["-- Seleziona --"] + sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows()]) if not df_paz.empty else []
     
-    # 1. FORM AGGIUNTA
     with st.expander("➕ Nuova Consegna", expanded=True):
         with st.form("new_cons"):
             c1, c2 = st.columns(2)
@@ -607,40 +594,26 @@ elif menu == "📨 Consegne":
                     save_consegna(paz, area, ind, scad); st.success("Salvato!"); st.rerun()
                 else: st.error("Compila i campi.")
 
-    # 2. VISUALIZZAZIONE TABS
-    st.write("")
-    tabs = st.tabs(["Mano-Polso", "Colonna", "Sport", "Altro"])
-    
-    # Filtro e mostro
+    st.write(""); tabs = st.tabs(["Mano-Polso", "Colonna", "Sport", "Altro"])
     if not df_cons.empty:
-        # Preprocessing
         if 'Data_Scadenza' in df_cons.columns: df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza']).dt.date
         if 'Completato' not in df_cons.columns: df_cons['Completato'] = False
-        
-        # Mapping tabs
         mapping = ["Mano-Polso", "Colonna", "Sport", "Altro"]
-        
         for i, tab_name in enumerate(mapping):
             with tabs[i]:
                 items = df_cons[ (df_cons['Area'] == tab_name) & (df_cons['Completato'] != True) ]
-                if items.empty:
-                    st.info("Nessuna consegna in attesa.")
+                if items.empty: st.info("Nessuna consegna in attesa.")
                 else:
                     for _, row in items.iterrows():
-                        # Calcolo Semaforo
                         delta = (row['Data_Scadenza'] - date.today()).days
                         color = "border-green" if delta > 3 else "border-yellow" if delta >= 0 else "border-red"
                         status_text = f"Scade tra {delta} gg" if delta >= 0 else f"SCADUTO da {abs(delta)} gg"
-                        
-                        # Card
                         c_chk, c_info, c_date = st.columns([1, 6, 2])
                         with c_chk:
                             if st.button("✅", key=f"ok_{row['id']}"):
                                 update_generic("Consegne", row['id'], {"Completato": True}); st.rerun()
                         with c_info:
-                            st.markdown(f"""<div class="alert-row-name {color}">
-                                <b>{row['Paziente']}</b>: {row['Indicazione']}
-                            </div>""", unsafe_allow_html=True)
+                            st.markdown(f"""<div class="alert-row-name {color}"><b>{row['Paziente']}</b>: {row['Indicazione']}</div>""", unsafe_allow_html=True)
                         with c_date:
                             st.caption(f"{row['Data_Scadenza'].strftime('%d/%m')}\n({status_text})")
 
@@ -673,7 +646,6 @@ elif menu == "📦 Magazzino":
             if 'Quantità' in df_inv.columns: df_inv = df_inv.rename(columns={'Quantità': 'Quantita'})
             for c in ['Quantita', 'Soglia_Minima', 'Materiali', 'Obiettivo']:
                 if c not in df_inv.columns: df_inv[c] = 0
-            
             df_inv['Quantita'] = df_inv['Quantita'].fillna(0).astype(int)
             
             tabs = st.tabs(STANZE)
