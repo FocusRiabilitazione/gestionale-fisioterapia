@@ -237,7 +237,18 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
     .doc-title {{ font-size: 18px; font-weight: 700; text-transform: uppercase; color: #000; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 15px; margin-top: 10px; }}
     .info-box {{ margin-bottom: 15px; font-size: 13px; display: flex; justify-content: space-between; }}
     .info-label {{ font-weight: bold; color: #000; margin-right: 5px; }}
-    .obj-box {{ background-color: #f2f2f2; border-left: 4px solid #333; padding: 10px; margin-bottom: 20px; font-size: 12px; line-height: 1.3; }}
+    
+    /* MODIFICA FONDAMENTALE: white-space: pre-wrap per rispettare gli 'a capo' */
+    .obj-box {{ 
+        background-color: #f2f2f2; 
+        border-left: 4px solid #333; 
+        padding: 10px; 
+        margin-bottom: 20px; 
+        font-size: 12px; 
+        line-height: 1.5; 
+        white-space: pre-wrap; 
+    }}
+    
     .obj-title {{ font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 3px; font-size: 11px; }}
     table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
     th {{ background-color: #e0e0e0; text-align: left; padding: 6px 8px; text-transform: uppercase; font-size: 10px; font-weight: bold; border-bottom: 1px solid #000; color: #000; }}
@@ -274,7 +285,7 @@ with st.sidebar:
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📨 Consegne", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v86 - Final Texts")
+    st.divider(); st.caption("App v87 - PDF Layout Fix")
 
 # =========================================================
 # DASHBOARD
