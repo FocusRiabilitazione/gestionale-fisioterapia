@@ -274,7 +274,7 @@ with st.sidebar:
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📨 Consegne", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v84 - Final Logic Fix")
+    st.divider(); st.caption("App v86 - Final Texts")
 
 # =========================================================
 # DASHBOARD
@@ -499,7 +499,6 @@ elif menu == "💳 Preventivi":
     tab1, tab2 = st.tabs(["📝 Generatore", "📂 Archivio Salvati"])
     df_srv = get_data("Servizi"); df_paz = get_data("Pazienti"); df_std = get_data("Preventivi_Standard")
     
-    # Inizializzazione Session State per persistenza dati
     if 'prev_note' not in st.session_state: st.session_state.prev_note = ""
     if 'prev_selected_services' not in st.session_state: st.session_state.prev_selected_services = []
     
@@ -519,6 +518,7 @@ elif menu == "💳 Preventivi":
                     area_sel = st.selectbox("Filtra per Area:", ["-- Tutte --"] + aree_std)
                 
                 with c_pack:
+                    # Filtra dataframe
                     if area_sel != "-- Tutte --": df_std_filtered = df_std[df_std['Area'] == area_sel]
                     else: df_std_filtered = df_std
                     nomi_pacchetti = sorted(list(df_std_filtered['Nome'].unique()))
@@ -526,7 +526,7 @@ elif menu == "💳 Preventivi":
 
                 # Se viene scelto un pacchetto, aggiorna lo stato
                 if scelta_std != "-- Seleziona --":
-                    # Usa un flag per evitare ricaricamenti continui se non cambia la selezione
+                    # Usa un flag per evitare ricaricamenti continui
                     if 'last_std_pkg' not in st.session_state or st.session_state.last_std_pkg != scelta_std:
                         row_std = df_std[df_std['Nome'] == scelta_std].iloc[0]
                         # 1. Aggiorna Note (cerca colonna Descrizione)
@@ -560,19 +560,26 @@ elif menu == "💳 Preventivi":
             st.write("---")
             st.caption("Strumenti Rapidi Note:")
             
-            # --- PULSANTI RAPIDI CHE AGGIORNANO IL TESTO ---
+            # --- PULSANTI RAPIDI DEFINITIVI ---
             c_btn1, c_btn2, c_btn3, c_btn4 = st.columns(4)
             
             def append_note(text):
                 st.session_state.prev_note += text
             
-            if c_btn1.button("🔥 Infiammatoria"): append_note("\n\nFase Infiammatoria: Gestione del dolore e riduzione dell'infiammazione locale.")
-            if c_btn2.button("💪 Rinforzo"): append_note("\n\nFase Rinforzo: Recupero del tono muscolare e stabilità articolare.")
-            if c_btn3.button("🏃 Riatletizzazione"): append_note("\n\nFase Riatletizzazione: Recupero gesto specifico e ritorno all'attività.")
+            # Definizioni Ufficiali
+            if c_btn1.button("🔥 Fase Infiammatoria"): 
+                append_note("\n\nIl primo obiettivo è ridurre l'infiammazione e controllare il dolore, associando la prima fase di riabilitazione alla gestione del movimento e del carico.")
+            if c_btn2.button("🤸 Fase Sub-Acuta"): 
+                append_note("\n\nL'obiettivo è recuperare la completa mobilità e la qualità del movimento, reintroducendo gradualmente i carichi per riabituare i tessuti allo sforzo.")
+            if c_btn3.button("💪 Fase Rinforzo"): 
+                append_note("\n\nL'obiettivo è recuperare e incrementare la forza e la resistenza dei tessuti interessati, per una ripresa completa delle attività quotidiane e sportive, prevenendo future recidive.")
+            if c_btn4.button("🏃 Fase Riatletizzazione"): 
+                append_note("\n\nL'obiettivo è recuperare il gesto specifico e la performance, lavorando su forza, resistenza ed esplosività per un ritorno allo sport in sicurezza.")
             
             c_prog1, c_prog2 = st.columns([1, 3])
             settimane = c_prog1.number_input("Settimane", 1, 52, 4)
-            if c_prog2.button("Genera Prognosi"): append_note(f"\n\nPrognosi stimata: {settimane} settimane di trattamento.")
+            if c_prog2.button("Genera Prognosi"): 
+                append_note(f"\n\nPrognosi Funzionale: In base alla valutazione clinica, stimiamo un percorso di circa {settimane} settimane per il raggiungimento degli obiettivi.")
 
             # Text Area collegata allo stato
             note_preventivo = st.text_area("Dettagli del Percorso:", key="prev_note", height=150)
