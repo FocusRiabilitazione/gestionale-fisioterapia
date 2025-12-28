@@ -274,7 +274,7 @@ with st.sidebar:
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📨 Consegne", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v82 - Fix Preventivi")
+    st.divider(); st.caption("App v84 - Final Logic Fix")
 
 # =========================================================
 # DASHBOARD
@@ -363,7 +363,6 @@ if menu == "⚡ Dashboard":
         st.write("")
         st.subheader("🔔 Avvisi e Scadenze")
         
-        # 1. Magazzino (Giallo)
         if not low_stock.empty:
             st.caption(f"⚠️ Prodotti in esaurimento: {len(low_stock)}")
             for i, row in low_stock.iterrows():
@@ -377,7 +376,6 @@ if menu == "⚡ Dashboard":
                         update_generic("Inventario", row['id'], {"Quantità": target})
                         st.rerun()
 
-        # 2. Preventivi (Viola)
         if not prev_scaduti.empty:
             st.caption(f"⏳ Preventivi > 7gg: {len(prev_scaduti)}")
             for i, row in prev_scaduti.iterrows():
@@ -388,7 +386,6 @@ if menu == "⚡ Dashboard":
                 with c_btn2:
                     if st.button("🗑️ Elimina", key=f"del_prev_{row['id']}", type="secondary", use_container_width=True): delete_generic("Preventivi_Salvati", row['id']); st.rerun()
 
-        # 3. Recall (Arancio)
         if not da_richiamare.empty:
             st.caption(f"📞 Recall Necessari: {len(da_richiamare)}")
             for i, row in da_richiamare.iterrows():
@@ -399,7 +396,6 @@ if menu == "⚡ Dashboard":
                 with c_btn2: 
                     if st.button("📅 Rimandare", key=f"pk_{row['id']}", type="secondary", use_container_width=True): update_generic("Pazienti", row['id'], {"Data_Disdetta": str(date.today())}); st.rerun()
         
-        # 4. Visite Post (Blu)
         if not visite_da_reinserire.empty:
             st.caption(f"🛑 Reinserimento Post-Visita: {len(visite_da_reinserire)}")
             for i, row in visite_da_reinserire.iterrows():
@@ -496,21 +492,26 @@ elif menu == "👥 Pazienti":
             if count_upd > 0 or count_del > 0: get_data.clear(); st.toast("Database aggiornato!", icon="✅"); st.rerun()
 
 # =========================================================
-# SEZIONE 3: PREVENTIVI (FIX CRASH MULTISELECT)
+# SEZIONE 3: PREVENTIVI (FIXED LOGIC)
 # =========================================================
 elif menu == "💳 Preventivi":
     st.title("Preventivi & Proposte")
     tab1, tab2 = st.tabs(["📝 Generatore", "📂 Archivio Salvati"])
     df_srv = get_data("Servizi"); df_paz = get_data("Pazienti"); df_std = get_data("Preventivi_Standard")
     
-    if 'note_prev' not in st.session_state: st.session_state.note_prev = ""
+    # Inizializzazione Session State per persistenza dati
+    if 'prev_note' not in st.session_state: st.session_state.prev_note = ""
+    if 'prev_selected_services' not in st.session_state: st.session_state.prev_selected_services = []
+    
+    # Dizionario listino (caricato una volta)
+    listino_dict = {str(r['Servizio']): float(r.get('Prezzo', 0) or 0) for i, r in df_srv.iterrows() if r.get('Servizio')}
+    all_services_list = sorted(list(listino_dict.keys()))
 
     with tab1:
         with st.container(border=True):
             st.subheader("Creazione Nuovo Preventivo")
-            selected_services_default = []
             
-            # --- FILTRO AREE E PACCHETTI ---
+            # --- SELEZIONE PACCHETTO CON LOGICA AUTO-UPDATE ---
             if not df_std.empty and 'Area' in df_std.columns and 'Nome' in df_std.columns:
                 c_filter, c_pack = st.columns(2)
                 with c_filter:
@@ -518,71 +519,103 @@ elif menu == "💳 Preventivi":
                     area_sel = st.selectbox("Filtra per Area:", ["-- Tutte --"] + aree_std)
                 
                 with c_pack:
-                    # Filtra dataframe
                     if area_sel != "-- Tutte --": df_std_filtered = df_std[df_std['Area'] == area_sel]
                     else: df_std_filtered = df_std
                     nomi_pacchetti = sorted(list(df_std_filtered['Nome'].unique()))
-                    scelta_std = st.selectbox("Seleziona Pacchetto:", ["-- Nessuno --"] + nomi_pacchetti)
+                    scelta_std = st.selectbox("Carica Pacchetto:", ["-- Seleziona --"] + nomi_pacchetti)
 
-                if scelta_std != "-- Nessuno --":
-                    row_std = df_std[df_std['Nome'] == scelta_std].iloc[0]
-                    if not st.session_state.note_prev: st.session_state.note_prev = row_std.get('Descrizione', '')
-                    if row_std.get('Contenuto'):
-                        for p in row_std['Contenuto'].split(','):
-                            if ' x' in p: 
-                                srv_raw, qty_raw = p.split(' x')
-                                srv_clean = srv_raw.strip()
-                                st.session_state[f"qty_{srv_clean}"] = int(qty_raw)
-                                selected_services_default.append(srv_clean)
+                # Se viene scelto un pacchetto, aggiorna lo stato
+                if scelta_std != "-- Seleziona --":
+                    # Usa un flag per evitare ricaricamenti continui se non cambia la selezione
+                    if 'last_std_pkg' not in st.session_state or st.session_state.last_std_pkg != scelta_std:
+                        row_std = df_std[df_std['Nome'] == scelta_std].iloc[0]
+                        # 1. Aggiorna Note (cerca colonna Descrizione)
+                        st.session_state.prev_note = row_std.get('Descrizione', '')
+                        
+                        # 2. Aggiorna Servizi (con controllo validità)
+                        new_services = []
+                        if row_std.get('Contenuto'):
+                            for p in row_std['Contenuto'].split(','):
+                                if ' x' in p: 
+                                    srv_raw, qty_raw = p.split(' x')
+                                    srv_clean = srv_raw.strip()
+                                    if srv_clean in all_services_list: # Filtro di sicurezza
+                                        new_services.append(srv_clean)
+                                        st.session_state[f"qty_{srv_clean}"] = int(qty_raw)
+                        
+                        st.session_state.prev_selected_services = new_services
+                        st.session_state.last_std_pkg = scelta_std
+                        st.rerun()
 
             nomi_pazienti = ["Seleziona..."] + sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows()]) if not df_paz.empty else []
             c_paz, c_serv = st.columns([1, 2])
-            paziente_scelto = c_paz.selectbox("Intestato a:", nomi_pazienti)
             
-            # Listino e FIX Validazione Default
-            listino_dict = {str(r['Servizio']): float(r.get('Prezzo', 0) or 0) for i, r in df_srv.iterrows() if r.get('Servizio')}
-            all_services = sorted(list(listino_dict.keys()))
+            with c_paz:
+                paziente_scelto = st.selectbox("Intestato a:", nomi_pazienti)
             
-            # Filtra solo i servizi che esistono davvero nel listino per evitare crash
-            valid_defaults = [s for s in selected_services_default if s in all_services]
-            
-            servizi_scelti = c_serv.multiselect("Trattamenti:", all_services, default=valid_defaults)
+            with c_serv:
+                # Multiselect collegato allo stato
+                servizi_scelti = st.multiselect("Trattamenti:", all_services_list, key="prev_selected_services")
 
             st.write("---")
-            st.caption("Inserimento Rapido Note:")
+            st.caption("Strumenti Rapidi Note:")
+            
+            # --- PULSANTI RAPIDI CHE AGGIORNANO IL TESTO ---
             c_btn1, c_btn2, c_btn3, c_btn4 = st.columns(4)
-            if c_btn1.button("🔥 Fase Infiammatoria"): st.session_state.note_prev += "\n\nFase Infiammatoria: Gestione del dolore e riduzione dell'infiammazione locale."
-            if c_btn2.button("💪 Fase Rinforzo"): st.session_state.note_prev += "\n\nFase Rinforzo: Recupero del tono muscolare e stabilità articolare."
-            if c_btn3.button("🏃 Riatletizzazione"): st.session_state.note_prev += "\n\nFase Riatletizzazione: Recupero gesto specifico e ritorno all'attività."
+            
+            def append_note(text):
+                st.session_state.prev_note += text
+            
+            if c_btn1.button("🔥 Infiammatoria"): append_note("\n\nFase Infiammatoria: Gestione del dolore e riduzione dell'infiammazione locale.")
+            if c_btn2.button("💪 Rinforzo"): append_note("\n\nFase Rinforzo: Recupero del tono muscolare e stabilità articolare.")
+            if c_btn3.button("🏃 Riatletizzazione"): append_note("\n\nFase Riatletizzazione: Recupero gesto specifico e ritorno all'attività.")
             
             c_prog1, c_prog2 = st.columns([1, 3])
             settimane = c_prog1.number_input("Settimane", 1, 52, 4)
-            if c_prog2.button("Genera Prognosi"): st.session_state.note_prev += f"\n\nPrognosi stimata: {settimane} settimane di trattamento."
+            if c_prog2.button("Genera Prognosi"): append_note(f"\n\nPrognosi stimata: {settimane} settimane di trattamento.")
 
-            note_preventivo = st.text_area("Dettagli del Percorso:", value=st.session_state.note_prev, height=150, key="txt_note")
-            st.session_state.note_prev = note_preventivo 
+            # Text Area collegata allo stato
+            note_preventivo = st.text_area("Dettagli del Percorso:", key="prev_note", height=150)
             
+            # --- TABELLA RIEPILOGO ---
             righe = []; tot = 0
             if servizi_scelti:
+                st.divider()
                 for s in servizi_scelti:
                     c1, c2, c3 = st.columns([3, 1, 1])
-                    qty = c2.number_input(f"Qta {s}", 1, 50, st.session_state.get(f"qty_{s}", 1), key=f"n_{s}")
-                    cost = listino_dict[s] * qty; tot += cost
-                    c1.write(f"**{s}**"); c3.write(f"**{cost} €**")
+                    # Gestione quantità persistente
+                    if f"qty_{s}" not in st.session_state: st.session_state[f"qty_{s}"] = 1
+                    qty = c2.number_input(f"Qta {s}", 1, 50, key=f"qty_{s}")
+                    
+                    cost = listino_dict[s] * qty
+                    tot += cost
+                    c1.write(f"**{s}**")
+                    c3.write(f"**{cost} €**")
                     righe.append({"nome": s, "qty": qty, "tot": cost})
                 
-                st.divider(); c_tot, c_btn = st.columns([2, 1]); c_tot.markdown(f"### TOTALE: {tot} €")
+                st.divider()
+                c_tot, c_btn = st.columns([2, 1])
+                c_tot.markdown(f"### TOTALE: {tot} €")
+                
                 with c_btn:
-                    if st.button("💾 Salva", type="primary", use_container_width=True):
+                    if st.button("💾 Salva Preventivo", type="primary", use_container_width=True):
                         if paziente_scelto != "Seleziona...":
                             dett = " | ".join([f"{r['nome']} x{r['qty']} ({r['tot']}€)" for r in righe])
-                            save_preventivo_temp(paziente_scelto, dett, tot, note_preventivo); st.success("Salvato!")
-                    if st.button("🖨️ Anteprima", use_container_width=True): st.session_state.show_html = True
+                            save_preventivo_temp(paziente_scelto, dett, tot, note_preventivo)
+                            st.success("Salvato!")
+                        else:
+                            st.error("Seleziona un paziente.")
+                    
+                    if st.button("🖨️ Anteprima Stampa", use_container_width=True):
+                        st.session_state.show_html = True
 
+            # Anteprima
             if st.session_state.get('show_html'):
                 html = generate_html_preventivo(paziente_scelto, date.today().strftime("%d/%m/%Y"), note_preventivo, righe, tot, LOGO_B64)
                 components.html(html, height=800, scrolling=True)
-                if st.button("Chiudi"): st.session_state.show_html = False; st.rerun()
+                if st.button("Chiudi Anteprima"):
+                    st.session_state.show_html = False
+                    st.rerun()
 
     with tab2:
         st.subheader("Archivio"); df_prev = get_data("Preventivi_Salvati")
