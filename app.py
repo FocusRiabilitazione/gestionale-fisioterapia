@@ -117,6 +117,7 @@ st.markdown("""
     .border-purple { border-left: 4px solid #9f7aea !important; }
     .border-yellow { border-left: 4px solid #ecc94b !important; }
     .border-green { border-left: 4px solid #2ecc71 !important; }
+    .border-gray { border-left: 4px solid #a0aec0 !important; } /* NUOVO GRIGIO */
 
     /* --- PULSANTI AZIONE --- */
     div[data-testid="stHorizontalBlock"] button {
@@ -285,7 +286,7 @@ with st.sidebar:
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📨 Consegne", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v88 - Titles Added")
+    st.divider(); st.caption("App v89 - Consegne Alert")
 
 # =========================================================
 # DASHBOARD
@@ -299,6 +300,7 @@ if menu == "⚡ Dashboard":
     df = get_data("Pazienti")
     df_prev = get_data("Preventivi_Salvati")
     df_inv = get_data("Inventario")
+    df_cons = get_data("Consegne")
     
     if not df.empty:
         # Preprocessing
@@ -340,6 +342,14 @@ if menu == "⚡ Dashboard":
                 if c not in df_inv.columns: df_inv[c] = 0
             low_stock = df_inv[df_inv['Quantita'] <= df_inv['Soglia_Minima']]
 
+        # Consegne
+        consegne_pendenti = pd.DataFrame()
+        if not df_cons.empty:
+            if 'Completato' not in df_cons.columns: df_cons['Completato'] = False
+            if 'Data_Scadenza' not in df_cons.columns: df_cons['Data_Scadenza'] = None
+            df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza'], errors='coerce')
+            consegne_pendenti = df_cons[df_cons['Completato'] != True]
+
         col1, col2, col3, col4, col5 = st.columns(5)
         def draw_kpi(col, icon, num, label, color, filter_key):
             with col:
@@ -374,6 +384,20 @@ if menu == "⚡ Dashboard":
         st.write("")
         st.subheader("🔔 Avvisi e Scadenze")
         
+        # 1. Consegne (Grigio) - NEW
+        if not consegne_pendenti.empty:
+            st.caption(f"📨 Consegne in sospeso: {len(consegne_pendenti)}")
+            for i, row in consegne_pendenti.iterrows():
+                c_info, c_btn1, c_void = st.columns([3, 1, 1], gap="small")
+                scad_str = row['Data_Scadenza'].strftime('%d/%m') if pd.notnull(row['Data_Scadenza']) else "N.D."
+                with c_info: 
+                    st.markdown(f"""<div class="alert-row-name border-gray">{row['Paziente']}: {row['Indicazione']} (Entro: {scad_str})</div>""", unsafe_allow_html=True)
+                with c_btn1:
+                    if st.button("✅ Fatto", key=f"ok_dash_{row['id']}", type="secondary", use_container_width=True):
+                        update_generic("Consegne", row['id'], {"Completato": True})
+                        st.rerun()
+
+        # 2. Magazzino (Giallo)
         if not low_stock.empty:
             st.caption(f"⚠️ Prodotti in esaurimento: {len(low_stock)}")
             for i, row in low_stock.iterrows():
@@ -387,6 +411,7 @@ if menu == "⚡ Dashboard":
                         update_generic("Inventario", row['id'], {"Quantità": target})
                         st.rerun()
 
+        # 3. Preventivi (Viola)
         if not prev_scaduti.empty:
             st.caption(f"⏳ Preventivi > 7gg: {len(prev_scaduti)}")
             for i, row in prev_scaduti.iterrows():
@@ -397,6 +422,7 @@ if menu == "⚡ Dashboard":
                 with c_btn2:
                     if st.button("🗑️ Elimina", key=f"del_prev_{row['id']}", type="secondary", use_container_width=True): delete_generic("Preventivi_Salvati", row['id']); st.rerun()
 
+        # 4. Recall (Arancio)
         if not da_richiamare.empty:
             st.caption(f"📞 Recall Necessari: {len(da_richiamare)}")
             for i, row in da_richiamare.iterrows():
@@ -407,6 +433,7 @@ if menu == "⚡ Dashboard":
                 with c_btn2: 
                     if st.button("📅 Rimandare", key=f"pk_{row['id']}", type="secondary", use_container_width=True): update_generic("Pazienti", row['id'], {"Data_Disdetta": str(date.today())}); st.rerun()
         
+        # 5. Visite Post (Blu)
         if not visite_da_reinserire.empty:
             st.caption(f"🛑 Reinserimento Post-Visita: {len(visite_da_reinserire)}")
             for i, row in visite_da_reinserire.iterrows():
@@ -420,7 +447,7 @@ if menu == "⚡ Dashboard":
             for i, row in visite_settimana.iterrows():
                 st.markdown(f"""<div class="alert-row-name border-blue" style="justify-content: space-between;"><span>{row['Nome']} {row['Cognome']}</span><span style="color:#0bc5ea; font-size:13px;">{row['Data_Visita'].strftime('%A %d/%m')}</span></div>""", unsafe_allow_html=True)
         
-        if da_richiamare.empty and visite_da_reinserire.empty and visite_settimana.empty and prev_scaduti.empty and low_stock.empty: st.success("Tutto tranquillo! Nessun avviso.")
+        if da_richiamare.empty and visite_da_reinserire.empty and visite_settimana.empty and prev_scaduti.empty and low_stock.empty and consegne_pendenti.empty: st.success("Tutto tranquillo! Nessun avviso.")
         
         st.divider()
 
