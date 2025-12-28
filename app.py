@@ -273,7 +273,7 @@ with st.sidebar:
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📨 Consegne", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v79 - Final Fix")
+    st.divider(); st.caption("App v80 - Ultimate")
 
 # =========================================================
 # DASHBOARD
@@ -289,7 +289,6 @@ if menu == "⚡ Dashboard":
     df_inv = get_data("Inventario")
     
     if not df.empty:
-        # Preprocessing
         for col in ['Disdetto', 'Visita_Esterna']:
             if col not in df.columns: df[col] = False
             df[col] = df[col].fillna(False)
@@ -303,7 +302,6 @@ if menu == "⚡ Dashboard":
         cnt_attivi = totali - len(df_disdetti)
         oggi = pd.Timestamp.now().normalize()
         
-        # RECALL (7 giorni)
         limite_recall = oggi - pd.Timedelta(days=7)
         da_richiamare = df_disdetti[ (df_disdetti['Data_Disdetta'].notna()) & (df_disdetti['Data_Disdetta'] <= limite_recall) ]
         
@@ -311,12 +309,10 @@ if menu == "⚡ Dashboard":
         domani = oggi + pd.Timedelta(days=1)
         visite_imminenti = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] >= oggi) & (df_visite['Data_Visita'] <= domani) ]
         
-        # ALTRI FILTRI VISITE
         curr_week = oggi.isocalendar()[1]
         visite_settimana = df_visite[ df_visite['Data_Visita'].apply(lambda x: x.isocalendar()[1] if pd.notnull(x) else -1) == curr_week ]
         visite_da_reinserire = df_visite[ (df_visite['Data_Visita'].notna()) & (oggi >= (df_visite['Data_Visita'] + pd.Timedelta(days=2))) ]
 
-        # Preventivi
         cnt_prev = len(df_prev)
         prev_scaduti = pd.DataFrame()
         if not df_prev.empty:
@@ -324,7 +320,6 @@ if menu == "⚡ Dashboard":
             limite_prev = oggi - timedelta(days=7)
             prev_scaduti = df_prev[df_prev['Data_Creazione'] <= limite_prev]
 
-        # Scorte Basse
         low_stock = pd.DataFrame()
         if not df_inv.empty:
             if 'Quantità' in df_inv.columns: df_inv = df_inv.rename(columns={'Quantità': 'Quantita'})
@@ -332,7 +327,6 @@ if menu == "⚡ Dashboard":
                 if c not in df_inv.columns: df_inv[c] = 0
             low_stock = df_inv[df_inv['Quantita'] <= df_inv['Soglia_Minima']]
 
-        # KPI CARDS
         col1, col2, col3, col4, col5 = st.columns(5)
         def draw_kpi(col, icon, num, label, color, filter_key):
             with col:
@@ -342,8 +336,7 @@ if menu == "⚡ Dashboard":
         draw_kpi(col1, "👥", cnt_attivi, "Attivi", "#2ecc71", "Attivi")
         draw_kpi(col2, "📉", len(df_disdetti), "Disdetti", "#e53e3e", "Disdetti")
         draw_kpi(col3, "💡", len(da_richiamare), "Recall", "#ed8936", "Recall")
-        # FIX: Conto totale visite esterne attive, non solo imminenti
-        draw_kpi(col4, "🩺", len(df_visite), "Visite", "#0bc5ea", "Visite") 
+        draw_kpi(col4, "🩺", len(df_visite), "Visite", "#0bc5ea", "Visite")
         draw_kpi(col5, "💳", cnt_prev, "Preventivi", "#9f7aea", "Preventivi")
 
         st.write("")
@@ -368,7 +361,7 @@ if menu == "⚡ Dashboard":
         st.write("")
         st.subheader("🔔 Avvisi e Scadenze")
         
-        # ALERT MAGAZZINO (GIALLO)
+        # 1. Magazzino (Giallo)
         if not low_stock.empty:
             st.caption(f"⚠️ Prodotti in esaurimento: {len(low_stock)}")
             for i, row in low_stock.iterrows():
@@ -382,7 +375,7 @@ if menu == "⚡ Dashboard":
                         update_generic("Inventario", row['id'], {"Quantità": target})
                         st.rerun()
 
-        # ALERT PREVENTIVI (VIOLA)
+        # 2. Preventivi (Viola)
         if not prev_scaduti.empty:
             st.caption(f"⏳ Preventivi > 7gg: {len(prev_scaduti)}")
             for i, row in prev_scaduti.iterrows():
@@ -393,7 +386,7 @@ if menu == "⚡ Dashboard":
                 with c_btn2:
                     if st.button("🗑️ Elimina", key=f"del_prev_{row['id']}", type="secondary", use_container_width=True): delete_generic("Preventivi_Salvati", row['id']); st.rerun()
 
-        # RECALL (ARANCIO)
+        # 3. Recall (Arancio)
         if not da_richiamare.empty:
             st.caption(f"📞 Recall Necessari: {len(da_richiamare)}")
             for i, row in da_richiamare.iterrows():
@@ -404,12 +397,12 @@ if menu == "⚡ Dashboard":
                 with c_btn2: 
                     if st.button("📅 Rimandare", key=f"pk_{row['id']}", type="secondary", use_container_width=True): update_generic("Pazienti", row['id'], {"Data_Disdetta": str(date.today())}); st.rerun()
         
-        # VISITE (ROSSO/BLU)
+        # 4. Visite Post (Blu - Modificato da Rosso)
         if not visite_da_reinserire.empty:
             st.caption(f"🛑 Reinserimento Post-Visita: {len(visite_da_reinserire)}")
             for i, row in visite_da_reinserire.iterrows():
                 c_info, c_btn1, c_void = st.columns([3, 1, 1], gap="small")
-                with c_info: st.markdown(f"""<div class="alert-row-name border-red">{row['Nome']} {row['Cognome']} (Visitato il {row['Data_Visita'].strftime('%d/%m')})</div>""", unsafe_allow_html=True)
+                with c_info: st.markdown(f"""<div class="alert-row-name border-blue">{row['Nome']} {row['Cognome']} (Visitato il {row['Data_Visita'].strftime('%d/%m')})</div>""", unsafe_allow_html=True)
                 with c_btn1:
                     if st.button("✅ Rientrato", key=f"vk_{row['id']}", type="primary", use_container_width=True): update_generic("Pazienti", row['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
         
@@ -515,9 +508,25 @@ elif menu == "💳 Preventivi":
             st.subheader("Creazione Nuovo Preventivo")
             selected_services_default = []
             
-            if not df_std.empty:
-                scelta_std = st.selectbox("Carica Pacchetto Standard (Opzionale):", ["-- Seleziona --"] + sorted(list(df_std['Nome'].unique())))
-                if scelta_std != "-- Seleziona --":
+            # --- FILTRO AREE E PACCHETTI (NUOVA LOGICA) ---
+            if not df_std.empty and 'Area' in df_std.columns and 'Nome' in df_std.columns:
+                c_filter, c_pack = st.columns(2)
+                with c_filter:
+                    aree_std = sorted(list(df_std['Area'].unique()))
+                    area_sel = st.selectbox("Filtra per Area:", ["-- Tutte --"] + aree_std)
+                
+                with c_pack:
+                    # Filtra il dataframe in base all'area selezionata
+                    if area_sel != "-- Tutte --":
+                        df_std_filtered = df_std[df_std['Area'] == area_sel]
+                    else:
+                        df_std_filtered = df_std
+                    
+                    nomi_pacchetti = sorted(list(df_std_filtered['Nome'].unique()))
+                    scelta_std = st.selectbox("Seleziona Pacchetto:", ["-- Nessuno --"] + nomi_pacchetti)
+
+                # Logica applicazione pacchetto
+                if scelta_std != "-- Nessuno --":
                     row_std = df_std[df_std['Nome'] == scelta_std].iloc[0]
                     if not st.session_state.note_prev: st.session_state.note_prev = row_std.get('Descrizione', '')
                     if row_std.get('Contenuto'):
@@ -646,6 +655,7 @@ elif menu == "📦 Magazzino":
             if 'Quantità' in df_inv.columns: df_inv = df_inv.rename(columns={'Quantità': 'Quantita'})
             for c in ['Quantita', 'Soglia_Minima', 'Materiali', 'Obiettivo']:
                 if c not in df_inv.columns: df_inv[c] = 0
+            
             df_inv['Quantita'] = df_inv['Quantita'].fillna(0).astype(int)
             
             tabs = st.tabs(STANZE)
