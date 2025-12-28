@@ -55,7 +55,7 @@ st.markdown("""
     .glass-kpi {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 20px;
+        border-radius: 20px; /* Più arrotondato */
         padding: 20px;
         text-align: center;
         height: 140px;
@@ -273,7 +273,7 @@ with st.sidebar:
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📨 Consegne", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v80 - Ultimate")
+    st.divider(); st.caption("App v81 - Final Fix")
 
 # =========================================================
 # DASHBOARD
@@ -289,6 +289,7 @@ if menu == "⚡ Dashboard":
     df_inv = get_data("Inventario")
     
     if not df.empty:
+        # Preprocessing
         for col in ['Disdetto', 'Visita_Esterna']:
             if col not in df.columns: df[col] = False
             df[col] = df[col].fillna(False)
@@ -361,7 +362,7 @@ if menu == "⚡ Dashboard":
         st.write("")
         st.subheader("🔔 Avvisi e Scadenze")
         
-        # 1. Magazzino (Giallo)
+        # 1. Magazzino
         if not low_stock.empty:
             st.caption(f"⚠️ Prodotti in esaurimento: {len(low_stock)}")
             for i, row in low_stock.iterrows():
@@ -375,7 +376,7 @@ if menu == "⚡ Dashboard":
                         update_generic("Inventario", row['id'], {"Quantità": target})
                         st.rerun()
 
-        # 2. Preventivi (Viola)
+        # 2. Preventivi
         if not prev_scaduti.empty:
             st.caption(f"⏳ Preventivi > 7gg: {len(prev_scaduti)}")
             for i, row in prev_scaduti.iterrows():
@@ -386,7 +387,7 @@ if menu == "⚡ Dashboard":
                 with c_btn2:
                     if st.button("🗑️ Elimina", key=f"del_prev_{row['id']}", type="secondary", use_container_width=True): delete_generic("Preventivi_Salvati", row['id']); st.rerun()
 
-        # 3. Recall (Arancio)
+        # 3. Recall
         if not da_richiamare.empty:
             st.caption(f"📞 Recall Necessari: {len(da_richiamare)}")
             for i, row in da_richiamare.iterrows():
@@ -397,7 +398,7 @@ if menu == "⚡ Dashboard":
                 with c_btn2: 
                     if st.button("📅 Rimandare", key=f"pk_{row['id']}", type="secondary", use_container_width=True): update_generic("Pazienti", row['id'], {"Data_Disdetta": str(date.today())}); st.rerun()
         
-        # 4. Visite Post (Blu - Modificato da Rosso)
+        # 4. Visite Post (Blu)
         if not visite_da_reinserire.empty:
             st.caption(f"🛑 Reinserimento Post-Visita: {len(visite_da_reinserire)}")
             for i, row in visite_da_reinserire.iterrows():
@@ -494,7 +495,7 @@ elif menu == "👥 Pazienti":
             if count_upd > 0 or count_del > 0: get_data.clear(); st.toast("Database aggiornato!", icon="✅"); st.rerun()
 
 # =========================================================
-# SEZIONE 3: PREVENTIVI
+# SEZIONE 3: PREVENTIVI (FIX CRASH MULTISELECT)
 # =========================================================
 elif menu == "💳 Preventivi":
     st.title("Preventivi & Proposte")
@@ -508,7 +509,7 @@ elif menu == "💳 Preventivi":
             st.subheader("Creazione Nuovo Preventivo")
             selected_services_default = []
             
-            # --- FILTRO AREE E PACCHETTI (NUOVA LOGICA) ---
+            # --- FILTRO AREE E PACCHETTI ---
             if not df_std.empty and 'Area' in df_std.columns and 'Nome' in df_std.columns:
                 c_filter, c_pack = st.columns(2)
                 with c_filter:
@@ -516,28 +517,35 @@ elif menu == "💳 Preventivi":
                     area_sel = st.selectbox("Filtra per Area:", ["-- Tutte --"] + aree_std)
                 
                 with c_pack:
-                    # Filtra il dataframe in base all'area selezionata
-                    if area_sel != "-- Tutte --":
-                        df_std_filtered = df_std[df_std['Area'] == area_sel]
-                    else:
-                        df_std_filtered = df_std
-                    
+                    # Filtra dataframe
+                    if area_sel != "-- Tutte --": df_std_filtered = df_std[df_std['Area'] == area_sel]
+                    else: df_std_filtered = df_std
                     nomi_pacchetti = sorted(list(df_std_filtered['Nome'].unique()))
                     scelta_std = st.selectbox("Seleziona Pacchetto:", ["-- Nessuno --"] + nomi_pacchetti)
 
-                # Logica applicazione pacchetto
                 if scelta_std != "-- Nessuno --":
                     row_std = df_std[df_std['Nome'] == scelta_std].iloc[0]
                     if not st.session_state.note_prev: st.session_state.note_prev = row_std.get('Descrizione', '')
                     if row_std.get('Contenuto'):
                         for p in row_std['Contenuto'].split(','):
-                            if ' x' in p: srv, qty = p.split(' x'); selected_services_default.append(srv); st.session_state[f"qty_{srv}"] = int(qty)
+                            if ' x' in p: 
+                                srv_raw, qty_raw = p.split(' x')
+                                srv_clean = srv_raw.strip()
+                                st.session_state[f"qty_{srv_clean}"] = int(qty_raw)
+                                selected_services_default.append(srv_clean)
 
             nomi_pazienti = ["Seleziona..."] + sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows()]) if not df_paz.empty else []
             c_paz, c_serv = st.columns([1, 2])
             paziente_scelto = c_paz.selectbox("Intestato a:", nomi_pazienti)
+            
+            # Listino e FIX Validazione Default
             listino_dict = {str(r['Servizio']): float(r.get('Prezzo', 0) or 0) for i, r in df_srv.iterrows() if r.get('Servizio')}
-            servizi_scelti = c_serv.multiselect("Trattamenti:", sorted(list(listino_dict.keys())), default=selected_services_default)
+            all_services = sorted(list(listino_dict.keys()))
+            
+            # Filtra solo i servizi che esistono davvero nel listino per evitare crash
+            valid_defaults = [s for s in selected_services_default if s in all_services]
+            
+            servizi_scelti = c_serv.multiselect("Trattamenti:", all_services, default=valid_defaults)
 
             st.write("---")
             st.caption("Inserimento Rapido Note:")
@@ -655,7 +663,6 @@ elif menu == "📦 Magazzino":
             if 'Quantità' in df_inv.columns: df_inv = df_inv.rename(columns={'Quantità': 'Quantita'})
             for c in ['Quantita', 'Soglia_Minima', 'Materiali', 'Obiettivo']:
                 if c not in df_inv.columns: df_inv[c] = 0
-            
             df_inv['Quantita'] = df_inv['Quantita'].fillna(0).astype(int)
             
             tabs = st.tabs(STANZE)
