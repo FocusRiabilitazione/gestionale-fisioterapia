@@ -203,7 +203,7 @@ def save_consegna(paziente, area, indicazione, scadenza):
         get_data.clear(); return True
     except: return False
 
-# NUOVA FUNZIONE PER PRESTITI (MODIFICATA PER DEBUG)
+# FUNZIONE SALVATAGGIO PRESTITI
 def save_prestito_new(paziente, oggetto, categoria, data_prestito, data_scadenza):
     try: 
         api.table(BASE_ID, "Prestiti").create({
@@ -214,11 +214,11 @@ def save_prestito_new(paziente, oggetto, categoria, data_prestito, data_scadenza
             "Data_Scadenza": str(data_scadenza),
             "Restituito": False
         }, typecast=True)
+        # FONDAMENTALE: Cancella la cache per forzare il riaggiornamento dei dati
         get_data.clear()
         return True
     except Exception as e:
-        # QUESTO MOSTRA L'ERRORE A VIDEO
-        st.error(f"⚠️ Errore salvataggio Airtable: {e}")
+        st.error(f"Errore: {e}")
         return False
 
 def get_base64_image(image_path):
@@ -293,7 +293,7 @@ if menu == "⚡ Dashboard":
     st.title("⚡ Dashboard")
     st.write("")
     
-    # --- ALERT PRESTITI SCADUTI (CORRETTO PER EVITARE TypeError) ---
+    # --- ALERT PRESTITI SCADUTI ---
     df_pres_alert = get_data("Prestiti")
     if not df_pres_alert.empty:
         # Pulisci e normalizza dati
@@ -882,7 +882,8 @@ elif menu == "🔄 Prestiti":
                     with row_c4:
                         if st.button("🔄 Restituito", key=f"ret_{strumento}"):
                             update_generic("Prestiti", record['id'], {"Restituito": True})
-                            st.success("Rientrato!"); st.rerun()
+                            st.success("Rientrato!")
+                            st.rerun()
                 
                 # SE LIBERO
                 else:
@@ -896,7 +897,7 @@ elif menu == "🔄 Prestiti":
                             if paz_sel != "-- Seleziona --":
                                 delta = timedelta(weeks=num) if unit == "Sett" else timedelta(days=num)
                                 
-                                # CHIAMATA CON CONTROLLO ERRORE
+                                # CHIAMATA CON LOGICA DI AGGIORNAMENTO
                                 if save_prestito_new(paz_sel, strumento, tab_name, date.today(), date.today() + delta):
                                     st.success("Prestito registrato!")
                                     st.rerun()
@@ -913,3 +914,4 @@ elif menu == "📅 Scadenze":
         df_scad['Data_Scadenza'] = pd.to_datetime(df_scad['Data_Scadenza'], errors='coerce'); df_scad = df_scad.sort_values("Data_Scadenza")
         st.dataframe(df_scad, column_config={"Data_Scadenza": st.column_config.DateColumn("Scadenza", format="DD/MM/YYYY"), "Importo": st.column_config.NumberColumn("Importo", format="%d €"), "Descrizione": st.column_config.TextColumn("Dettagli")}, use_container_width=True, height=500)
     else: st.info("Nessuna scadenza prossima.")
+        
