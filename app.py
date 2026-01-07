@@ -794,25 +794,121 @@ elif menu == "📦 Magazzino":
         else: st.info("Magazzino vuoto.")
 
 # =========================================================
-# SEZIONE 5: PRESTITI
+# SEZIONE PRESTITI (GESTIONE INVENTARIO)
 # =========================================================
-elif menu == "🔄 Prestiti":
-    st.title("Registro Prestiti")
-    df_paz = get_data("Pazienti"); df_inv = get_data("Inventario")
-    with st.expander("➕ Registra Prestito"):
-        with st.form("fp"):
-            c1, c2 = st.columns(2); pz = c1.selectbox("Chi?", sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows()]) if not df_paz.empty else []); pr = c2.selectbox("Cosa?", sorted([r['Materiali'] for i, r in df_inv.iterrows() if r.get('Materiali')]) if not df_inv.empty else [])
-            if st.form_submit_button("Salva"): save_prestito(pz, pr, date.today()); st.rerun()
+elif menu == "💰 Prestiti":
+    st.title("Gestione Noleggi e Prestiti")
+    
+    # 1. DEFINISCI QUI IL TUO INVENTARIO STRUMENTI
+    # Modifica le stringhe tra virgolette con i nomi reali dei tuoi strumenti
+    INVENTARIO = {
+        "Strumenti Mano": [
+            "Tutore Polso A", "Tutore Polso B", "Kit Riabilitazione Mano", 
+            "Dinamometro", "Molla Esercizi"
+        ],
+        "Elettrostimolatore": [
+            "Compex Pro 1", "Compex Pro 2", "Compex Wireless", 
+            "Neurostimolatore TENS"
+        ],
+        "Magnetoterapia": [
+            "Mag 2000 (A)", "Mag 2000 (B)", "I-Tech Magneto", 
+            "Solenoidi Fascia"
+        ]
+    }
+    
+    # Carichiamo i dati
     df_pres = get_data("Prestiti")
-    if not df_pres.empty:
-        df_pres['Restituito'] = df_pres.get('Restituito', False).fillna(False)
-        act = df_pres[df_pres['Restituito'] != True]
-        if not act.empty:
-            ed = st.data_editor(act[['Paziente', 'Oggetto', 'Data_Prestito', 'Restituito', 'id']], column_config={"id": None}, hide_index=True)
-            if st.button("Conferma Resi"):
-                for i, r in ed.iterrows():
-                    if r['Restituito']: update_generic("Prestiti", r['id'], {"Restituito": True})
-                st.rerun()
+    df_paz = get_data("Pazienti")
+    nomi_paz = ["-- Seleziona --"] + sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows()]) if not df_paz.empty else []
+
+    # Creiamo le 3 Aree richieste
+    tabs = st.tabs(["✋ Strumenti Mano", "⚡ Elettrostimolatore", "🧲 Magnetoterapia"])
+    
+    # Ciclo per generare le tab
+    mappa_tabs = {0: "Strumenti Mano", 1: "Elettrostimolatore", 2: "Magnetoterapia"}
+    
+    for i, tab_name in mappa_tabs.items():
+        with tabs[i]:
+            st.subheader(f"Disponibilità {tab_name}")
+            
+            # Recuperiamo la lista degli strumenti per questa categoria
+            strumenti_categoria = INVENTARIO[tab_name]
+            
+            # Intestazione griglia
+            c1, c2, c3, c4 = st.columns([2, 3, 2, 2])
+            c1.markdown("**Strumento**")
+            c2.markdown("**Stato / Paziente**")
+            c3.markdown("**Scadenza**")
+            c4.markdown("**Azione**")
+            st.divider()
+
+            for strumento in strumenti_categoria:
+                # Controlliamo se lo strumento è attualmente prestato (non restituito)
+                prestito_attivo = pd.DataFrame()
+                if not df_pres.empty:
+                    # Cerca prestito per questo oggetto che NON ha Restituito=True
+                    prestito_attivo = df_pres[
+                        (df_pres['Oggetto'] == strumento) & 
+                        (df_pres['Restituito'] != True)
+                    ]
+                
+                # Creiamo le colonne per la riga
+                row_c1, row_c2, row_c3, row_c4 = st.columns([2, 3, 2, 2])
+                
+                with row_c1:
+                    st.write(f"🔹 {strumento}")
+                
+                # CASO 1: STRUMENTO OCCUPATO
+                if not prestito_attivo.empty:
+                    record = prestito_attivo.iloc[0] # Prendi il primo record trovato
+                    scadenza = pd.to_datetime(record['Data_Scadenza']).date() if 'Data_Scadenza' in record else date.today()
+                    days_left = (scadenza - date.today()).days
+                    
+                    color_class = "border-red" if days_left < 0 else "border-green"
+                    msg_scad = f"Scade tra {days_left} gg" if days_left >= 0 else f"SCADUTO da {abs(days_left)} gg"
+                    
+                    with row_c2:
+                        st.markdown(f"<div class='{color_class}'>🔴 <b>{record['Paziente']}</b></div>", unsafe_allow_html=True)
+                    with row_c3:
+                        st.caption(f"{scadenza.strftime('%d/%m')}\n({msg_scad})")
+                    with row_c4:
+                        if st.button("🔄 Restituito", key=f"ret_{strumento}"):
+                            update_generic("Prestiti", record['id'], {"Restituito": True})
+                            st.success(f"{strumento} rientrato!")
+                            st.rerun()
+                            
+                # CASO 2: STRUMENTO DISPONIBILE (Libero)
+                else:
+                    with row_c2:
+                        # Form selezione paziente
+                        paz_sel = st.selectbox(f"Paziente ({strumento})", nomi_paz, key=f"paz_{strumento}", label_visibility="collapsed")
+                    
+                    with row_c3:
+                        # Selezione durata
+                        cols_d = st.columns(2)
+                        num = cols_d[0].number_input("Qta", min_value=1, value=1, key=f"n_{strumento}", label_visibility="collapsed")
+                        unit = cols_d[1].selectbox("U", ["Sett", "Giorni"], key=f"u_{strumento}", label_visibility="collapsed")
+                        
+                    with row_c4:
+                        if st.button("➕ Presta", key=f"btn_{strumento}"):
+                            if paz_sel != "-- Seleziona --":
+                                # Calcolo data scadenza
+                                delta = timedelta(weeks=num) if unit == "Sett" else timedelta(days=num)
+                                scadenza_calc = date.today() + delta
+                                
+                                # Salvataggio su Airtable
+                                save_data("Prestiti", {
+                                    "Paziente": paz_sel,
+                                    "Oggetto": strumento,
+                                    "Categoria": tab_name,
+                                    "Data_Prestito": str(date.today()),
+                                    "Data_Scadenza": str(scadenza_calc),
+                                    "Restituito": False
+                                })
+                                st.rerun()
+                            else:
+                                st.toast("Seleziona un paziente!", icon="⚠️")
+                st.divider()
 
 # =========================================================
 # SEZIONE 6: SCADENZE
