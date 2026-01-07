@@ -789,8 +789,9 @@ elif menu == "🔄 Prestiti":
     # 1. INVENTARIO (Definizione Strumenti)
     INVENTARIO = {
         "Strumenti Mano": [
-            "Tutore Polso A", "Tutore Polso B", "Kit Riabilitazione Mano", 
-            "Dinamometro", "Molla Esercizi"
+            "Flex-Bar Gialla 5L", "Flex-Bar Gialla 5L", "Flex-Bar Verde 10L", 
+            "Flex-Bar Verde 10L", "Flex-Bar Blu 15L", 
+            "Flex-Bar Blu 15L", "Flex-Bar Rossa 25L", "Flex-Bar Rossa 25L"
         ],
         "Elettrostimolatore": [
             "Compex Pro 1", "Compex Pro 2", "Compex Wireless", 
