@@ -9,7 +9,7 @@ import os
 import base64
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE (ULTIMATE UI)
+# 0. CONFIGURAZIONE & STILE
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -21,20 +21,17 @@ st.markdown("""
         font-family: 'Outfit', sans-serif;
     }
 
-    /* SFONDO PROFONDO */
     .stApp {
         background: radial-gradient(circle at top left, #1a202c, #0d1117);
         color: #e2e8f0;
     }
 
-    /* SIDEBAR */
     section[data-testid="stSidebar"] {
         background-color: rgba(13, 17, 23, 0.95);
         border-right: 1px solid rgba(255, 255, 255, 0.08);
         backdrop-filter: blur(20px);
     }
 
-    /* --- TITOLI MODERNI --- */
     h1 {
         font-family: 'Outfit', sans-serif;
         font-weight: 800 !important;
@@ -51,11 +48,11 @@ st.markdown("""
         letter-spacing: 0.5px;
     }
 
-    /* --- KPI CARDS (CON GLOW EFFECT) --- */
+    /* KPI CARDS */
     .glass-kpi {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 20px; /* Più arrotondato */
+        border-radius: 20px;
         padding: 20px;
         text-align: center;
         height: 140px;
@@ -68,7 +65,6 @@ st.markdown("""
         background: rgba(255, 255, 255, 0.06);
     }
     
-    /* Icone animate */
     .kpi-icon { 
         font-size: 32px;
         margin-bottom: 8px; 
@@ -80,7 +76,7 @@ st.markdown("""
     .kpi-value { font-size: 36px; font-weight: 800; color: white; line-height: 1; letter-spacing: -1px; }
     .kpi-label { font-size: 11px; text-transform: uppercase; color: #a0aec0; margin-top: 8px; letter-spacing: 1.5px; font-weight: 600; }
 
-    /* --- PULSANTI --- */
+    /* PULSANTI */
     div[data-testid="column"] .stButton > button {
         background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
         border: none !important;
@@ -98,7 +94,7 @@ st.markdown("""
         box-shadow: 0 6px 15px rgba(66, 153, 225, 0.5) !important;
     }
 
-    /* --- RIGHE AVVISI COMPATTE --- */
+    /* RIGHE AVVISI */
     .alert-row-name {
         background-color: rgba(255, 255, 255, 0.03);
         border-radius: 10px;
@@ -111,7 +107,6 @@ st.markdown("""
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
-    /* Bordi colorati */
     .border-orange { border-left: 4px solid #ed8936 !important; }
     .border-red { border-left: 4px solid #e53e3e !important; }
     .border-blue { border-left: 4px solid #0bc5ea !important; }
@@ -120,7 +115,7 @@ st.markdown("""
     .border-green { border-left: 4px solid #2ecc71 !important; }
     .border-gray { border-left: 4px solid #a0aec0 !important; }
 
-    /* --- PULSANTI AZIONE --- */
+    /* PULSANTI AZIONE */
     div[data-testid="stHorizontalBlock"] button {
         padding: 2px 12px !important;
         font-size: 11px !important; min-height: 0px !important;
@@ -132,11 +127,9 @@ st.markdown("""
     button[kind="secondary"] { background: rgba(255, 255, 255, 0.08) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: #cbd5e0 !important; }
     button[kind="secondary"]:hover { border-color: #a0aec0 !important; color: white !important; }
 
-    /* --- ALTRI --- */
     div[data-testid="stDataFrame"] { background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; }
     input, select, textarea { background-color: rgba(13, 17, 23, 0.8) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: white !important; border-radius: 8px; }
 
-    /* CSS MAGAZZINO COMPATTO */
     div[data-testid="stVerticalBlockBorderWrapper"] { padding: 10px !important; margin-bottom: 5px !important; background-color: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); }
     div[data-testid="stProgress"] > div > div { height: 6px !important; }
     .compact-text { font-size: 13px; color: #cbd5e0; margin: 0; }
@@ -210,7 +203,7 @@ def save_consegna(paziente, area, indicazione, scadenza):
         get_data.clear(); return True
     except: return False
 
-# NUOVA FUNZIONE PER PRESTITI (Aggiunta per gestire scadenze e categorie)
+# NUOVA FUNZIONE PER PRESTITI (MODIFICATA PER DEBUG)
 def save_prestito_new(paziente, oggetto, categoria, data_prestito, data_scadenza):
     try: 
         api.table(BASE_ID, "Prestiti").create({
@@ -220,9 +213,13 @@ def save_prestito_new(paziente, oggetto, categoria, data_prestito, data_scadenza
             "Data_Prestito": str(data_prestito), 
             "Data_Scadenza": str(data_scadenza),
             "Restituito": False
-        }, typecast=True); 
-        get_data.clear(); return True
-    except: return False
+        }, typecast=True)
+        get_data.clear()
+        return True
+    except Exception as e:
+        # QUESTO MOSTRA L'ERRORE A VIDEO
+        st.error(f"⚠️ Errore salvataggio Airtable: {e}")
+        return False
 
 def get_base64_image(image_path):
     try:
@@ -295,6 +292,35 @@ with st.sidebar:
 if menu == "⚡ Dashboard":
     st.title("⚡ Dashboard")
     st.write("")
+    
+    # --- ALERT PRESTITI SCADUTI (CORRETTO PER EVITARE TypeError) ---
+    df_pres_alert = get_data("Prestiti")
+    if not df_pres_alert.empty:
+        # Pulisci e normalizza dati
+        if 'Restituito' not in df_pres_alert.columns: df_pres_alert['Restituito'] = False
+        if 'Data_Scadenza' not in df_pres_alert.columns: df_pres_alert['Data_Scadenza'] = None
+        if 'Oggetto' not in df_pres_alert.columns: df_pres_alert['Oggetto'] = "Strumento"
+        if 'Paziente' not in df_pres_alert.columns: df_pres_alert['Paziente'] = "Sconosciuto"
+        
+        # FIX: Conversione sicura in datetime Pandas
+        df_pres_alert['Data_Scadenza'] = pd.to_datetime(df_pres_alert['Data_Scadenza'], errors='coerce')
+        
+        # Filtro: Non restituiti E Scaduti (data < oggi normalizzata)
+        oggi_ts = pd.Timestamp.now().normalize()
+        scaduti = df_pres_alert[
+            (df_pres_alert['Restituito'] != True) & 
+            (df_pres_alert['Data_Scadenza'] < oggi_ts) &
+            (df_pres_alert['Data_Scadenza'].notna())
+        ]
+        
+        if not scaduti.empty:
+            st.error(f"⚠️ ATTENZIONE: Ci sono {len(scaduti)} strumenti NON restituiti in tempo!")
+            for i, row in scaduti.iterrows():
+                # Formattiamo la data solo per visualizzazione
+                data_str = row['Data_Scadenza'].strftime('%d/%m') if pd.notnull(row['Data_Scadenza']) else "N.D."
+                st.markdown(f"🔴 **{row['Oggetto']}** - {row['Paziente']} (Scaduto il {data_str})")
+            st.divider()
+    # ------------------------------
 
     if 'kpi_filter' not in st.session_state: st.session_state.kpi_filter = "None"
 
@@ -350,9 +376,7 @@ if menu == "⚡ Dashboard":
             if 'Data_Scadenza' not in df_cons.columns: df_cons['Data_Scadenza'] = None
             if 'Paziente' not in df_cons.columns: df_cons['Paziente'] = None
             
-            # FILTRO CRITICO: Rimuove righe senza nome paziente (evita "nan: nan")
             df_cons = df_cons.dropna(subset=['Paziente'])
-            
             df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza'], errors='coerce')
             consegne_pendenti = df_cons[df_cons['Completato'] != True]
 
@@ -434,7 +458,7 @@ if menu == "⚡ Dashboard":
             for i, row in da_richiamare.iterrows():
                 c_info, c_btn1, c_btn2 = st.columns([3, 1, 1], gap="small")
                 with c_info: st.markdown(f"""<div class="alert-row-name border-orange">{row['Nome']} {row['Cognome']}</div>""", unsafe_allow_html=True)
-                with c_btn1: 
+                with c_btn1:
                     if st.button("✅ Rientrato", key=f"rk_{row['id']}", type="primary", use_container_width=True): update_generic("Pazienti", row['id'], {"Disdetto": False, "Data_Disdetta": None}); st.rerun()
                 with c_btn2: 
                     if st.button("📅 Rimandare", key=f"pk_{row['id']}", type="secondary", use_container_width=True): update_generic("Pazienti", row['id'], {"Data_Disdetta": str(date.today())}); st.rerun()
@@ -473,7 +497,7 @@ if menu == "⚡ Dashboard":
             domain = ["Mano-Polso", "Muscolo-Scheletrico", "Colonna", "ATM", "Gruppi", "Ortopedico"]
             range_ = ["#0bc5ea", "#9f7aea", "#ecc94b", "#2ecc71", "#e53e3e", "#4a5568"]
             chart = alt.Chart(counts).mark_bar(cornerRadius=6, height=35).encode(
-                x=alt.X('Pazienti', axis=None), 
+                x=alt.X('Pazienti', axis=None),
                 y=alt.Y('Area', sort='-x', title=None, axis=alt.Axis(domain=False, ticks=False, labelColor="#cbd5e0", labelFontSize=14)),
                 color=alt.Color('Area', scale=alt.Scale(domain=domain, range=range_), legend=None),
                 tooltip=['Area', 'Pazienti']
@@ -789,9 +813,16 @@ elif menu == "🔄 Prestiti":
     # 1. INVENTARIO (Definizione Strumenti)
     INVENTARIO = {
         "Strumenti Mano": [
-            "Flex-Bar Gialla1 5L", "Flex-Bar Gialla2 5L", "Flex-Bar Verde1 10L", 
-            "Flex-Bar Verde2 10L", "Flex-Bar Blu1 15L", 
-            "Flex-Bar Blu2 15L", "Flex-Bar Rossa1 25L", "Flex-Bar Rossa2 25L"
+            "Flex-Bar Gialla1 5L", 
+            "Flex-Bar Gialla2 5L",
+            "Flex-Bar Verde1 10L", 
+            "Flex-Bar Verde2 10L",
+            "Flex-Bar Rossa 10L", 
+            "Flex-Bar Blu 25L",
+            "Molla Esercizi (A)", "Molla Esercizi (B)", 
+            "Dinamometro",
+            "Kit Riabilitazione Mano",
+            "Tutore Polso A", "Tutore Polso B"
         ],
         "Elettrostimolatore": [
             "Compex Pro 1", "Compex Pro 2", "Compex Wireless", 
@@ -864,8 +895,11 @@ elif menu == "🔄 Prestiti":
                         if st.button("➕ Presta", key=f"btn_{strumento}"):
                             if paz_sel != "-- Seleziona --":
                                 delta = timedelta(weeks=num) if unit == "Sett" else timedelta(days=num)
-                                save_prestito_new(paz_sel, strumento, tab_name, date.today(), date.today() + delta)
-                                st.rerun()
+                                
+                                # CHIAMATA CON CONTROLLO ERRORE
+                                if save_prestito_new(paz_sel, strumento, tab_name, date.today(), date.today() + delta):
+                                    st.success("Prestito registrato!")
+                                    st.rerun()
                             else: st.error("Seleziona Paziente")
                 st.divider()
 
@@ -879,4 +913,3 @@ elif menu == "📅 Scadenze":
         df_scad['Data_Scadenza'] = pd.to_datetime(df_scad['Data_Scadenza'], errors='coerce'); df_scad = df_scad.sort_values("Data_Scadenza")
         st.dataframe(df_scad, column_config={"Data_Scadenza": st.column_config.DateColumn("Scadenza", format="DD/MM/YYYY"), "Importo": st.column_config.NumberColumn("Importo", format="%d €"), "Descrizione": st.column_config.TextColumn("Dettagli")}, use_container_width=True, height=500)
     else: st.info("Nessuna scadenza prossima.")
-        
