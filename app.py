@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 import io
 import os
 import base64
-import time  # <--- AGGIUNTO PER GESTIRE IL RITARDO DI AIRTABLE
+import time # <--- Importante per il ritardo di aggiornamento
 
 # =========================================================
 # 0. CONFIGURAZIONE & STILE
@@ -142,8 +142,9 @@ try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except:
-    API_KEY = "key"
-    BASE_ID = "id"
+    # ⚠️⚠️⚠️ ATTENZIONE: INSERISCI QUI SOTTO LE TUE CHIAVI SE NON USI SECRETS.TOML ⚠️⚠️⚠️
+    API_KEY = "patCwWn3ysJlct7uG"  # <--- INCOLLA QUI LA CHIAVE AIRTABLE
+    BASE_ID = "appWnTqEnplikm922"  # <--- INCOLLA QUI L'ID DELLA BASE
 
 api = Api(API_KEY)
 
@@ -170,8 +171,8 @@ def update_generic(tbl, rid, data):
             elif hasattr(v, 'strftime'): clean_data[k] = v.strftime('%Y-%m-%d')
             else: clean_data[k] = v
         api.table(BASE_ID, tbl).update(rid, clean_data, typecast=True)
-        # Pausa per dare tempo a Airtable di processare
-        time.sleep(0.5)
+        # Aspettiamo un attimo per dare tempo ad Airtable di aggiornarsi
+        time.sleep(0.5) 
         get_data.clear()
         return True
     except: return False
@@ -206,7 +207,7 @@ def save_consegna(paziente, area, indicazione, scadenza):
         get_data.clear(); return True
     except: return False
 
-# FUNZIONE SALVATAGGIO PRESTITI CON RITARDO DI SICUREZZA
+# NUOVA FUNZIONE PER I PRESTITI CON RITARDO DI SICUREZZA
 def save_prestito_new(paziente, oggetto, categoria, data_prestito, data_scadenza):
     try: 
         api.table(BASE_ID, "Prestiti").create({
@@ -218,12 +219,9 @@ def save_prestito_new(paziente, oggetto, categoria, data_prestito, data_scadenza
             "Restituito": False
         }, typecast=True)
         
-        # === FIX IMPORTANTE ===
-        # Aspettiamo 1 secondo per essere sicuri che Airtable abbia salvato
-        # prima di dire all'app di ricaricarsi.
+        # FONDAMENTALE: Aspettiamo 1 secondo che Airtable salvi prima di ricaricare
         time.sleep(1.0)
-        
-        get_data.clear() # Cancella la memoria vecchia
+        get_data.clear() 
         return True
     except Exception as e:
         st.error(f"Errore: {e}")
@@ -819,7 +817,6 @@ elif menu == "🔄 Prestiti":
     st.title("Gestione Noleggi e Prestiti")
     
     # 1. INVENTARIO (Definizione Strumenti)
-    # IMPORTANTE: Nomi univoci per evitare errori
     INVENTARIO = {
         "Strumenti Mano": [
             "Flex-Bar Gialla1 5L", 
@@ -891,7 +888,8 @@ elif menu == "🔄 Prestiti":
                     with row_c4:
                         if st.button("🔄 Restituito", key=f"ret_{strumento}"):
                             update_generic("Prestiti", record['id'], {"Restituito": True})
-                            st.success("Rientrato!"); st.rerun()
+                            st.success("Rientrato!")
+                            st.rerun()
                 
                 # SE LIBERO
                 else:
@@ -905,7 +903,7 @@ elif menu == "🔄 Prestiti":
                             if paz_sel != "-- Seleziona --":
                                 delta = timedelta(weeks=num) if unit == "Sett" else timedelta(days=num)
                                 
-                                # CHIAMATA CON SALVATAGGIO + RERUN
+                                # CHIAMATA CON LOGICA DI AGGIORNAMENTO
                                 if save_prestito_new(paz_sel, strumento, tab_name, date.today(), date.today() + delta):
                                     st.success("Prestito registrato!")
                                     st.rerun()
@@ -922,4 +920,3 @@ elif menu == "📅 Scadenze":
         df_scad['Data_Scadenza'] = pd.to_datetime(df_scad['Data_Scadenza'], errors='coerce'); df_scad = df_scad.sort_values("Data_Scadenza")
         st.dataframe(df_scad, column_config={"Data_Scadenza": st.column_config.DateColumn("Scadenza", format="DD/MM/YYYY"), "Importo": st.column_config.NumberColumn("Importo", format="%d €"), "Descrizione": st.column_config.TextColumn("Dettagli")}, use_container_width=True, height=500)
     else: st.info("Nessuna scadenza prossima.")
-        
