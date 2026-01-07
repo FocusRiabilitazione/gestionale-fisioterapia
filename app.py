@@ -9,7 +9,7 @@ import os
 import base64
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE
+# 0. CONFIGURAZIONE & STILE (ULTIMATE UI)
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -21,17 +21,20 @@ st.markdown("""
         font-family: 'Outfit', sans-serif;
     }
 
+    /* SFONDO PROFONDO */
     .stApp {
         background: radial-gradient(circle at top left, #1a202c, #0d1117);
         color: #e2e8f0;
     }
 
+    /* SIDEBAR */
     section[data-testid="stSidebar"] {
         background-color: rgba(13, 17, 23, 0.95);
         border-right: 1px solid rgba(255, 255, 255, 0.08);
         backdrop-filter: blur(20px);
     }
 
+    /* --- TITOLI MODERNI --- */
     h1 {
         font-family: 'Outfit', sans-serif;
         font-weight: 800 !important;
@@ -48,11 +51,11 @@ st.markdown("""
         letter-spacing: 0.5px;
     }
 
-    /* KPI CARDS */
+    /* --- KPI CARDS (CON GLOW EFFECT) --- */
     .glass-kpi {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 20px;
+        border-radius: 20px; /* Più arrotondato */
         padding: 20px;
         text-align: center;
         height: 140px;
@@ -65,6 +68,7 @@ st.markdown("""
         background: rgba(255, 255, 255, 0.06);
     }
     
+    /* Icone animate */
     .kpi-icon { 
         font-size: 32px;
         margin-bottom: 8px; 
@@ -76,7 +80,7 @@ st.markdown("""
     .kpi-value { font-size: 36px; font-weight: 800; color: white; line-height: 1; letter-spacing: -1px; }
     .kpi-label { font-size: 11px; text-transform: uppercase; color: #a0aec0; margin-top: 8px; letter-spacing: 1.5px; font-weight: 600; }
 
-    /* PULSANTI */
+    /* --- PULSANTI --- */
     div[data-testid="column"] .stButton > button {
         background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
         border: none !important;
@@ -94,7 +98,7 @@ st.markdown("""
         box-shadow: 0 6px 15px rgba(66, 153, 225, 0.5) !important;
     }
 
-    /* RIGHE AVVISI */
+    /* --- RIGHE AVVISI COMPATTE --- */
     .alert-row-name {
         background-color: rgba(255, 255, 255, 0.03);
         border-radius: 10px;
@@ -107,6 +111,7 @@ st.markdown("""
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
+    /* Bordi colorati */
     .border-orange { border-left: 4px solid #ed8936 !important; }
     .border-red { border-left: 4px solid #e53e3e !important; }
     .border-blue { border-left: 4px solid #0bc5ea !important; }
@@ -115,7 +120,7 @@ st.markdown("""
     .border-green { border-left: 4px solid #2ecc71 !important; }
     .border-gray { border-left: 4px solid #a0aec0 !important; }
 
-    /* PULSANTI AZIONE */
+    /* --- PULSANTI AZIONE --- */
     div[data-testid="stHorizontalBlock"] button {
         padding: 2px 12px !important;
         font-size: 11px !important; min-height: 0px !important;
@@ -127,9 +132,11 @@ st.markdown("""
     button[kind="secondary"] { background: rgba(255, 255, 255, 0.08) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: #cbd5e0 !important; }
     button[kind="secondary"]:hover { border-color: #a0aec0 !important; color: white !important; }
 
+    /* --- ALTRI --- */
     div[data-testid="stDataFrame"] { background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; }
     input, select, textarea { background-color: rgba(13, 17, 23, 0.8) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: white !important; border-radius: 8px; }
 
+    /* CSS MAGAZZINO COMPATTO */
     div[data-testid="stVerticalBlockBorderWrapper"] { padding: 10px !important; margin-bottom: 5px !important; background-color: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); }
     div[data-testid="stProgress"] > div > div { height: 6px !important; }
     .compact-text { font-size: 13px; color: #cbd5e0; margin: 0; }
@@ -203,19 +210,18 @@ def save_consegna(paziente, area, indicazione, scadenza):
         get_data.clear(); return True
     except: return False
 
-# NUOVA FUNZIONE PER I PRESTITI AVANZATI
+# NUOVA FUNZIONE PER PRESTITI (Aggiunta per gestire scadenze e categorie)
 def save_prestito_new(paziente, oggetto, categoria, data_prestito, data_scadenza):
     try: 
         api.table(BASE_ID, "Prestiti").create({
             "Paziente": paziente, 
             "Oggetto": oggetto,
-            "Categoria": categoria, 
+            "Categoria": categoria,
             "Data_Prestito": str(data_prestito), 
             "Data_Scadenza": str(data_scadenza),
             "Restituito": False
         }, typecast=True); 
-        get_data.clear(); 
-        return True
+        get_data.clear(); return True
     except: return False
 
 def get_base64_image(image_path):
@@ -281,7 +287,7 @@ with st.sidebar:
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📨 Consegne", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v100 - Segreteria & Noleggi")
+    st.divider(); st.caption("App v101 - Segreteria & Noleggi")
 
 # =========================================================
 # DASHBOARD
@@ -803,7 +809,8 @@ elif menu == "📦 Magazzino":
 elif menu == "🔄 Prestiti":
     st.title("Gestione Noleggi e Prestiti")
     
-    # DEFINIZIONE INVENTARIO STRUMENTI
+    # 1. DEFINISCI QUI IL TUO INVENTARIO STRUMENTI
+    # Modifica le stringhe tra virgolette con i nomi reali dei tuoi strumenti
     INVENTARIO = {
         "Strumenti Mano": [
             "Tutore Polso A", "Tutore Polso B", "Kit Riabilitazione Mano", 
