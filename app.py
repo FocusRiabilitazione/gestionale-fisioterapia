@@ -70,7 +70,7 @@ st.markdown("""
     
     /* Icone animate */
     .kpi-icon { 
-        font-size: 32px; 
+        font-size: 32px;
         margin-bottom: 8px; 
         transition: transform 0.3s ease;
         filter: drop-shadow(0 0 5px rgba(255,255,255,0.3));
@@ -106,7 +106,8 @@ st.markdown("""
         height: 42px;    
         display: flex; align-items: center;
         border: 1px solid rgba(255, 255, 255, 0.05);
-        font-weight: 600; color: #fff; font-size: 14px;
+        font-weight: 600;
+        color: #fff; font-size: 14px;
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
@@ -121,9 +122,11 @@ st.markdown("""
 
     /* --- PULSANTI AZIONE --- */
     div[data-testid="stHorizontalBlock"] button {
-        padding: 2px 12px !important; font-size: 11px !important; min-height: 0px !important;
+        padding: 2px 12px !important;
+        font-size: 11px !important; min-height: 0px !important;
         height: 32px !important; line-height: 1 !important; border-radius: 8px !important;
-        margin-top: 6px !important; font-weight: 500 !important;
+        margin-top: 6px !important;
+        font-weight: 500 !important;
     }
     button[kind="primary"] { background: linear-gradient(135deg, #3182ce, #2b6cb0) !important; border: none !important; color: white !important; }
     button[kind="secondary"] { background: rgba(255, 255, 255, 0.08) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: #cbd5e0 !important; }
@@ -207,8 +210,18 @@ def save_consegna(paziente, area, indicazione, scadenza):
         get_data.clear(); return True
     except: return False
 
-def save_prestito(paziente, oggetto, data_prestito):
-    try: api.table(BASE_ID, "Prestiti").create({"Paziente": paziente, "Oggetto": oggetto, "Data_Prestito": str(data_prestito), "Restituito": False}, typecast=True); get_data.clear(); return True
+# NUOVA FUNZIONE PER PRESTITI (Aggiunta per gestire scadenze e categorie)
+def save_prestito_new(paziente, oggetto, categoria, data_prestito, data_scadenza):
+    try: 
+        api.table(BASE_ID, "Prestiti").create({
+            "Paziente": paziente, 
+            "Oggetto": oggetto,
+            "Categoria": categoria, 
+            "Data_Prestito": str(data_prestito), 
+            "Data_Scadenza": str(data_scadenza),
+            "Restituito": False
+        }, typecast=True); 
+        get_data.clear(); return True
     except: return False
 
 def get_base64_image(image_path):
@@ -225,7 +238,6 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
     header_content = f"<div style='text-align:center;'><img src='data:image/png;base64,{logo_b64}' class='logo-img'></div>" if logo_b64 else "<div class='brand-text-container'><div class='doc-brand-main'>FOCUS</div></div>"
     print_script = "<script>window.print();</script>" if auto_print else ""
     action_bar_style = "display:none;" if auto_print else "display:flex;"
-
     return f"""
     <!DOCTYPE html> <html lang="it"> <head> <meta charset="UTF-8"> <style>
     @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap');
@@ -238,17 +250,7 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
     .doc-title {{ font-size: 18px; font-weight: 700; text-transform: uppercase; color: #000; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 15px; margin-top: 10px; }}
     .info-box {{ margin-bottom: 15px; font-size: 13px; display: flex; justify-content: space-between; }}
     .info-label {{ font-weight: bold; color: #000; margin-right: 5px; }}
-    
-    .obj-box {{ 
-        background-color: #f2f2f2; 
-        border-left: 4px solid #333; 
-        padding: 10px; 
-        margin-bottom: 20px; 
-        font-size: 12px; 
-        line-height: 1.5; 
-        white-space: pre-wrap; 
-    }}
-    
+    .obj-box {{ background-color: #f2f2f2; border-left: 4px solid #333; padding: 10px; margin-bottom: 20px; font-size: 12px; line-height: 1.5; white-space: pre-wrap; }}
     .obj-title {{ font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 3px; font-size: 11px; }}
     table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
     th {{ background-color: #e0e0e0; text-align: left; padding: 6px 8px; text-transform: uppercase; font-size: 10px; font-weight: bold; border-bottom: 1px solid #000; color: #000; }}
@@ -285,7 +287,7 @@ with st.sidebar:
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📨 Consegne", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v90 - Fix Nan & Areas")
+    st.divider(); st.caption("App v101 - Segreteria & Noleggi")
 
 # =========================================================
 # DASHBOARD
@@ -534,7 +536,7 @@ elif menu == "👥 Pazienti":
             if count_upd > 0 or count_del > 0: get_data.clear(); st.toast("Database aggiornato!", icon="✅"); st.rerun()
 
 # =========================================================
-# SEZIONE 3: PREVENTIVI (FIXED LOGIC)
+# SEZIONE 3: PREVENTIVI
 # =========================================================
 elif menu == "💳 Preventivi":
     st.title("Preventivi & Proposte")
@@ -544,7 +546,6 @@ elif menu == "💳 Preventivi":
     if 'prev_note' not in st.session_state: st.session_state.prev_note = ""
     if 'prev_selected_services' not in st.session_state: st.session_state.prev_selected_services = []
     
-    # Dizionario listino (caricato una volta)
     listino_dict = {str(r['Servizio']): float(r.get('Prezzo', 0) or 0) for i, r in df_srv.iterrows() if r.get('Servizio')}
     all_services_list = sorted(list(listino_dict.keys()))
 
@@ -552,7 +553,6 @@ elif menu == "💳 Preventivi":
         with st.container(border=True):
             st.subheader("Creazione Nuovo Preventivo")
             
-            # --- SELEZIONE PACCHETTO CON LOGICA AUTO-UPDATE ---
             if not df_std.empty and 'Area' in df_std.columns and 'Nome' in df_std.columns:
                 c_filter, c_pack = st.columns(2)
                 with c_filter:
@@ -560,28 +560,23 @@ elif menu == "💳 Preventivi":
                     area_sel = st.selectbox("Filtra per Area:", ["-- Tutte --"] + aree_std)
                 
                 with c_pack:
-                    # Filtra dataframe
                     if area_sel != "-- Tutte --": df_std_filtered = df_std[df_std['Area'] == area_sel]
                     else: df_std_filtered = df_std
                     nomi_pacchetti = sorted(list(df_std_filtered['Nome'].unique()))
                     scelta_std = st.selectbox("Carica Pacchetto:", ["-- Seleziona --"] + nomi_pacchetti)
 
-                # Se viene scelto un pacchetto, aggiorna lo stato
                 if scelta_std != "-- Seleziona --":
-                    # Usa un flag per evitare ricaricamenti continui
                     if 'last_std_pkg' not in st.session_state or st.session_state.last_std_pkg != scelta_std:
                         row_std = df_std[df_std['Nome'] == scelta_std].iloc[0]
-                        # 1. Aggiorna Note (cerca colonna Descrizione)
                         st.session_state.prev_note = row_std.get('Descrizione', '')
                         
-                        # 2. Aggiorna Servizi (con controllo validità)
                         new_services = []
                         if row_std.get('Contenuto'):
                             for p in row_std['Contenuto'].split(','):
                                 if ' x' in p: 
                                     srv_raw, qty_raw = p.split(' x')
                                     srv_clean = srv_raw.strip()
-                                    if srv_clean in all_services_list: # Filtro di sicurezza
+                                    if srv_clean in all_services_list:
                                         new_services.append(srv_clean)
                                         st.session_state[f"qty_{srv_clean}"] = int(qty_raw)
                         
@@ -596,19 +591,16 @@ elif menu == "💳 Preventivi":
                 paziente_scelto = st.selectbox("Intestato a:", nomi_pazienti)
             
             with c_serv:
-                # Multiselect collegato allo stato
                 servizi_scelti = st.multiselect("Trattamenti:", all_services_list, key="prev_selected_services")
 
             st.write("---")
             st.caption("Strumenti Rapidi Note:")
             
-            # --- PULSANTI RAPIDI DEFINITIVI ---
             c_btn1, c_btn2, c_btn3, c_btn4 = st.columns(4)
             
             def append_note(text):
                 st.session_state.prev_note += text
             
-            # Definizioni Ufficiali
             if c_btn1.button("🔥 Fase Infiammatoria"): 
                 append_note("\n\nFase Infiammatoria: Il primo obiettivo è ridurre l'infiammazione e controllare il dolore, associando la prima fase di riabilitazione alla gestione del movimento e del carico.")
             if c_btn2.button("🤸 Fase Sub-Acuta"): 
@@ -623,16 +615,13 @@ elif menu == "💳 Preventivi":
             if c_prog2.button("Genera Prognosi"): 
                 append_note(f"\n\nPrognosi Funzionale: In base alla valutazione clinica, stimiamo un percorso di circa {settimane} settimane per il raggiungimento degli obiettivi.")
 
-            # Text Area collegata allo stato
             note_preventivo = st.text_area("Dettagli del Percorso:", key="prev_note", height=150)
             
-            # --- TABELLA RIEPILOGO ---
             righe = []; tot = 0
             if servizi_scelti:
                 st.divider()
                 for s in servizi_scelti:
                     c1, c2, c3 = st.columns([3, 1, 1])
-                    # Gestione quantità persistente
                     if f"qty_{s}" not in st.session_state: st.session_state[f"qty_{s}"] = 1
                     qty = c2.number_input(f"Qta {s}", 1, 50, key=f"qty_{s}")
                     
@@ -652,13 +641,11 @@ elif menu == "💳 Preventivi":
                             dett = " | ".join([f"{r['nome']} x{r['qty']} ({r['tot']}€)" for r in righe])
                             save_preventivo_temp(paziente_scelto, dett, tot, note_preventivo)
                             st.success("Salvato!")
-                        else:
-                            st.error("Seleziona un paziente.")
+                        else: st.error("Seleziona un paziente.")
                     
                     if st.button("🖨️ Anteprima Stampa", use_container_width=True):
                         st.session_state.show_html = True
 
-            # Anteprima
             if st.session_state.get('show_html'):
                 html = generate_html_preventivo(paziente_scelto, date.today().strftime("%d/%m/%Y"), note_preventivo, righe, tot, LOGO_B64)
                 components.html(html, height=800, scrolling=True)
@@ -734,7 +721,7 @@ elif menu == "📨 Consegne":
                             st.caption(f"{row['Data_Scadenza'].strftime('%d/%m')}\n({status_text})")
 
 # =========================================================
-# SEZIONE 4: MAGAZZINO (RIFATTA: COMPATTA E FUNZIONANTE)
+# SEZIONE 4: MAGAZZINO
 # =========================================================
 elif menu == "📦 Magazzino":
     st.title("Magazzino & Materiali")
@@ -794,25 +781,92 @@ elif menu == "📦 Magazzino":
         else: st.info("Magazzino vuoto.")
 
 # =========================================================
-# SEZIONE 5: PRESTITI
+# SEZIONE 5: PRESTITI (NUOVA LOGICA INVENTARIO)
 # =========================================================
 elif menu == "🔄 Prestiti":
-    st.title("Registro Prestiti")
-    df_paz = get_data("Pazienti"); df_inv = get_data("Inventario")
-    with st.expander("➕ Registra Prestito"):
-        with st.form("fp"):
-            c1, c2 = st.columns(2); pz = c1.selectbox("Chi?", sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows()]) if not df_paz.empty else []); pr = c2.selectbox("Cosa?", sorted([r['Materiali'] for i, r in df_inv.iterrows() if r.get('Materiali')]) if not df_inv.empty else [])
-            if st.form_submit_button("Salva"): save_prestito(pz, pr, date.today()); st.rerun()
+    st.title("Gestione Noleggi e Prestiti")
+    
+    # 1. INVENTARIO (Definizione Strumenti)
+    INVENTARIO = {
+        "Strumenti Mano": [
+            "Tutore Polso A", "Tutore Polso B", "Kit Riabilitazione Mano", 
+            "Dinamometro", "Molla Esercizi"
+        ],
+        "Elettrostimolatore": [
+            "Compex Pro 1", "Compex Pro 2", "Compex Wireless", 
+            "Neurostimolatore TENS"
+        ],
+        "Magnetoterapia": [
+            "Mag 2000 (A)", "Mag 2000 (B)", "I-Tech Magneto", 
+            "Solenoidi Fascia"
+        ]
+    }
+    
+    # Carico Dati
     df_pres = get_data("Prestiti")
-    if not df_pres.empty:
-        df_pres['Restituito'] = df_pres.get('Restituito', False).fillna(False)
-        act = df_pres[df_pres['Restituito'] != True]
-        if not act.empty:
-            ed = st.data_editor(act[['Paziente', 'Oggetto', 'Data_Prestito', 'Restituito', 'id']], column_config={"id": None}, hide_index=True)
-            if st.button("Conferma Resi"):
-                for i, r in ed.iterrows():
-                    if r['Restituito']: update_generic("Prestiti", r['id'], {"Restituito": True})
-                st.rerun()
+    df_paz = get_data("Pazienti")
+    nomi_paz = ["-- Seleziona --"] + sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows()]) if not df_paz.empty else []
+
+    # Tabs
+    tabs = st.tabs(["✋ Strumenti Mano", "⚡ Elettrostimolatore", "🧲 Magnetoterapia"])
+    mappa_tabs = {0: "Strumenti Mano", 1: "Elettrostimolatore", 2: "Magnetoterapia"}
+    
+    for i, tab_name in mappa_tabs.items():
+        with tabs[i]:
+            st.subheader(f"Disponibilità {tab_name}")
+            strumenti_categoria = INVENTARIO[tab_name]
+            
+            # Header
+            c1, c2, c3, c4 = st.columns([2, 3, 2, 2])
+            c1.markdown("**Strumento**")
+            c2.markdown("**Stato / Paziente**")
+            c3.markdown("**Scadenza**")
+            c4.markdown("**Azione**")
+            st.divider()
+
+            for strumento in strumenti_categoria:
+                # Check Prestito Attivo
+                prestito_attivo = pd.DataFrame()
+                if not df_pres.empty:
+                    # Assicura colonne esistenti
+                    cols_ok = all(col in df_pres.columns for col in ['Oggetto', 'Restituito'])
+                    if cols_ok:
+                         prestito_attivo = df_pres[ (df_pres['Oggetto'] == strumento) & (df_pres['Restituito'] != True) ]
+                
+                row_c1, row_c2, row_c3, row_c4 = st.columns([2, 3, 2, 2])
+                with row_c1: st.write(f"🔹 {strumento}")
+                
+                # SE OCCUPATO
+                if not prestito_attivo.empty:
+                    record = prestito_attivo.iloc[0]
+                    scadenza = pd.to_datetime(record['Data_Scadenza']).date() if 'Data_Scadenza' in record and pd.notnull(record['Data_Scadenza']) else date.today()
+                    days_left = (scadenza - date.today()).days
+                    
+                    color_class = "border-red" if days_left < 0 else "border-green"
+                    msg_scad = f"Scade tra {days_left} gg" if days_left >= 0 else f"SCADUTO da {abs(days_left)} gg"
+                    
+                    with row_c2: st.markdown(f"<div class='{color_class}'>🔴 <b>{record.get('Paziente', 'Unknown')}</b></div>", unsafe_allow_html=True)
+                    with row_c3: st.caption(f"{scadenza.strftime('%d/%m')}\n({msg_scad})")
+                    with row_c4:
+                        if st.button("🔄 Restituito", key=f"ret_{strumento}"):
+                            update_generic("Prestiti", record['id'], {"Restituito": True})
+                            st.success("Rientrato!"); st.rerun()
+                
+                # SE LIBERO
+                else:
+                    with row_c2: paz_sel = st.selectbox(f"Paziente ({strumento})", nomi_paz, key=f"paz_{strumento}", label_visibility="collapsed")
+                    with row_c3:
+                         cols_d = st.columns(2)
+                         num = cols_d[0].number_input("Qta", 1, 52, 1, key=f"n_{strumento}", label_visibility="collapsed")
+                         unit = cols_d[1].selectbox("U", ["Sett", "Giorni"], key=f"u_{strumento}", label_visibility="collapsed")
+                    with row_c4:
+                        if st.button("➕ Presta", key=f"btn_{strumento}"):
+                            if paz_sel != "-- Seleziona --":
+                                delta = timedelta(weeks=num) if unit == "Sett" else timedelta(days=num)
+                                save_prestito_new(paz_sel, strumento, tab_name, date.today(), date.today() + delta)
+                                st.rerun()
+                            else: st.error("Seleziona Paziente")
+                st.divider()
 
 # =========================================================
 # SEZIONE 6: SCADENZE
