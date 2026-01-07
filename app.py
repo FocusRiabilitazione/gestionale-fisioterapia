@@ -675,19 +675,20 @@ elif menu == "💳 Preventivi":
                     if st.button("Elimina", key=f"del_{r['id']}"): delete_generic("Preventivi_Salvati", r['id']); st.rerun()
 
 # =========================================================
-# SEZIONE NUOVA: CONSEGNE (FIXED AREE)
+# SEZIONE NUOVA: CONSEGNE (AGGIORNATA CON SEGRETERIA)
 # =========================================================
 elif menu == "📨 Consegne":
     st.title("📨 Consegne Pazienti")
-    df_cons = get_data("Consegne"); df_paz = get_data("Pazienti")
+    df_cons = get_data("Consegne")
+    df_paz = get_data("Pazienti")
     nomi_paz = ["-- Seleziona --"] + sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows()]) if not df_paz.empty else []
     
     with st.expander("➕ Nuova Consegna", expanded=True):
         with st.form("new_cons"):
             c1, c2 = st.columns(2)
             paz = c1.selectbox("Paziente", nomi_paz)
-            # Aree corrette come da richiesta
-            area = c2.selectbox("Area Competenza", ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico"])
+            # AGGIUNTA "Segreteria" QUI SOTTO
+            area = c2.selectbox("Area Competenza", ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Segreteria"])
             ind = st.text_input("Cosa consegnare? (es. Referto, Scheda Esercizi)")
             scad = st.date_input("Entro quando?", date.today() + timedelta(days=3))
             if st.form_submit_button("Salva Promemoria"):
@@ -695,35 +696,43 @@ elif menu == "📨 Consegne":
                     save_consegna(paz, area, ind, scad); st.success("Salvato!"); st.rerun()
                 else: st.error("Compila i campi.")
 
-    st.write(""); 
-    # Tabs corrette come da richiesta
-    tabs = st.tabs(["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico"])
+    st.write("")
+    
+    # AGGIUNTA "Segreteria" NELLE TABS E NEL MAPPING
+    tabs = st.tabs(["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Segreteria"])
+    mapping = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Segreteria"]
     
     if not df_cons.empty:
         if 'Data_Scadenza' in df_cons.columns: df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza']).dt.date
         if 'Completato' not in df_cons.columns: df_cons['Completato'] = False
         
-        # Mapping corretto
-        mapping = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico"]
-        
         for i, tab_name in enumerate(mapping):
             with tabs[i]:
+                # Filtra per l'area specifica della tab corrente
                 items = df_cons[ (df_cons['Area'] == tab_name) & (df_cons['Completato'] != True) ]
-                if items.empty: st.info("Nessuna consegna in attesa.")
+                
+                if items.empty: 
+                    st.info(f"Nessuna consegna in attesa per {tab_name}.")
                 else:
                     for _, row in items.iterrows():
+                        # Calcolo giorni mancanti o ritardo
                         delta = (row['Data_Scadenza'] - date.today()).days
+                        
+                        # Logica colori avvisi
                         color = "border-green" if delta > 3 else "border-yellow" if delta >= 0 else "border-red"
                         status_text = f"Scade tra {delta} gg" if delta >= 0 else f"SCADUTO da {abs(delta)} gg"
+                        
+                        # Layout riga
                         c_chk, c_info, c_date = st.columns([1, 6, 2])
                         with c_chk:
                             if st.button("✅", key=f"ok_{row['id']}"):
-                                update_generic("Consegne", row['id'], {"Completato": True}); st.rerun()
+                                update_generic("Consegne", row['id'], {"Completato": True})
+                                st.rerun()
                         with c_info:
                             st.markdown(f"""<div class="alert-row-name {color}"><b>{row['Paziente']}</b>: {row['Indicazione']}</div>""", unsafe_allow_html=True)
                         with c_date:
                             st.caption(f"{row['Data_Scadenza'].strftime('%d/%m')}\n({status_text})")
-
+                            
 # =========================================================
 # SEZIONE 4: MAGAZZINO (RIFATTA: COMPATTA E FUNZIONANTE)
 # =========================================================
