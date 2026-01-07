@@ -789,9 +789,9 @@ elif menu == "🔄 Prestiti":
     # 1. INVENTARIO (Definizione Strumenti)
     INVENTARIO = {
         "Strumenti Mano": [
-            "Flex-Bar Gialla 5L", "Flex-Bar Gialla 5L", "Flex-Bar Verde 10L", 
-            "Flex-Bar Verde 10L", "Flex-Bar Blu 15L", 
-            "Flex-Bar Blu 15L", "Flex-Bar Rossa 25L", "Flex-Bar Rossa 25L"
+            "Flex-Bar Gialla1 5L", "Flex-Bar Gialla2 5L", "Flex-Bar Verde1 10L", 
+            "Flex-Bar Verde2 10L", "Flex-Bar Blu1 15L", 
+            "Flex-Bar Blu2 15L", "Flex-Bar Rossa1 25L", "Flex-Bar Rossa2 25L"
         ],
         "Elettrostimolatore": [
             "Compex Pro 1", "Compex Pro 2", "Compex Wireless", 
