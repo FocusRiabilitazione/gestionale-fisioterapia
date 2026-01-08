@@ -171,11 +171,8 @@ def update_generic(tbl, rid, data):
             elif hasattr(v, 'strftime'): clean_data[k] = v.strftime('%Y-%m-%d')
             else: clean_data[k] = v
         api.table(BASE_ID, tbl).update(rid, clean_data, typecast=True)
-        
-        # --- FIX FONDAMENTALE PER IL CHECKBOX ---
-        # Aumentiamo il tempo di attesa a 1 secondo per essere sicuri
-        time.sleep(1.0)
-        
+        # Pausa tattica per Airtable
+        time.sleep(0.5)
         get_data.clear()
         return True
     except: return False
@@ -930,7 +927,7 @@ elif menu == "🔄 Prestiti":
                                     else: st.toast("Seleziona prima un paziente!", icon="⚠️")
 
 # =========================================================
-# SEZIONE 6: SCADENZE (PLANNING FINANZIARIO)
+# SEZIONE 6: SCADENZE (PLANNING FINANZIARIO - VERSIONE PULSANTI)
 # =========================================================
 elif menu == "📅 Scadenze":
     st.title("🗓️ Scadenziario Pagamenti")
@@ -1029,16 +1026,22 @@ elif menu == "📅 Scadenze":
                         
                         is_paid = row.get('Pagato') is True
                         
-                        # Checkbox con logica di attesa
+                        # --- LOGICA A PULSANTE (PIÙ STABILE DELLA CHECKBOX) ---
                         with c_check:
-                            new_state = st.checkbox("Fatto", value=is_paid, key=f"chk_{row['id']}", label_visibility="collapsed")
-                            
-                            if new_state != is_paid:
-                                with st.spinner("Aggiornamento..."):
-                                    update_generic("Scadenze", row['id'], {"Pagato": new_state})
-                                    # FORZIAMO ATTESA AGGIUNTIVA PER SCADENZE
-                                    time.sleep(1.0)
-                                    st.rerun()
+                            if is_paid:
+                                # Se è già pagato, mostra pulsante per annullare
+                                if st.button("↩️", key=f"undo_{row['id']}", help="Segna come NON pagato"):
+                                    with st.spinner("Annullamento..."):
+                                        update_generic("Scadenze", row['id'], {"Pagato": False})
+                                        time.sleep(1.0)
+                                        st.rerun()
+                            else:
+                                # Se non è pagato, mostra pulsante per pagare
+                                if st.button("✅", key=f"pay_{row['id']}", help="Segna come PAGATO"):
+                                    with st.spinner("Salvataggio..."):
+                                        update_generic("Scadenze", row['id'], {"Pagato": True})
+                                        time.sleep(1.0)
+                                        st.rerun()
 
                         # Testo (Barrato se pagato)
                         with c_text:
