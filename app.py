@@ -142,9 +142,9 @@ try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except:
-    # ⚠️ INSERISCI QUI LE TUE CHIAVI REALI ⚠️
-    API_KEY = "key" # <--- Sostituisci con la tua chiave
-    BASE_ID = "id"  # <--- Sostituisci con il tuo ID
+    # ⚠️⚠️⚠️ ATTENZIONE: INSERISCI QUI LE TUE CHIAVI SE NON USI SECRETS ⚠️⚠️⚠️
+    API_KEY = "key" 
+    BASE_ID = "id" 
 
 api = Api(API_KEY)
 
@@ -171,8 +171,11 @@ def update_generic(tbl, rid, data):
             elif hasattr(v, 'strftime'): clean_data[k] = v.strftime('%Y-%m-%d')
             else: clean_data[k] = v
         api.table(BASE_ID, tbl).update(rid, clean_data, typecast=True)
-        # Aspettiamo un attimo per dare tempo ad Airtable di aggiornarsi
-        time.sleep(0.5) 
+        
+        # --- FIX FONDAMENTALE PER IL CHECKBOX ---
+        # Aumentiamo il tempo di attesa a 1 secondo per essere sicuri
+        time.sleep(1.0)
+        
         get_data.clear()
         return True
     except: return False
@@ -207,7 +210,6 @@ def save_consegna(paziente, area, indicazione, scadenza):
         get_data.clear(); return True
     except: return False
 
-# NUOVA FUNZIONE PER PRESTITI CON ATTESA SINCRONIZZAZIONE
 def save_prestito_new(paziente, oggetto, categoria, data_prestito, data_scadenza):
     try: 
         api.table(BASE_ID, "Prestiti").create({
@@ -218,13 +220,11 @@ def save_prestito_new(paziente, oggetto, categoria, data_prestito, data_scadenza
             "Data_Scadenza": str(data_scadenza),
             "Restituito": False
         }, typecast=True)
-        
-        # FONDAMENTALE: Aspettiamo 1 secondo che Airtable salvi prima di ricaricare
-        time.sleep(1.0) 
+        time.sleep(1.0)
         get_data.clear()
         return True
     except Exception as e:
-        st.error(f"Errore salvataggio: {e}")
+        st.error(f"Errore: {e}")
         return False
 
 def get_base64_image(image_path):
@@ -302,18 +302,15 @@ if menu == "⚡ Dashboard":
     # --- ALERT PRESTITI SCADUTI ---
     df_pres_alert = get_data("Prestiti")
     
-    # --- FIX SICUREZZA PER KEYERROR 'RESTITUITO' ---
     if not df_pres_alert.empty:
         if 'Restituito' not in df_pres_alert.columns: df_pres_alert['Restituito'] = False
         if 'Data_Scadenza' not in df_pres_alert.columns: df_pres_alert['Data_Scadenza'] = None
         if 'Oggetto' not in df_pres_alert.columns: df_pres_alert['Oggetto'] = "Strumento"
         if 'Paziente' not in df_pres_alert.columns: df_pres_alert['Paziente'] = "Sconosciuto"
         
-        # Conversione e logica
         df_pres_alert['Data_Scadenza'] = pd.to_datetime(df_pres_alert['Data_Scadenza'], errors='coerce')
         oggi_ts = pd.Timestamp.now().normalize()
         
-        # Ora possiamo filtrare in sicurezza
         scaduti = df_pres_alert[
             (df_pres_alert['Restituito'] != True) & 
             (df_pres_alert['Data_Scadenza'] < oggi_ts) &
@@ -352,11 +349,9 @@ if menu == "⚡ Dashboard":
         da_richiamare = df_disdetti[ (df_disdetti['Data_Disdetta'].notna()) & (df_disdetti['Data_Disdetta'] <= limite_recall) ]
         df_visite = df[ (df['Visita_Esterna'] == True) | (df['Visita_Esterna'] == 1) ]
         
-        # --- RIGHE REINSERITE ---
         curr_week = oggi.isocalendar()[1]
         visite_settimana = df_visite[ df_visite['Data_Visita'].apply(lambda x: x.isocalendar()[1] if pd.notnull(x) else -1) == curr_week ]
         visite_da_reinserire = df_visite[ (df_visite['Data_Visita'].notna()) & (oggi >= (df_visite['Data_Visita'] + pd.Timedelta(days=2))) ]
-        # ------------------------
 
         cnt_prev = len(df_prev)
         prev_scaduti = pd.DataFrame()
@@ -460,7 +455,6 @@ if menu == "⚡ Dashboard":
                 with c_btn2: 
                     if st.button("📅 Rimandare", key=f"pk_{row['id']}", type="secondary", use_container_width=True): update_generic("Pazienti", row['id'], {"Data_Disdetta": str(date.today())}); st.rerun()
         
-        # 5. Visite Post (Blu)
         if not visite_da_reinserire.empty:
             st.caption(f"🛑 Reinserimento Post-Visita: {len(visite_da_reinserire)}")
             for i, row in visite_da_reinserire.iterrows():
@@ -906,7 +900,10 @@ elif menu == "🔄 Prestiti":
                             
                             if st.button("🔄 Restituisci", key=f"ret_{strumento}", use_container_width=True):
                                 with st.spinner("Restituzione in corso..."):
-                                    update_generic("Prestiti", record['id'], {"Restituito": True})
+                                    # == MODIFICA AGGRESSIVA: Chiude TUTTI i record aperti per questo oggetto ==
+                                    for _, row_to_close in prestito_attivo.iterrows():
+                                        update_generic("Prestiti", row_to_close['id'], {"Restituito": True})
+                                    
                                     st.toast(f"{strumento} restituito!")
                                     time.sleep(1) # Attesa sync
                                     st.rerun()
@@ -977,8 +974,9 @@ elif menu == "📅 Scadenze":
                                 api.table(BASE_ID, "Scadenze").create(item, typecast=True)
                         st.success("Piano mensile creato per 1 anno!")
                     
+                    # ATTESA FONDAMENTALE per il ricaricamento
+                    time.sleep(1.5)
                     get_data.clear()
-                    time.sleep(1)
                     st.rerun()
                 else:
                     st.warning("Inserisci almeno la descrizione.")
@@ -1031,12 +1029,16 @@ elif menu == "📅 Scadenze":
                         
                         is_paid = row.get('Pagato') is True
                         
-                        # Checkbox
+                        # Checkbox con logica di attesa
                         with c_check:
-                            check_val = st.checkbox("Fatto", value=is_paid, key=f"chk_{row['id']}", label_visibility="collapsed")
-                            if check_val != is_paid:
-                                update_generic("Scadenze", row['id'], {"Pagato": check_val})
-                                st.rerun()
+                            new_state = st.checkbox("Fatto", value=is_paid, key=f"chk_{row['id']}", label_visibility="collapsed")
+                            
+                            if new_state != is_paid:
+                                with st.spinner("Aggiornamento..."):
+                                    update_generic("Scadenze", row['id'], {"Pagato": new_state})
+                                    # FORZIAMO ATTESA AGGIUNTIVA PER SCADENZE
+                                    time.sleep(1.0)
+                                    st.rerun()
 
                         # Testo (Barrato se pagato)
                         with c_text:
@@ -1058,8 +1060,10 @@ elif menu == "📅 Scadenze":
                         # Elimina
                         with c_del:
                             if st.button("🗑️", key=f"del_scad_{row['id']}"):
-                                delete_generic("Scadenze", row['id'])
-                                st.rerun()
+                                with st.spinner("Eliminazione..."):
+                                    delete_generic("Scadenze", row['id'])
+                                    time.sleep(1.0)
+                                    st.rerun()
     else:
         st.info("Nessuna scadenza trovata nel database.")
         
