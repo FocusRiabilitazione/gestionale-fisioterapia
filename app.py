@@ -10,7 +10,7 @@ import base64
 import time 
 
 # =========================================================
-# 0. CONFIGURAZIONE & STILE
+# 0. CONFIGURATION & STYLE
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -77,7 +77,7 @@ st.markdown("""
     .kpi-value { font-size: 36px; font-weight: 800; color: white; line-height: 1; letter-spacing: -1px; }
     .kpi-label { font-size: 11px; text-transform: uppercase; color: #a0aec0; margin-top: 8px; letter-spacing: 1.5px; font-weight: 600; }
 
-    /* PULSANTI */
+    /* BUTTONS */
     div[data-testid="column"] .stButton > button {
         background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
         border: none !important;
@@ -95,7 +95,7 @@ st.markdown("""
         box-shadow: 0 6px 15px rgba(66, 153, 225, 0.5) !important;
     }
 
-    /* RIGHE AVVISI */
+    /* ALERT ROWS */
     .alert-row-name {
         background-color: rgba(255, 255, 255, 0.03);
         border-radius: 10px;
@@ -116,7 +116,7 @@ st.markdown("""
     .border-green { border-left: 4px solid #2ecc71 !important; }
     .border-gray { border-left: 4px solid #a0aec0 !important; }
 
-    /* PULSANTI AZIONE */
+    /* ACTION BUTTONS */
     div[data-testid="stHorizontalBlock"] button {
         padding: 2px 12px !important;
         font-size: 11px !important; min-height: 0px !important;
@@ -137,18 +137,18 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 1. CONNESSIONE ---
+# --- 1. CONNECTION ---
 try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except:
-    # ⚠️⚠️⚠️ ATTENZIONE: INSERISCI QUI LE TUE CHIAVI SE NON USI SECRETS ⚠️⚠️⚠️
+    # ⚠️⚠️⚠️ ATTENTION: INSERT YOUR KEYS HERE IF NOT USING SECRETS ⚠️⚠️⚠️
     API_KEY = "key" 
     BASE_ID = "id" 
 
 api = Api(API_KEY)
 
-# --- 2. FUNZIONI ---
+# --- 2. FUNCTIONS ---
 @st.cache_data(ttl=60)
 def get_data(table_name):
     try:
@@ -171,7 +171,7 @@ def update_generic(tbl, rid, data):
             elif hasattr(v, 'strftime'): clean_data[k] = v.strftime('%Y-%m-%d')
             else: clean_data[k] = v
         api.table(BASE_ID, tbl).update(rid, clean_data, typecast=True)
-        # Pausa tattica per Airtable
+        # Tactical pause for Airtable
         time.sleep(0.5)
         get_data.clear()
         return True
@@ -277,7 +277,7 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
     <div class="page-num">Pagina 1</div> </div> {print_script} </body> </html>
     """
 
-# --- 3. INTERFACCIA ---
+# --- 3. INTERFACE ---
 with st.sidebar:
     LOGO_B64 = ""
     try: 
@@ -296,7 +296,7 @@ if menu == "⚡ Dashboard":
     st.title("⚡ Dashboard")
     st.write("")
     
-    # --- ALERT PRESTITI SCADUTI ---
+    # --- ALERT EXPIRED LOANS ---
     df_pres_alert = get_data("Prestiti")
     
     if not df_pres_alert.empty:
