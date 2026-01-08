@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 import io
 import os
 import base64
-import time # Necessario per il fix di sincronizzazione
+import time 
 
 # =========================================================
 # 0. CONFIGURAZIONE & STILE
@@ -171,6 +171,8 @@ def update_generic(tbl, rid, data):
             elif hasattr(v, 'strftime'): clean_data[k] = v.strftime('%Y-%m-%d')
             else: clean_data[k] = v
         api.table(BASE_ID, tbl).update(rid, clean_data, typecast=True)
+        # Aspettiamo un attimo per dare tempo ad Airtable di aggiornarsi
+        time.sleep(0.5) 
         get_data.clear()
         return True
     except: return False
@@ -217,7 +219,7 @@ def save_prestito_new(paziente, oggetto, categoria, data_prestito, data_scadenza
             "Restituito": False
         }, typecast=True)
         
-        # FIX SINCRONIZZAZIONE: Aspettiamo che Airtable finisca di scrivere
+        # FONDAMENTALE: Aspettiamo 1 secondo che Airtable salvi prima di ricaricare
         time.sleep(1.0) 
         get_data.clear()
         return True
@@ -349,6 +351,13 @@ if menu == "⚡ Dashboard":
         limite_recall = oggi - pd.Timedelta(days=7)
         da_richiamare = df_disdetti[ (df_disdetti['Data_Disdetta'].notna()) & (df_disdetti['Data_Disdetta'] <= limite_recall) ]
         df_visite = df[ (df['Visita_Esterna'] == True) | (df['Visita_Esterna'] == 1) ]
+        
+        # --- RIGHE REINSERITE ---
+        curr_week = oggi.isocalendar()[1]
+        visite_settimana = df_visite[ df_visite['Data_Visita'].apply(lambda x: x.isocalendar()[1] if pd.notnull(x) else -1) == curr_week ]
+        visite_da_reinserire = df_visite[ (df_visite['Data_Visita'].notna()) & (oggi >= (df_visite['Data_Visita'] + pd.Timedelta(days=2))) ]
+        # ------------------------
+
         cnt_prev = len(df_prev)
         prev_scaduti = pd.DataFrame()
         if not df_prev.empty:
@@ -451,6 +460,7 @@ if menu == "⚡ Dashboard":
                 with c_btn2: 
                     if st.button("📅 Rimandare", key=f"pk_{row['id']}", type="secondary", use_container_width=True): update_generic("Pazienti", row['id'], {"Data_Disdetta": str(date.today())}); st.rerun()
         
+        # 5. Visite Post (Blu)
         if not visite_da_reinserire.empty:
             st.caption(f"🛑 Reinserimento Post-Visita: {len(visite_da_reinserire)}")
             for i, row in visite_da_reinserire.iterrows():
@@ -792,7 +802,7 @@ elif menu == "📦 Magazzino":
         else: st.info("Magazzino vuoto.")
 
 # =========================================================
-# SEZIONE 5: PRESTITI (NUOVA LOGICA MODERNA - FIX KEYERROR)
+# SEZIONE 5: PRESTITI (NUOVA LOGICA MODERNA)
 # =========================================================
 elif menu == "🔄 Prestiti":
     st.title("Gestione Noleggi e Prestiti")
