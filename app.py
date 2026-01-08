@@ -171,7 +171,8 @@ def update_generic(tbl, rid, data):
             elif hasattr(v, 'strftime'): clean_data[k] = v.strftime('%Y-%m-%d')
             else: clean_data[k] = v
         api.table(BASE_ID, tbl).update(rid, clean_data, typecast=True)
-        time.sleep(1.0) # Ritardo aumentato per sicurezza
+        # PAUSA TATTICA PER AIRTABLE
+        time.sleep(1.0) 
         get_data.clear()
         return True
     except: return False
