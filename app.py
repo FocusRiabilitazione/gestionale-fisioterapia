@@ -10,7 +10,7 @@ import base64
 import time 
 
 # =========================================================
-# 0. CONFIGURATION & STYLE
+# 0. CONFIGURAZIONE & STILE
 # =========================================================
 st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="wide")
 
@@ -77,7 +77,7 @@ st.markdown("""
     .kpi-value { font-size: 36px; font-weight: 800; color: white; line-height: 1; letter-spacing: -1px; }
     .kpi-label { font-size: 11px; text-transform: uppercase; color: #a0aec0; margin-top: 8px; letter-spacing: 1.5px; font-weight: 600; }
 
-    /* BUTTONS */
+    /* PULSANTI */
     div[data-testid="column"] .stButton > button {
         background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
         border: none !important;
@@ -95,7 +95,7 @@ st.markdown("""
         box-shadow: 0 6px 15px rgba(66, 153, 225, 0.5) !important;
     }
 
-    /* ALERT ROWS */
+    /* RIGHE AVVISI */
     .alert-row-name {
         background-color: rgba(255, 255, 255, 0.03);
         border-radius: 10px;
@@ -116,7 +116,7 @@ st.markdown("""
     .border-green { border-left: 4px solid #2ecc71 !important; }
     .border-gray { border-left: 4px solid #a0aec0 !important; }
 
-    /* ACTION BUTTONS */
+    /* PULSANTI AZIONE */
     div[data-testid="stHorizontalBlock"] button {
         padding: 2px 12px !important;
         font-size: 11px !important; min-height: 0px !important;
@@ -137,18 +137,18 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 1. CONNECTION ---
+# --- 1. CONNESSIONE ---
 try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except:
-    # ⚠️⚠️⚠️ ATTENTION: INSERT YOUR KEYS HERE IF NOT USING SECRETS ⚠️⚠️⚠️
+    # ⚠️⚠️⚠️ ATTENZIONE: INSERISCI QUI LE TUE CHIAVI SE NON USI SECRETS ⚠️⚠️⚠️
     API_KEY = "key" 
     BASE_ID = "id" 
 
 api = Api(API_KEY)
 
-# --- 2. FUNCTIONS ---
+# --- 2. FUNZIONI ---
 @st.cache_data(ttl=60)
 def get_data(table_name):
     try:
@@ -171,8 +171,7 @@ def update_generic(tbl, rid, data):
             elif hasattr(v, 'strftime'): clean_data[k] = v.strftime('%Y-%m-%d')
             else: clean_data[k] = v
         api.table(BASE_ID, tbl).update(rid, clean_data, typecast=True)
-        # Tactical pause for Airtable
-        time.sleep(0.5)
+        time.sleep(1.0) # Ritardo aumentato per sicurezza
         get_data.clear()
         return True
     except: return False
@@ -277,7 +276,7 @@ def generate_html_preventivo(paziente, data_oggi, note, righe_preventivo, totale
     <div class="page-num">Pagina 1</div> </div> {print_script} </body> </html>
     """
 
-# --- 3. INTERFACE ---
+# --- 3. INTERFACCIA ---
 with st.sidebar:
     LOGO_B64 = ""
     try: 
@@ -296,7 +295,7 @@ if menu == "⚡ Dashboard":
     st.title("⚡ Dashboard")
     st.write("")
     
-    # --- ALERT EXPIRED LOANS ---
+    # --- ALERT PRESTITI SCADUTI ---
     df_pres_alert = get_data("Prestiti")
     
     if not df_pres_alert.empty:
@@ -927,7 +926,7 @@ elif menu == "🔄 Prestiti":
                                     else: st.toast("Seleziona prima un paziente!", icon="⚠️")
 
 # =========================================================
-# SEZIONE 6: SCADENZE (PLANNING FINANZIARIO - VERSIONE PULSANTI)
+# SEZIONE 6: SCADENZE (PLANNING FINANZIARIO - VERSIONE PULSANTI & CARD)
 # =========================================================
 elif menu == "📅 Scadenze":
     st.title("🗓️ Scadenziario Pagamenti")
@@ -980,7 +979,7 @@ elif menu == "📅 Scadenze":
 
     st.divider()
 
-    # --- VISUALIZZAZIONE MENSILE ---
+    # --- VISUALIZZAZIONE MENSILE (CARD) ---
     df_scad = get_data("Scadenze")
     
     if not df_scad.empty and 'Data_Scadenza' in df_scad.columns:
@@ -1020,53 +1019,46 @@ elif menu == "📅 Scadenze":
                 if items_mese.empty:
                     st.info(f"Nessuna scadenza a {mese_nome}.")
                 else:
-                    # Lista Scadenze
+                    # Visualizzazione a CARD
                     for _, row in items_mese.iterrows():
-                        c_check, c_text, c_imp, c_del = st.columns([1, 6, 2, 1])
-                        
                         is_paid = row.get('Pagato') is True
                         
-                        # --- LOGICA A PULSANTE (PIÙ STABILE DELLA CHECKBOX) ---
-                        with c_check:
-                            if is_paid:
-                                # Se è già pagato, mostra pulsante per annullare
-                                if st.button("↩️", key=f"undo_{row['id']}", help="Segna come NON pagato"):
-                                    with st.spinner("Annullamento..."):
-                                        update_generic("Scadenze", row['id'], {"Pagato": False})
-                                        time.sleep(1.0)
-                                        st.rerun()
-                            else:
-                                # Se non è pagato, mostra pulsante per pagare
-                                if st.button("✅", key=f"pay_{row['id']}", help="Segna come PAGATO"):
-                                    with st.spinner("Salvataggio..."):
-                                        update_generic("Scadenze", row['id'], {"Pagato": True})
-                                        time.sleep(1.0)
-                                        st.rerun()
+                        # Definisci lo stile della Card
+                        border_color = "rgba(46, 204, 113, 0.4)" if is_paid else "rgba(229, 62, 62, 0.4)" 
+                        
+                        with st.container(border=True):
+                            c_info, c_action = st.columns([3, 1])
+                            
+                            with c_info:
+                                data_fmt = row['Data_Scadenza'].strftime('%d')
+                                
+                                if is_paid:
+                                    st.markdown(f"~~📅 {data_fmt} - {row['Descrizione']}~~")
+                                    st.caption(f"✅ PAGATO - {row['Importo']} €")
+                                else:
+                                    st.markdown(f"📅 **{data_fmt}** - **{row['Descrizione']}**")
+                                    st.markdown(f"💰 **{row['Importo']} €**")
 
-                        # Testo (Barrato se pagato)
-                        with c_text:
-                            data_str = row['Data_Scadenza'].strftime('%d')
-                            desc_txt = f"{data_str} - {row['Descrizione']}"
-                            if is_paid:
-                                st.markdown(f"~~{desc_txt}~~ :white_check_mark:")
-                            else:
-                                st.markdown(f"**{desc_txt}**")
-                        
-                        # Importo (Grigio se pagato)
-                        with c_imp:
-                            imp_fmt = f"{row['Importo']} €"
-                            if is_paid:
-                                st.markdown(f"<span style='color:gray'>~~{imp_fmt}~~</span>", unsafe_allow_html=True)
-                            else:
-                                st.markdown(f"**{imp_fmt}**")
-                        
-                        # Elimina
-                        with c_del:
-                            if st.button("🗑️", key=f"del_scad_{row['id']}"):
-                                with st.spinner("Eliminazione..."):
-                                    delete_generic("Scadenze", row['id'])
-                                    time.sleep(1.0)
-                                    st.rerun()
+                            with c_action:
+                                if is_paid:
+                                    if st.button("↩️ Annulla", key=f"undo_{row['id']}", use_container_width=True):
+                                        with st.spinner("Annullamento..."):
+                                            update_generic("Scadenze", row['id'], {"Pagato": False})
+                                            time.sleep(1.0)
+                                            st.rerun()
+                                else:
+                                    if st.button("✅ Paga", key=f"pay_{row['id']}", type="primary", use_container_width=True):
+                                        with st.spinner("Salvataggio..."):
+                                            update_generic("Scadenze", row['id'], {"Pagato": True})
+                                            time.sleep(1.0)
+                                            st.rerun()
+                                
+                                # Tasto Elimina piccolo sotto
+                                if st.button("🗑️", key=f"del_{row['id']}", help="Elimina"):
+                                    with st.spinner("Eliminazione..."):
+                                        delete_generic("Scadenze", row['id'])
+                                        time.sleep(1.0)
+                                        st.rerun()
     else:
         st.info("Nessuna scadenza trovata nel database.")
         
