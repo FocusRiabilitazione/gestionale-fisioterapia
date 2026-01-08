@@ -1001,9 +1001,8 @@ elif menu == "📅 Scadenze":
         # Tabs per i mesi
         tabs_mesi = st.tabs(mesi)
         
-        # Totali Annuali
-        tot_da_pagare_anno = df_scad[(df_scad['Pagato'] != True) & (df_scad['Data_Scadenza'].dt.year == anno_corrente)]['Importo'].sum()
-        st.caption(f"💰 Totale residuo stimato {anno_corrente}: **{tot_da_pagare_anno:,.2f} €**")
+        # Calcolo Totale Annuale
+        tot_anno = df_scad[df_scad['Data_Scadenza'].dt.year == anno_corrente]['Importo'].sum()
 
         for i, mese_nome in enumerate(mesi):
             with tabs_mesi[i]:
@@ -1011,23 +1010,22 @@ elif menu == "📅 Scadenze":
                 mask_mese = (df_scad['Data_Scadenza'].dt.month == (i + 1)) & (df_scad['Data_Scadenza'].dt.year == anno_corrente)
                 items_mese = df_scad[mask_mese].sort_values("Data_Scadenza")
                 
+                # --- KPI DEL MESE ---
+                tot_mese = items_mese['Importo'].sum()
+                pagato_mese = items_mese[items_mese['Pagato'] == True]['Importo'].sum()
+                da_pagare_mese = tot_mese - pagato_mese
+                
+                col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
+                col_kpi1.metric("🔴 Da Pagare (Mese)", f"{da_pagare_mese:,.2f} €", delta_color="inverse")
+                col_kpi2.metric("✅ Saldato (Mese)", f"{pagato_mese:,.2f} €")
+                col_kpi3.metric("📅 Totale Anno", f"{tot_anno:,.2f} €", help="Totale spese previste nell'anno")
+                
+                st.divider()
+
                 if items_mese.empty:
                     st.info(f"Nessuna scadenza a {mese_nome}.")
                 else:
-                    # Totale del mese
-                    tot_mese = items_mese['Importo'].sum()
-                    pagato_mese = items_mese[items_mese['Pagato'] == True]['Importo'].sum()
-                    da_pagare = tot_mese - pagato_mese
-                    
-                    # Progress bar del mese
-                    col_kpi1, col_kpi2 = st.columns(2)
-                    col_kpi1.markdown(f"**Da Pagare: :red[{da_pagare} €]** / {tot_mese} €")
-                    if tot_mese > 0:
-                        col_kpi1.progress(min(pagato_mese / tot_mese, 1.0))
-                    
-                    st.write("")
-                    
-                    # Lista Checkbox
+                    # Lista Scadenze
                     for _, row in items_mese.iterrows():
                         c_check, c_text, c_imp, c_del = st.columns([1, 6, 2, 1])
                         
@@ -1035,15 +1033,12 @@ elif menu == "📅 Scadenze":
                         
                         # Checkbox
                         with c_check:
-                            # Usiamo un key unico basato sull'ID
                             check_val = st.checkbox("Fatto", value=is_paid, key=f"chk_{row['id']}", label_visibility="collapsed")
-                            
-                            # Se lo stato cambia, aggiorna Airtable
                             if check_val != is_paid:
                                 update_generic("Scadenze", row['id'], {"Pagato": check_val})
                                 st.rerun()
 
-                        # Testo (Sbarrato o Normale)
+                        # Testo (Barrato se pagato)
                         with c_text:
                             data_str = row['Data_Scadenza'].strftime('%d')
                             desc_txt = f"{data_str} - {row['Descrizione']}"
@@ -1052,7 +1047,7 @@ elif menu == "📅 Scadenze":
                             else:
                                 st.markdown(f"**{desc_txt}**")
                         
-                        # Importo
+                        # Importo (Grigio se pagato)
                         with c_imp:
                             imp_fmt = f"{row['Importo']} €"
                             if is_paid:
@@ -1060,13 +1055,11 @@ elif menu == "📅 Scadenze":
                             else:
                                 st.markdown(f"**{imp_fmt}**")
                         
-                        # Elimina singola riga
+                        # Elimina
                         with c_del:
                             if st.button("🗑️", key=f"del_scad_{row['id']}"):
                                 delete_generic("Scadenze", row['id'])
                                 st.rerun()
-                    
-                    st.divider()
-
     else:
         st.info("Nessuna scadenza trovata nel database.")
+        
