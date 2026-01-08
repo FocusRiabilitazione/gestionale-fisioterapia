@@ -299,15 +299,19 @@ if menu == "⚡ Dashboard":
     
     # --- ALERT PRESTITI SCADUTI ---
     df_pres_alert = get_data("Prestiti")
+    
+    # --- FIX SICUREZZA PER KEYERROR 'RESTITUITO' ---
     if not df_pres_alert.empty:
         if 'Restituito' not in df_pres_alert.columns: df_pres_alert['Restituito'] = False
         if 'Data_Scadenza' not in df_pres_alert.columns: df_pres_alert['Data_Scadenza'] = None
         if 'Oggetto' not in df_pres_alert.columns: df_pres_alert['Oggetto'] = "Strumento"
         if 'Paziente' not in df_pres_alert.columns: df_pres_alert['Paziente'] = "Sconosciuto"
         
+        # Conversione e logica
         df_pres_alert['Data_Scadenza'] = pd.to_datetime(df_pres_alert['Data_Scadenza'], errors='coerce')
         oggi_ts = pd.Timestamp.now().normalize()
         
+        # Ora possiamo filtrare in sicurezza
         scaduti = df_pres_alert[
             (df_pres_alert['Restituito'] != True) & 
             (df_pres_alert['Data_Scadenza'] < oggi_ts) &
@@ -788,7 +792,7 @@ elif menu == "📦 Magazzino":
         else: st.info("Magazzino vuoto.")
 
 # =========================================================
-# SEZIONE 5: PRESTITI (NUOVA LOGICA MODERNA)
+# SEZIONE 5: PRESTITI (NUOVA LOGICA MODERNA - FIX KEYERROR)
 # =========================================================
 elif menu == "🔄 Prestiti":
     st.title("Gestione Noleggi e Prestiti")
@@ -823,6 +827,13 @@ elif menu == "🔄 Prestiti":
     df_paz = get_data("Pazienti")
     nomi_paz = ["-- Seleziona --"] + sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows()]) if not df_paz.empty else []
 
+    # --- FIX ANTI-CRASH: Assicuriamo che le colonne esistano ---
+    if not df_pres.empty:
+        if 'Restituito' not in df_pres.columns: df_pres['Restituito'] = False
+        if 'Data_Scadenza' not in df_pres.columns: df_pres['Data_Scadenza'] = None
+        if 'Oggetto' not in df_pres.columns: df_pres['Oggetto'] = "Strumento"
+        if 'Paziente' not in df_pres.columns: df_pres['Paziente'] = "Sconosciuto"
+
     # KPI TOP
     tot_strumenti = sum(len(v) for v in INVENTARIO.values())
     in_prestito = 0
@@ -852,9 +863,8 @@ elif menu == "🔄 Prestiti":
                 # Check Prestito Attivo
                 prestito_attivo = pd.DataFrame()
                 if not df_pres.empty:
-                    cols_ok = all(col in df_pres.columns for col in ['Oggetto', 'Restituito'])
-                    if cols_ok:
-                         prestito_attivo = df_pres[ (df_pres['Oggetto'] == strumento) & (df_pres['Restituito'] != True) ]
+                    # Abbiamo già normalizzato le colonne sopra, quindi ora è sicuro
+                    prestito_attivo = df_pres[ (df_pres['Oggetto'] == strumento) & (df_pres['Restituito'] != True) ]
                 
                 # VISUALIZZAZIONE "CARD" CON BORDO
                 with st.container(border=True):
