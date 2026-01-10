@@ -172,7 +172,7 @@ def update_generic(tbl, rid, data):
             elif hasattr(v, 'strftime'): clean_data[k] = v.strftime('%Y-%m-%d')
             else: clean_data[k] = v
         api.table(BASE_ID, tbl).update(rid, clean_data, typecast=True)
-        time.sleep(1.0) # Ritardo aumentato per sicurezza
+        time.sleep(1.0) # Ritardo di sicurezza per Airtable
         get_data.clear()
         return True
     except: return False
@@ -737,7 +737,7 @@ elif menu == "📨 Consegne":
                             st.caption(f"{row['Data_Scadenza'].strftime('%d/%m')}\n({status_text})")
 
 # =========================================================
-# SEZIONE 4: MAGAZZINO
+# SEZIONE 4: MAGAZZINO (MODIFICATA CON + E -)
 # =========================================================
 elif menu == "📦 Magazzino":
     st.title("Magazzino & Materiali")
@@ -789,14 +789,18 @@ elif menu == "📦 Magazzino":
                                     st.caption(f"**{row['Quantita']}** / {row['Obiettivo']}")
                                 with c_act:
                                     st.write("") 
-                                    b_minus, b_plus = st.columns(2)
-                                    with b_minus:
+                                    # Dividiamo la colonna azioni in due per i pulsanti
+                                    col_meno, col_piu = st.columns(2)
+                                    
+                                    with col_meno:
                                         if st.button("🔻", key=f"dec_{row['id']}", type="secondary", use_container_width=True):
                                             if row['Quantita'] > 0:
                                                 new_qty = int(row['Quantita'] - 1)
                                                 update_generic("Inventario", row['id'], {"Quantità": new_qty})
                                                 st.rerun()
-                                    with b_plus:
+                                    
+                                    with col_piu:
+                                        # Il pulsante diventa blu se la scorta è bassa (suggerimento visivo)
                                         btn_style = "primary" if is_low else "secondary"
                                         if st.button("🔺", key=f"inc_{row['id']}", type=btn_style, use_container_width=True):
                                             new_qty = int(row['Quantita'] + 1)
@@ -939,136 +943,13 @@ elif menu == "🔄 Prestiti":
                                     else: st.toast("Seleziona prima un paziente!", icon="⚠️")
 
 # =========================================================
-# SEZIONE 6: SCADENZE (PLANNING FINANZIARIO - CARD STYLE)
+# SEZIONE 6: SCADENZE
 # =========================================================
 elif menu == "📅 Scadenze":
-    st.title("🗓️ Scadenziario Pagamenti")
-    
-    # --- FORM DI INSERIMENTO ---
-    with st.expander("➕ Aggiungi Nuova Scadenza / Spesa", expanded=False):
-        with st.form("add_scadenza"):
-            c1, c2, c3 = st.columns([2, 1, 1])
-            desc = c1.text_input("Descrizione (es. Affitto, Enel, TARI)")
-            imp = c2.number_input("Importo (€)", min_value=0.0, step=10.0)
-            tipo = c3.selectbox("Frequenza", ["Singola", "Mensile (12 mesi)", "Annuale"])
-            data_start = st.date_input("Data Scadenza", date.today())
-            
-            if st.form_submit_button("Salva Scadenza", type="primary"):
-                if desc:
-                    if tipo == "Singola":
-                        api.table(BASE_ID, "Scadenze").create({
-                            "Descrizione": desc, "Importo": imp, 
-                            "Data_Scadenza": str(data_start), "Pagato": False, "Ricorrenza": "Singola"
-                        }, typecast=True)
-                        st.success("Scadenza salvata!")
-                    
-                    elif tipo == "Mensile (12 mesi)":
-                        with st.spinner("Creazione piano annuale in corso..."):
-                            batch_data = []
-                            curr_date = data_start
-                            for _ in range(12):
-                                batch_data.append({
-                                    "Descrizione": desc, "Importo": imp,
-                                    "Data_Scadenza": str(curr_date), "Pagato": False, "Ricorrenza": "Mensile"
-                                })
-                                next_month = curr_date.month % 12 + 1
-                                next_year = curr_date.year + (curr_date.month // 12)
-                                curr_date = curr_date.replace(year=next_year, month=next_month)
-                            
-                            for item in batch_data:
-                                api.table(BASE_ID, "Scadenze").create(item, typecast=True)
-                        st.success("Piano mensile creato per 1 anno!")
-                    
-                    time.sleep(1.5)
-                    get_data.clear()
-                    st.rerun()
-                else:
-                    st.warning("Inserisci almeno la descrizione.")
-
-    st.divider()
-
-    # --- VISUALIZZAZIONE MENSILE (CARD) ---
+    st.title("Checklist Scadenze")
     df_scad = get_data("Scadenze")
-    
     if not df_scad.empty and 'Data_Scadenza' in df_scad.columns:
-        # Prepara i dati e gestisci colonne mancanti
-        df_scad['Data_Scadenza'] = pd.to_datetime(df_scad['Data_Scadenza'], errors='coerce')
-        if 'Pagato' not in df_scad.columns: df_scad['Pagato'] = False
-        if 'Descrizione' not in df_scad.columns: df_scad['Descrizione'] = "Spesa"
-        if 'Importo' not in df_scad.columns: df_scad['Importo'] = 0.0
-        
-        # Filtra per Anno Corrente (o seleziona anno)
-        anno_corrente = date.today().year
-        mesi = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", 
-                "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
-        
-        # Tabs per i mesi
-        tabs_mesi = st.tabs(mesi)
-        
-        # Calcolo Totale Annuale
-        tot_anno = df_scad[df_scad['Data_Scadenza'].dt.year == anno_corrente]['Importo'].sum()
-
-        for i, mese_nome in enumerate(mesi):
-            with tabs_mesi[i]:
-                # Filtra scadenze di questo mese e anno
-                mask_mese = (df_scad['Data_Scadenza'].dt.month == (i + 1)) & (df_scad['Data_Scadenza'].dt.year == anno_corrente)
-                items_mese = df_scad[mask_mese].sort_values("Data_Scadenza")
-                
-                # --- KPI DEL MESE ---
-                tot_mese = items_mese['Importo'].sum()
-                pagato_mese = items_mese[items_mese['Pagato'] == True]['Importo'].sum()
-                da_pagare_mese = tot_mese - pagato_mese
-                
-                col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
-                col_kpi1.metric("🔴 Da Pagare (Mese)", f"{da_pagare_mese:,.2f} €", delta_color="inverse")
-                col_kpi2.metric("✅ Saldato (Mese)", f"{pagato_mese:,.2f} €")
-                col_kpi3.metric("📅 Totale Anno", f"{tot_anno:,.2f} €", help="Totale spese previste nell'anno")
-                
-                st.divider()
-
-                if items_mese.empty:
-                    st.info(f"Nessuna scadenza a {mese_nome}.")
-                else:
-                    # Visualizzazione a CARD
-                    for _, row in items_mese.iterrows():
-                        is_paid = row.get('Pagato') is True
-                        
-                        # Definisci lo stile della Card
-                        border_color = "rgba(46, 204, 113, 0.4)" if is_paid else "rgba(229, 62, 62, 0.4)" 
-                        
-                        with st.container(border=True):
-                            c_info, c_action = st.columns([3, 1])
-                            
-                            with c_info:
-                                data_fmt = row['Data_Scadenza'].strftime('%d')
-                                
-                                if is_paid:
-                                    st.markdown(f"~~📅 {data_fmt} - {row['Descrizione']}~~")
-                                    st.caption(f"✅ PAGATO - {row['Importo']} €")
-                                else:
-                                    st.markdown(f"📅 **{data_fmt}** - **{row['Descrizione']}**")
-                                    st.markdown(f"💰 **{row['Importo']} €**")
-
-                            with c_action:
-                                if is_paid:
-                                    if st.button("↩️ Annulla", key=f"undo_{row['id']}", use_container_width=True):
-                                        with st.spinner("Annullamento..."):
-                                            update_generic("Scadenze", row['id'], {"Pagato": False})
-                                            time.sleep(1.0)
-                                            st.rerun()
-                                else:
-                                    if st.button("✅ PAGA", key=f"pay_{row['id']}", type="primary", use_container_width=True):
-                                        with st.spinner("Salvataggio..."):
-                                            update_generic("Scadenze", row['id'], {"Pagato": True})
-                                            time.sleep(1.0)
-                                            st.rerun()
-                                
-                                # Tasto Elimina piccolo sotto
-                                if st.button("🗑️", key=f"del_{row['id']}", help="Elimina"):
-                                    with st.spinner("Eliminazione..."):
-                                        delete_generic("Scadenze", row['id'])
-                                        time.sleep(1.0)
-                                        st.rerun()
-    else:
-        st.info("Nessuna scadenza trovata nel database.")
+        df_scad['Data_Scadenza'] = pd.to_datetime(df_scad['Data_Scadenza'], errors='coerce'); df_scad = df_scad.sort_values("Data_Scadenza")
+        st.dataframe(df_scad, column_config={"Data_Scadenza": st.column_config.DateColumn("Scadenza", format="DD/MM/YYYY"), "Importo": st.column_config.NumberColumn("Importo", format="%d €"), "Descrizione": st.column_config.TextColumn("Dettagli")}, use_container_width=True, height=500)
+    else: st.info("Nessuna scadenza prossima.")
         
