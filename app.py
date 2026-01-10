@@ -171,7 +171,7 @@ def update_generic(tbl, rid, data):
             elif hasattr(v, 'strftime'): clean_data[k] = v.strftime('%Y-%m-%d')
             else: clean_data[k] = v
         api.table(BASE_ID, tbl).update(rid, clean_data, typecast=True)
-        time.sleep(1.0) # Ritardo di sicurezza per Airtable
+        time.sleep(1.0) # Ritardo aumentato per sicurezza
         get_data.clear()
         return True
     except: return False
@@ -784,9 +784,21 @@ elif menu == "📦 Magazzino":
                                     st.caption(f"**{row['Quantita']}** / {row['Obiettivo']}")
                                 with c_act:
                                     st.write("") 
-                                    if st.button("🔻1", key=f"dec_{row['id']}", type="primary" if is_low else "secondary"):
-                                        if row['Quantita'] > 0:
-                                            new_qty = int(row['Quantita'] - 1)
+                                    # Divido in due colonne per i pulsanti - e +
+                                    b_minus, b_plus = st.columns(2)
+                                    
+                                    with b_minus:
+                                        if st.button("🔻", key=f"dec_{row['id']}", type="secondary", use_container_width=True):
+                                            if row['Quantita'] > 0:
+                                                new_qty = int(row['Quantita'] - 1)
+                                                update_generic("Inventario", row['id'], {"Quantità": new_qty})
+                                                st.rerun()
+                                    
+                                    with b_plus:
+                                        # Il tasto + diventa primario (blu) se la scorta è bassa, per suggerire il riordino
+                                        btn_style = "primary" if is_low else "secondary"
+                                        if st.button("🔺", key=f"inc_{row['id']}", type=btn_style, use_container_width=True):
+                                            new_qty = int(row['Quantita'] + 1)
                                             update_generic("Inventario", row['id'], {"Quantità": new_qty})
                                             st.rerun()
         else: st.info("Magazzino vuoto.")
@@ -1023,8 +1035,8 @@ elif menu == "📅 Scadenze":
                     for _, row in items_mese.iterrows():
                         is_paid = row.get('Pagato') is True
                         
-                        # Definisci lo stile della Card
-                        border_color = "rgba(46, 204, 113, 0.4)" if is_paid else "rgba(229, 62, 62, 0.4)" 
+                        # Stile della Card
+                        bg_style = "rgba(46, 204, 113, 0.1)" if is_paid else "rgba(229, 62, 62, 0.1)"
                         
                         with st.container(border=True):
                             c_info, c_action = st.columns([3, 1])
@@ -1033,8 +1045,12 @@ elif menu == "📅 Scadenze":
                                 data_fmt = row['Data_Scadenza'].strftime('%d')
                                 
                                 if is_paid:
-                                    st.markdown(f"~~📅 {data_fmt} - {row['Descrizione']}~~")
-                                    st.caption(f"✅ PAGATO - {row['Importo']} €")
+                                    st.markdown(f"""
+                                    <div style="opacity: 0.6;">
+                                        <s>📅 {data_fmt} - {row['Descrizione']}</s><br>
+                                        ✅ <b>PAGATO</b> ({row['Importo']} €)
+                                    </div>
+                                    """, unsafe_allow_html=True)
                                 else:
                                     st.markdown(f"📅 **{data_fmt}** - **{row['Descrizione']}**")
                                     st.markdown(f"💰 **{row['Importo']} €**")
@@ -1047,7 +1063,7 @@ elif menu == "📅 Scadenze":
                                             time.sleep(1.0)
                                             st.rerun()
                                 else:
-                                    if st.button("✅ Paga", key=f"pay_{row['id']}", type="primary", use_container_width=True):
+                                    if st.button("✅ PAGA", key=f"pay_{row['id']}", type="primary", use_container_width=True):
                                         with st.spinner("Salvataggio..."):
                                             update_generic("Scadenze", row['id'], {"Pagato": True})
                                             time.sleep(1.0)
