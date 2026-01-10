@@ -57,7 +57,8 @@ st.markdown("""
         padding: 20px;
         text-align: center;
         height: 140px;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
         margin-bottom: 10px;
         transition: transform 0.3s ease, border-color 0.3s ease;
     }
@@ -368,6 +369,10 @@ if menu == "⚡ Dashboard":
             if 'Completato' not in df_cons.columns: df_cons['Completato'] = False
             if 'Data_Scadenza' not in df_cons.columns: df_cons['Data_Scadenza'] = None
             if 'Paziente' not in df_cons.columns: df_cons['Paziente'] = None
+            
+            # --- FIX PER EVITARE KEYERROR 'Area' ---
+            if 'Area' not in df_cons.columns: df_cons['Area'] = "Altro"
+            
             df_cons = df_cons.dropna(subset=['Paziente'])
             df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza'], errors='coerce')
             consegne_pendenti = df_cons[df_cons['Completato'] != True]
@@ -784,18 +789,14 @@ elif menu == "📦 Magazzino":
                                     st.caption(f"**{row['Quantita']}** / {row['Obiettivo']}")
                                 with c_act:
                                     st.write("") 
-                                    # Divido in due colonne per i pulsanti - e +
                                     b_minus, b_plus = st.columns(2)
-                                    
                                     with b_minus:
                                         if st.button("🔻", key=f"dec_{row['id']}", type="secondary", use_container_width=True):
                                             if row['Quantita'] > 0:
                                                 new_qty = int(row['Quantita'] - 1)
                                                 update_generic("Inventario", row['id'], {"Quantità": new_qty})
                                                 st.rerun()
-                                    
                                     with b_plus:
-                                        # Il tasto + diventa primario (blu) se la scorta è bassa, per suggerire il riordino
                                         btn_style = "primary" if is_low else "secondary"
                                         if st.button("🔺", key=f"inc_{row['id']}", type=btn_style, use_container_width=True):
                                             new_qty = int(row['Quantita'] + 1)
@@ -938,7 +939,7 @@ elif menu == "🔄 Prestiti":
                                     else: st.toast("Seleziona prima un paziente!", icon="⚠️")
 
 # =========================================================
-# SEZIONE 6: SCADENZE (PLANNING FINANZIARIO - VERSIONE PULSANTI & CARD)
+# SEZIONE 6: SCADENZE (PLANNING FINANZIARIO - CARD STYLE)
 # =========================================================
 elif menu == "📅 Scadenze":
     st.title("🗓️ Scadenziario Pagamenti")
@@ -954,7 +955,6 @@ elif menu == "📅 Scadenze":
             
             if st.form_submit_button("Salva Scadenza", type="primary"):
                 if desc:
-                    # Logica per creare le scadenze
                     if tipo == "Singola":
                         api.table(BASE_ID, "Scadenze").create({
                             "Descrizione": desc, "Importo": imp, 
@@ -963,7 +963,6 @@ elif menu == "📅 Scadenze":
                         st.success("Scadenza salvata!")
                     
                     elif tipo == "Mensile (12 mesi)":
-                        # Crea 12 record, uno per ogni mese
                         with st.spinner("Creazione piano annuale in corso..."):
                             batch_data = []
                             curr_date = data_start
@@ -972,17 +971,14 @@ elif menu == "📅 Scadenze":
                                     "Descrizione": desc, "Importo": imp,
                                     "Data_Scadenza": str(curr_date), "Pagato": False, "Ricorrenza": "Mensile"
                                 })
-                                # Calcolo prossimo mese
                                 next_month = curr_date.month % 12 + 1
                                 next_year = curr_date.year + (curr_date.month // 12)
                                 curr_date = curr_date.replace(year=next_year, month=next_month)
                             
-                            # Airtable accetta batch da 10, quindi facciamo un ciclo o chiamate singole
                             for item in batch_data:
                                 api.table(BASE_ID, "Scadenze").create(item, typecast=True)
                         st.success("Piano mensile creato per 1 anno!")
                     
-                    # ATTESA FONDAMENTALE per il ricaricamento
                     time.sleep(1.5)
                     get_data.clear()
                     st.rerun()
@@ -995,9 +991,11 @@ elif menu == "📅 Scadenze":
     df_scad = get_data("Scadenze")
     
     if not df_scad.empty and 'Data_Scadenza' in df_scad.columns:
-        # Prepara i dati
+        # Prepara i dati e gestisci colonne mancanti
         df_scad['Data_Scadenza'] = pd.to_datetime(df_scad['Data_Scadenza'], errors='coerce')
         if 'Pagato' not in df_scad.columns: df_scad['Pagato'] = False
+        if 'Descrizione' not in df_scad.columns: df_scad['Descrizione'] = "Spesa"
+        if 'Importo' not in df_scad.columns: df_scad['Importo'] = 0.0
         
         # Filtra per Anno Corrente (o seleziona anno)
         anno_corrente = date.today().year
@@ -1035,8 +1033,8 @@ elif menu == "📅 Scadenze":
                     for _, row in items_mese.iterrows():
                         is_paid = row.get('Pagato') is True
                         
-                        # Stile della Card
-                        bg_style = "rgba(46, 204, 113, 0.1)" if is_paid else "rgba(229, 62, 62, 0.1)"
+                        # Definisci lo stile della Card
+                        border_color = "rgba(46, 204, 113, 0.4)" if is_paid else "rgba(229, 62, 62, 0.4)" 
                         
                         with st.container(border=True):
                             c_info, c_action = st.columns([3, 1])
@@ -1045,12 +1043,8 @@ elif menu == "📅 Scadenze":
                                 data_fmt = row['Data_Scadenza'].strftime('%d')
                                 
                                 if is_paid:
-                                    st.markdown(f"""
-                                    <div style="opacity: 0.6;">
-                                        <s>📅 {data_fmt} - {row['Descrizione']}</s><br>
-                                        ✅ <b>PAGATO</b> ({row['Importo']} €)
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                                    st.markdown(f"~~📅 {data_fmt} - {row['Descrizione']}~~")
+                                    st.caption(f"✅ PAGATO - {row['Importo']} €")
                                 else:
                                     st.markdown(f"📅 **{data_fmt}** - **{row['Descrizione']}**")
                                     st.markdown(f"💰 **{row['Importo']} €**")
