@@ -96,7 +96,7 @@ st.markdown("""
         box-shadow: 0 6px 15px rgba(66, 153, 225, 0.5) !important;
     }
     
-    /* MODIFICA: Colore Verde per il bottone di aumento (se contiene la freccia su) */
+    /* MODIFICA: Colore Verde per il bottone di aumento */
     button:has(div p:contains("🔺")) {
         border-color: #2ecc71 !important;
         color: #2ecc71 !important;
@@ -154,7 +154,6 @@ try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except:
-    # ⚠️⚠️⚠️ ATTENZIONE: INSERISCI QUI LE TUE CHIAVI SE NON USI SECRETS ⚠️⚠️⚠️
     API_KEY = "key"
     BASE_ID = "id"
 
@@ -183,8 +182,7 @@ def update_generic(tbl, rid, data):
             elif hasattr(v, 'strftime'): clean_data[k] = v.strftime('%Y-%m-%d')
             else: clean_data[k] = v
         api.table(BASE_ID, tbl).update(rid, clean_data, typecast=True)
-        # Fix velocità: aspettiamo un attimo per dare tempo ad Airtable
-        time.sleep(0.5)
+        time.sleep(1.0)
         get_data.clear()
         return True
     except: return False
@@ -229,7 +227,6 @@ def save_prestito_new(paziente, oggetto, categoria, data_prestito, data_scadenza
             "Data_Scadenza": str(data_scadenza),
             "Restituito": False
         }, typecast=True)
-        # FONDAMENTALE: Cancella la cache per forzare il riaggiornamento dei dati
         time.sleep(1.0)
         get_data.clear()
         return True
@@ -391,6 +388,9 @@ if menu == "⚡ Dashboard":
             if 'Completato' not in df_cons.columns: df_cons['Completato'] = False
             if 'Data_Scadenza' not in df_cons.columns: df_cons['Data_Scadenza'] = None
             if 'Paziente' not in df_cons.columns: df_cons['Paziente'] = None
+            
+            # --- FIX PER EVITARE KEYERROR 'Area' ---
+            if 'Area' not in df_cons.columns: df_cons['Area'] = "Altro"
             
             df_cons = df_cons.dropna(subset=['Paziente'])
             df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza'], errors='coerce')
@@ -825,7 +825,6 @@ elif menu == "📦 Magazzino":
                                                 new_qty = int(row['Quantita'] - 1)
                                                 update_generic("Inventario", row['id'], {"Quantità": new_qty})
                                                 st.rerun()
-                                    
                                     with b_plus:
                                         # Il tasto ha la freccia verde grazie al CSS aggiunto sopra
                                         if st.button("🔺", key=f"inc_{row['id']}", type="secondary", use_container_width=True):
