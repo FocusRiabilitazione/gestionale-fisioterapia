@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 import io
 import os
 import base64
-import time
+import time 
 
 # =========================================================
 # 0. CONFIGURAZIONE & STILE
@@ -57,7 +57,8 @@ st.markdown("""
         padding: 20px;
         text-align: center;
         height: 140px;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
         margin-bottom: 10px;
         transition: transform 0.3s ease, border-color 0.3s ease;
     }
@@ -93,6 +94,17 @@ st.markdown("""
     div[data-testid="column"] .stButton > button:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 15px rgba(66, 153, 225, 0.5) !important;
+    }
+    
+    /* MODIFICA: Colore Verde per il bottone di aumento (se contiene la freccia su) */
+    button:has(div p:contains("🔺")) {
+        border-color: #2ecc71 !important;
+        color: #2ecc71 !important;
+        background: rgba(46, 204, 113, 0.1) !important;
+    }
+    button:has(div p:contains("🔺")):hover {
+        background: rgba(46, 204, 113, 0.2) !important;
+        border-color: #27ae60 !important;
     }
 
     /* RIGHE AVVISI */
@@ -142,6 +154,7 @@ try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except:
+    # ⚠️⚠️⚠️ ATTENZIONE: INSERISCI QUI LE TUE CHIAVI SE NON USI SECRETS ⚠️⚠️⚠️
     API_KEY = "key"
     BASE_ID = "id"
 
@@ -725,6 +738,9 @@ elif menu == "📨 Consegne":
                 # Filtra per l'area specifica della tab corrente
                 items = df_cons[ (df_cons['Area'] == tab_name) & (df_cons['Completato'] != True) ]
                 
+                # --- FIX PER EVITARE KEYERROR 'Area' SE LA COLONNA MANCA ---
+                if 'Area' not in df_cons.columns: df_cons['Area'] = "Altro"
+
                 if items.empty: 
                     st.info(f"Nessuna consegna in attesa per {tab_name}.")
                 else:
@@ -748,7 +764,7 @@ elif menu == "📨 Consegne":
                             st.caption(f"{row['Data_Scadenza'].strftime('%d/%m')}\n({status_text})")
 
 # =========================================================
-# SEZIONE 4: MAGAZZINO
+# SEZIONE 4: MAGAZZINO (MODIFICATA CON + E -)
 # =========================================================
 elif menu == "📦 Magazzino":
     st.title("Magazzino & Materiali")
@@ -801,17 +817,18 @@ elif menu == "📦 Magazzino":
                                 with c_act:
                                     st.write("") 
                                     # --- MODIFICA: DUE PULSANTI PER AUMENTO E DIMINUZIONE ---
-                                    col_dec, col_inc = st.columns(2)
-                                    with col_dec:
+                                    b_minus, b_plus = st.columns(2)
+                                    
+                                    with b_minus:
                                         if st.button("🔻", key=f"dec_{row['id']}", type="secondary", use_container_width=True):
                                             if row['Quantita'] > 0:
                                                 new_qty = int(row['Quantita'] - 1)
                                                 update_generic("Inventario", row['id'], {"Quantità": new_qty})
                                                 st.rerun()
-                                    with col_inc:
-                                        # Il tasto diventa blu se la scorta è bassa
-                                        btn_type = "primary" if is_low else "secondary"
-                                        if st.button("🔺", key=f"inc_{row['id']}", type=btn_type, use_container_width=True):
+                                    
+                                    with b_plus:
+                                        # Il tasto ha la freccia verde grazie al CSS aggiunto sopra
+                                        if st.button("🔺", key=f"inc_{row['id']}", type="secondary", use_container_width=True):
                                             new_qty = int(row['Quantita'] + 1)
                                             update_generic("Inventario", row['id'], {"Quantità": new_qty})
                                             st.rerun()
@@ -911,7 +928,7 @@ elif menu == "🔄 Prestiti":
                             if paz_sel != "-- Seleziona --":
                                 delta = timedelta(weeks=num) if unit == "Sett" else timedelta(days=num)
                                 
-                                # CHIAMATA CON SALVATAGGIO + RERUN
+                                # CHIAMATA CON LOGICA DI AGGIORNAMENTO
                                 if save_prestito_new(paz_sel, strumento, tab_name, date.today(), date.today() + delta):
                                     st.success("Prestito registrato!")
                                     st.rerun()
