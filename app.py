@@ -389,9 +389,6 @@ if menu == "⚡ Dashboard":
             if 'Data_Scadenza' not in df_cons.columns: df_cons['Data_Scadenza'] = None
             if 'Paziente' not in df_cons.columns: df_cons['Paziente'] = None
             
-            # --- FIX PER EVITARE KEYERROR 'Area' ---
-            if 'Area' not in df_cons.columns: df_cons['Area'] = "Altro"
-            
             df_cons = df_cons.dropna(subset=['Paziente'])
             df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza'], errors='coerce')
             consegne_pendenti = df_cons[df_cons['Completato'] != True]
@@ -660,20 +657,48 @@ elif menu == "💳 Preventivi":
             righe = []; tot = 0
             if servizi_scelti:
                 st.divider()
+                
+                # Header colonne
+                h1, h2, h3, h4 = st.columns([3, 1, 1, 1])
+                h1.caption("Trattamento")
+                h2.caption("Qta")
+                h3.caption("Sconto %")
+                h4.caption("Totale")
+
                 for s in servizi_scelti:
-                    c1, c2, c3 = st.columns([3, 1, 1])
-                    if f"qty_{s}" not in st.session_state: st.session_state[f"qty_{s}"] = 1
-                    qty = c2.number_input(f"Qta {s}", 1, 50, key=f"qty_{s}")
+                    c1, c2, c3, c4 = st.columns([3, 1, 1, 1])
                     
-                    cost = listino_dict[s] * qty
-                    tot += cost
-                    c1.write(f"**{s}**")
-                    c3.write(f"**{cost} €**")
-                    righe.append({"nome": s, "qty": qty, "tot": cost})
+                    # Nome Trattamento
+                    with c1: st.write(f"**{s}**")
+                    
+                    # Quantità
+                    if f"qty_{s}" not in st.session_state: st.session_state[f"qty_{s}"] = 1
+                    qty = c2.number_input(f"Qta {s}", 1, 50, key=f"qty_{s}", label_visibility="collapsed")
+                    
+                    # Sconto (Nuova funzionalità)
+                    if f"disc_{s}" not in st.session_state: st.session_state[f"disc_{s}"] = 0.0
+                    disc = c3.number_input(f"Sc % {s}", 0.0, 100.0, step=5.0, key=f"disc_{s}", label_visibility="collapsed")
+                    
+                    # Calcolo Prezzo
+                    base_price = listino_dict[s] * qty
+                    discount_amount = base_price * (disc / 100)
+                    final_price = base_price - discount_amount
+                    
+                    tot += final_price
+                    
+                    # Display Totale Riga
+                    with c4: st.write(f"**{final_price:.2f} €**")
+                    
+                    # Aggiunta alla lista per salvataggio/PDF
+                    nome_display = s
+                    if disc > 0:
+                        nome_display = f"{s} (Sc. {int(disc)}%)"
+                    
+                    righe.append({"nome": nome_display, "qty": qty, "tot": round(final_price, 2)})
                 
                 st.divider()
                 c_tot, c_btn = st.columns([2, 1])
-                c_tot.markdown(f"### TOTALE: {tot} €")
+                c_tot.markdown(f"### TOTALE: {tot:.2f} €")
                 
                 with c_btn:
                     if st.button("💾 Salva Preventivo", type="primary", use_container_width=True):
