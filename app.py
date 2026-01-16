@@ -309,18 +309,16 @@ if menu == "⚡ Dashboard":
     
     # --- ALERT PRESTITI SCADUTI ---
     df_pres_alert = get_data("Prestiti")
+    
     if not df_pres_alert.empty:
-        # Pulisci e normalizza dati
         if 'Restituito' not in df_pres_alert.columns: df_pres_alert['Restituito'] = False
         if 'Data_Scadenza' not in df_pres_alert.columns: df_pres_alert['Data_Scadenza'] = None
         if 'Oggetto' not in df_pres_alert.columns: df_pres_alert['Oggetto'] = "Strumento"
         if 'Paziente' not in df_pres_alert.columns: df_pres_alert['Paziente'] = "Sconosciuto"
         
-        # FIX: Conversione sicura in datetime Pandas
         df_pres_alert['Data_Scadenza'] = pd.to_datetime(df_pres_alert['Data_Scadenza'], errors='coerce')
-        
-        # Filtro: Non restituiti E Scaduti (data < oggi normalizzata)
         oggi_ts = pd.Timestamp.now().normalize()
+        
         scaduti = df_pres_alert[
             (df_pres_alert['Restituito'] != True) & 
             (df_pres_alert['Data_Scadenza'] < oggi_ts) &
@@ -330,11 +328,9 @@ if menu == "⚡ Dashboard":
         if not scaduti.empty:
             st.error(f"⚠️ ATTENZIONE: Ci sono {len(scaduti)} strumenti NON restituiti in tempo!")
             for i, row in scaduti.iterrows():
-                # Formattiamo la data solo per visualizzazione
                 data_str = row['Data_Scadenza'].strftime('%d/%m') if pd.notnull(row['Data_Scadenza']) else "N.D."
                 st.markdown(f"🔴 **{row['Oggetto']}** - {row['Paziente']} (Scaduto il {data_str})")
             st.divider()
-    # ------------------------------
 
     if 'kpi_filter' not in st.session_state: st.session_state.kpi_filter = "None"
 
@@ -344,7 +340,6 @@ if menu == "⚡ Dashboard":
     df_cons = get_data("Consegne")
     
     if not df.empty:
-        # Preprocessing
         for col in ['Disdetto', 'Visita_Esterna']:
             if col not in df.columns: df[col] = False
             df[col] = df[col].fillna(False)
@@ -360,10 +355,7 @@ if menu == "⚡ Dashboard":
         
         limite_recall = oggi - pd.Timedelta(days=7)
         da_richiamare = df_disdetti[ (df_disdetti['Data_Disdetta'].notna()) & (df_disdetti['Data_Disdetta'] <= limite_recall) ]
-        
         df_visite = df[ (df['Visita_Esterna'] == True) | (df['Visita_Esterna'] == 1) ]
-        domani = oggi + pd.Timedelta(days=1)
-        visite_imminenti = df_visite[ (df_visite['Data_Visita'].notna()) & (df_visite['Data_Visita'] >= oggi) & (df_visite['Data_Visita'] <= domani) ]
         
         curr_week = oggi.isocalendar()[1]
         visite_settimana = df_visite[ df_visite['Data_Visita'].apply(lambda x: x.isocalendar()[1] if pd.notnull(x) else -1) == curr_week ]
@@ -383,12 +375,14 @@ if menu == "⚡ Dashboard":
                 if c not in df_inv.columns: df_inv[c] = 0
             low_stock = df_inv[df_inv['Quantita'] <= df_inv['Soglia_Minima']]
 
-        # Consegne: Filtro dati sporchi
         consegne_pendenti = pd.DataFrame()
         if not df_cons.empty:
             if 'Completato' not in df_cons.columns: df_cons['Completato'] = False
             if 'Data_Scadenza' not in df_cons.columns: df_cons['Data_Scadenza'] = None
             if 'Paziente' not in df_cons.columns: df_cons['Paziente'] = None
+            
+            # --- FIX PER EVITARE KEYERROR 'Area' SE LA COLONNA MANCA ---
+            if 'Area' not in df_cons.columns: df_cons['Area'] = "Altro"
             
             df_cons = df_cons.dropna(subset=['Paziente'])
             df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza'], errors='coerce')
@@ -836,7 +830,7 @@ elif menu == "📨 Consegne":
                             st.markdown(f"""<div class="alert-row-name {color}"><b>{row['Paziente']}</b>: {row['Indicazione']}</div>""", unsafe_allow_html=True)
                         with c_date:
                             st.caption(f"{row['Data_Scadenza'].strftime('%d/%m')}\n({status_text})")
-                            
+
 # =========================================================
 # SEZIONE 4: MAGAZZINO (MODIFICATA CON + E -)
 # =========================================================
@@ -1177,3 +1171,4 @@ elif menu == "📅 Scadenze":
                                         st.rerun()
     else:
         st.info("Nessuna scadenza trovata nel database.")
+        
