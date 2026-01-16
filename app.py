@@ -95,6 +95,17 @@ st.markdown("""
         transform: translateY(-2px);
         box-shadow: 0 6px 15px rgba(66, 153, 225, 0.5) !important;
     }
+    
+    /* MODIFICA: Colore Verde per il bottone di aumento */
+    button:has(div p:contains("🔺")) {
+        border-color: #2ecc71 !important;
+        color: #2ecc71 !important;
+        background: rgba(46, 204, 113, 0.1) !important;
+    }
+    button:has(div p:contains("🔺")):hover {
+        background: rgba(46, 204, 113, 0.2) !important;
+        border-color: #27ae60 !important;
+    }
 
     /* RIGHE AVVISI */
     .alert-row-name {
@@ -144,8 +155,8 @@ try:
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except:
     # ⚠️⚠️⚠️ ATTENZIONE: INSERISCI QUI LE TUE CHIAVI SE NON USI SECRETS ⚠️⚠️⚠️
-    API_KEY = "key" 
-    BASE_ID = "id" 
+    API_KEY = "key"
+    BASE_ID = "id"
 
 api = Api(API_KEY)
 
@@ -172,7 +183,7 @@ def update_generic(tbl, rid, data):
             elif hasattr(v, 'strftime'): clean_data[k] = v.strftime('%Y-%m-%d')
             else: clean_data[k] = v
         api.table(BASE_ID, tbl).update(rid, clean_data, typecast=True)
-        time.sleep(1.0) # Ritardo aumentato per sicurezza
+        time.sleep(1.0)
         get_data.clear()
         return True
     except: return False
@@ -636,20 +647,59 @@ elif menu == "💳 Preventivi":
             righe = []; tot = 0
             if servizi_scelti:
                 st.divider()
+                
+                # Header colonne
+                h1, h2, h3, h4 = st.columns([3, 1, 1.2, 1])
+                h1.caption("Trattamento")
+                h2.caption("Qta")
+                h3.caption("Sconto")
+                h4.caption("Totale")
+
                 for s in servizi_scelti:
-                    c1, c2, c3 = st.columns([3, 1, 1])
-                    if f"qty_{s}" not in st.session_state: st.session_state[f"qty_{s}"] = 1
-                    qty = c2.number_input(f"Qta {s}", 1, 50, key=f"qty_{s}")
+                    c1, c2, c3, c4 = st.columns([3, 1, 1.2, 1])
                     
-                    cost = listino_dict[s] * qty
-                    tot += cost
-                    c1.write(f"**{s}**")
-                    c3.write(f"**{cost} €**")
-                    righe.append({"nome": s, "qty": qty, "tot": cost})
+                    # Nome Trattamento
+                    with c1: st.write(f"**{s}**")
+                    
+                    # Quantità
+                    if f"qty_{s}" not in st.session_state: st.session_state[f"qty_{s}"] = 1
+                    qty = c2.number_input(f"Qta {s}", 1, 50, key=f"qty_{s}", label_visibility="collapsed")
+                    
+                    # Sconto (Nuova funzionalità €/%)
+                    with c3:
+                        cd_val, cd_type = st.columns([2, 1])
+                        if f"d_val_{s}" not in st.session_state: st.session_state[f"d_val_{s}"] = 0.0
+                        if f"d_type_{s}" not in st.session_state: st.session_state[f"d_type_{s}"] = "%"
+                        
+                        d_val = cd_val.number_input(f"V_{s}", 0.0, 1000.0, step=5.0, key=f"d_val_{s}", label_visibility="collapsed")
+                        d_type = cd_type.selectbox(f"T_{s}", ["%", "€"], key=f"d_type_{s}", label_visibility="collapsed")
+                    
+                    # Calcolo Prezzo
+                    base_price = listino_dict[s] * qty
+                    
+                    if d_type == "%":
+                        discount_amount = base_price * (d_val / 100)
+                        desc_sconto = f"{int(d_val)}%"
+                    else: # Euro
+                        discount_amount = d_val
+                        desc_sconto = f"{d_val}€"
+                    
+                    final_price = max(0.0, base_price - discount_amount)
+                    tot += final_price
+                    
+                    # Display Totale Riga
+                    with c4: st.write(f"**{final_price:.2f} €**")
+                    
+                    # Aggiunta alla lista per salvataggio/PDF
+                    nome_display = s
+                    if d_val > 0:
+                        nome_display = f"{s} (Sc. -{desc_sconto})"
+                    
+                    righe.append({"nome": nome_display, "qty": qty, "tot": round(final_price, 2)})
                 
                 st.divider()
                 c_tot, c_btn = st.columns([2, 1])
-                c_tot.markdown(f"### TOTALE: {tot} €")
+                c_tot.markdown(f"### TOTALE: {tot:.2f} €")
                 
                 with c_btn:
                     if st.button("💾 Salva Preventivo", type="primary", use_container_width=True):
@@ -673,9 +723,51 @@ elif menu == "💳 Preventivi":
         st.subheader("Archivio"); df_prev = get_data("Preventivi_Salvati")
         if not df_prev.empty:
             for i, r in df_prev.iterrows():
-                with st.expander(f"{r['Paziente']} - {r['Totale']}€ ({r['Data_Creazione']})"):
+                try:
+                    date_display = pd.to_datetime(r['Data_Creazione']).strftime('%d/%m/%Y')
+                except:
+                    date_display = str(r['Data_Creazione'])
+
+                with st.expander(f"{r['Paziente']} - {r['Totale']}€ ({date_display})"):
                     st.write(r['Dettagli'])
-                    if st.button("Elimina", key=f"del_{r['id']}"): delete_generic("Preventivi_Salvati", r['id']); st.rerun()
+                    if r.get('Note'):
+                        st.caption(f"Note: {r['Note']}")
+                    
+                    c_print, c_del = st.columns([1, 5])
+                    
+                    with c_print:
+                        if st.button("🖨️ Stampa", key=f"print_{r['id']}"):
+                            righe_reconstructed = []
+                            dettagli_raw = r.get('Dettagli', '')
+                            if dettagli_raw:
+                                items = dettagli_raw.split(" | ")
+                                for item in items:
+                                    try:
+                                        temp, price_part = item.rsplit(' (', 1)
+                                        price_str = price_part.replace('€)', '')
+                                        name_str, qty_str = temp.rsplit(' x', 1)
+                                        righe_reconstructed.append({
+                                            'nome': name_str,
+                                            'qty': qty_str,
+                                            'tot': price_str
+                                        })
+                                    except:
+                                        righe_reconstructed.append({'nome': item, 'qty': '-', 'tot': '-'})
+                            
+                            html_archive = generate_html_preventivo(
+                                r['Paziente'],
+                                date_display,
+                                r.get('Note', ''),
+                                righe_reconstructed,
+                                r['Totale'],
+                                LOGO_B64
+                            )
+                            components.html(html_archive, height=800, scrolling=True)
+
+                    with c_del:
+                        if st.button("🗑️ Elimina", key=f"del_{r['id']}"): 
+                            delete_generic("Preventivi_Salvati", r['id'])
+                            st.rerun()
 
 # =========================================================
 # SEZIONE NUOVA: CONSEGNE (AGGIORNATA CON SEGRETERIA)
@@ -706,33 +798,27 @@ elif menu == "📨 Consegne":
     mapping = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Segreteria"]
     
     if not df_cons.empty:
-        # --- FIX PER EVITARE KEYERROR SE MANCANO COLONNE ---
-        if 'Area' not in df_cons.columns: df_cons['Area'] = "Altro"
-        if 'Data_Scadenza' not in df_cons.columns: df_cons['Data_Scadenza'] = None
+        if 'Data_Scadenza' in df_cons.columns: df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza']).dt.date
         if 'Completato' not in df_cons.columns: df_cons['Completato'] = False
-        
-        # Conversione sicura della data
-        df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza'], errors='coerce').dt.date
         
         for i, tab_name in enumerate(mapping):
             with tabs[i]:
                 # Filtra per l'area specifica della tab corrente
                 items = df_cons[ (df_cons['Area'] == tab_name) & (df_cons['Completato'] != True) ]
                 
+                # --- FIX PER EVITARE KEYERROR 'Area' SE LA COLONNA MANCA ---
+                if 'Area' not in df_cons.columns: df_cons['Area'] = "Altro"
+
                 if items.empty: 
                     st.info(f"Nessuna consegna in attesa per {tab_name}.")
                 else:
                     for _, row in items.iterrows():
                         # Calcolo giorni mancanti o ritardo
-                        if row['Data_Scadenza']:
-                            delta = (row['Data_Scadenza'] - date.today()).days
-                            status_text = f"Scade tra {delta} gg" if delta >= 0 else f"SCADUTO da {abs(delta)} gg"
-                            color = "border-green" if delta > 3 else "border-yellow" if delta >= 0 else "border-red"
-                            date_display = row['Data_Scadenza'].strftime('%d/%m')
-                        else:
-                            status_text = "Data non definita"
-                            color = "border-gray"
-                            date_display = "N.D."
+                        delta = (row['Data_Scadenza'] - date.today()).days
+                        
+                        # Logica colori avvisi
+                        color = "border-green" if delta > 3 else "border-yellow" if delta >= 0 else "border-red"
+                        status_text = f"Scade tra {delta} gg" if delta >= 0 else f"SCADUTO da {abs(delta)} gg"
                         
                         # Layout riga
                         c_chk, c_info, c_date = st.columns([1, 6, 2])
@@ -741,12 +827,12 @@ elif menu == "📨 Consegne":
                                 update_generic("Consegne", row['id'], {"Completato": True})
                                 st.rerun()
                         with c_info:
-                            st.markdown(f"""<div class="alert-row-name {color}"><b>{row.get('Paziente', 'Sconosciuto')}</b>: {row.get('Indicazione', '')}</div>""", unsafe_allow_html=True)
+                            st.markdown(f"""<div class="alert-row-name {color}"><b>{row['Paziente']}</b>: {row['Indicazione']}</div>""", unsafe_allow_html=True)
                         with c_date:
-                            st.caption(f"{date_display}\n({status_text})")
+                            st.caption(f"{row['Data_Scadenza'].strftime('%d/%m')}\n({status_text})")
 
 # =========================================================
-# SEZIONE 4: MAGAZZINO
+# SEZIONE 4: MAGAZZINO (MODIFICATA CON + E -)
 # =========================================================
 elif menu == "📦 Magazzino":
     st.title("Magazzino & Materiali")
@@ -798,7 +884,9 @@ elif menu == "📦 Magazzino":
                                     st.caption(f"**{row['Quantita']}** / {row['Obiettivo']}")
                                 with c_act:
                                     st.write("") 
+                                    # --- MODIFICA: DUE PULSANTI PER AUMENTO E DIMINUZIONE ---
                                     b_minus, b_plus = st.columns(2)
+                                    
                                     with b_minus:
                                         if st.button("🔻", key=f"dec_{row['id']}", type="secondary", use_container_width=True):
                                             if row['Quantita'] > 0:
@@ -806,6 +894,7 @@ elif menu == "📦 Magazzino":
                                                 update_generic("Inventario", row['id'], {"Quantità": new_qty})
                                                 st.rerun()
                                     with b_plus:
+                                        # Il tasto ha la freccia verde grazie al CSS aggiunto sopra
                                         if st.button("🔺", key=f"inc_{row['id']}", type="secondary", use_container_width=True):
                                             new_qty = int(row['Quantita'] + 1)
                                             update_generic("Inventario", row['id'], {"Quantità": new_qty})
