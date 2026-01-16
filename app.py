@@ -381,9 +381,6 @@ if menu == "⚡ Dashboard":
             if 'Data_Scadenza' not in df_cons.columns: df_cons['Data_Scadenza'] = None
             if 'Paziente' not in df_cons.columns: df_cons['Paziente'] = None
             
-            # --- FIX PER EVITARE KEYERROR 'Area' SE LA COLONNA MANCA ---
-            if 'Area' not in df_cons.columns: df_cons['Area'] = "Altro"
-            
             df_cons = df_cons.dropna(subset=['Paziente'])
             df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza'], errors='coerce')
             consegne_pendenti = df_cons[df_cons['Completato'] != True]
@@ -798,27 +795,33 @@ elif menu == "📨 Consegne":
     mapping = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Segreteria"]
     
     if not df_cons.empty:
-        if 'Data_Scadenza' in df_cons.columns: df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza']).dt.date
+        # --- FIX PER EVITARE KEYERROR SE MANCANO COLONNE ---
+        if 'Area' not in df_cons.columns: df_cons['Area'] = "Altro"
+        if 'Data_Scadenza' not in df_cons.columns: df_cons['Data_Scadenza'] = None
         if 'Completato' not in df_cons.columns: df_cons['Completato'] = False
+        
+        # Conversione sicura della data
+        df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza'], errors='coerce').dt.date
         
         for i, tab_name in enumerate(mapping):
             with tabs[i]:
                 # Filtra per l'area specifica della tab corrente
                 items = df_cons[ (df_cons['Area'] == tab_name) & (df_cons['Completato'] != True) ]
                 
-                # --- FIX PER EVITARE KEYERROR 'Area' SE LA COLONNA MANCA ---
-                if 'Area' not in df_cons.columns: df_cons['Area'] = "Altro"
-
                 if items.empty: 
                     st.info(f"Nessuna consegna in attesa per {tab_name}.")
                 else:
                     for _, row in items.iterrows():
                         # Calcolo giorni mancanti o ritardo
-                        delta = (row['Data_Scadenza'] - date.today()).days
-                        
-                        # Logica colori avvisi
-                        color = "border-green" if delta > 3 else "border-yellow" if delta >= 0 else "border-red"
-                        status_text = f"Scade tra {delta} gg" if delta >= 0 else f"SCADUTO da {abs(delta)} gg"
+                        if row['Data_Scadenza']:
+                            delta = (row['Data_Scadenza'] - date.today()).days
+                            status_text = f"Scade tra {delta} gg" if delta >= 0 else f"SCADUTO da {abs(delta)} gg"
+                            color = "border-green" if delta > 3 else "border-yellow" if delta >= 0 else "border-red"
+                            date_display = row['Data_Scadenza'].strftime('%d/%m')
+                        else:
+                            status_text = "Data non definita"
+                            color = "border-gray"
+                            date_display = "N.D."
                         
                         # Layout riga
                         c_chk, c_info, c_date = st.columns([1, 6, 2])
@@ -827,9 +830,9 @@ elif menu == "📨 Consegne":
                                 update_generic("Consegne", row['id'], {"Completato": True})
                                 st.rerun()
                         with c_info:
-                            st.markdown(f"""<div class="alert-row-name {color}"><b>{row['Paziente']}</b>: {row['Indicazione']}</div>""", unsafe_allow_html=True)
+                            st.markdown(f"""<div class="alert-row-name {color}"><b>{row.get('Paziente', 'Sconosciuto')}</b>: {row.get('Indicazione', '')}</div>""", unsafe_allow_html=True)
                         with c_date:
-                            st.caption(f"{row['Data_Scadenza'].strftime('%d/%m')}\n({status_text})")
+                            st.caption(f"{date_display}\n({status_text})")
 
 # =========================================================
 # SEZIONE 4: MAGAZZINO (MODIFICATA CON + E -)
