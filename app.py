@@ -154,13 +154,22 @@ try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except:
-    # ⚠️⚠️⚠️ ATTENZIONE: INSERISCI QUI LE TUE CHIAVI SE NON USI SECRETS ⚠️⚠️⚠️
-    API_KEY = "key"
-    BASE_ID = "id"
+    with st.sidebar:
+        with st.expander("⚙️ Configurazione API", expanded=True):
+            API_KEY = st.text_input("Airtable API Key", type="password", key="user_api_key")
+            BASE_ID = st.text_input("Base ID", key="user_base_id")
+            if not API_KEY or not BASE_ID:
+                st.warning("Inserisci le chiavi per continuare.")
+                st.stop()
 
 api = Api(API_KEY)
 
 # --- 2. FUNZIONI ---
+def safe_str(val):
+    if val is None: return ""
+    if pd.isna(val): return ""
+    return str(val).strip()
+
 @st.cache_data(ttl=60)
 def get_data(table_name):
     try:
@@ -309,7 +318,6 @@ if menu == "⚡ Dashboard":
     
     # --- PREPARAZIONE DATI ---
     df_pres_alert = get_data("Prestiti")
-    # Calcolo Prestiti Scaduti (Solo logica, visualizzazione spostata)
     scaduti = pd.DataFrame()
     if not df_pres_alert.empty:
         if 'Restituito' not in df_pres_alert.columns: df_pres_alert['Restituito'] = False
@@ -616,14 +624,21 @@ elif menu == "💳 Preventivi":
                         st.session_state.prev_note = str(desc_val) if pd.notnull(desc_val) else ""
                         
                         new_services = []
-                        if row_std.get('Contenuto'):
-                            for p in row_std['Contenuto'].split(','):
-                                if ' x' in p: 
-                                    srv_raw, qty_raw = p.split(' x')
-                                    srv_clean = srv_raw.strip()
-                                    if srv_clean in all_services_list:
-                                        new_services.append(srv_clean)
-                                        st.session_state[f"qty_{srv_clean}"] = int(qty_raw)
+                        content = safe_str(row_std.get('Contenuto'))
+                        if content:
+                            for p in content.split(','):
+                                # Robust split logic (Turn 6 Logic)
+                                if ' x' in p:
+                                    # Split from right to handle names with "x"
+                                    parts = p.rsplit(' x', 1)
+                                    if len(parts) == 2:
+                                        srv_raw, qty_raw = parts[0].strip(), parts[1].strip()
+                                        if srv_raw in all_services_list:
+                                            new_services.append(srv_raw)
+                                            try:
+                                                st.session_state[f"qty_{srv_raw}"] = int(qty_raw)
+                                            except:
+                                                st.session_state[f"qty_{srv_raw}"] = 1
                         
                         st.session_state.prev_selected_services = new_services
                         st.session_state.last_std_pkg = scelta_std
@@ -666,25 +681,30 @@ elif menu == "💳 Preventivi":
             if servizi_scelti:
                 st.divider()
                 
-                # Header colonne
-                h1, h2, h3, h4 = st.columns([3, 1, 1.2, 1])
+                # Header colonne (MODIFICATO PER PREZZO)
+                h1, h2, h3, h4, h5 = st.columns([2.5, 0.7, 0.7, 1.1, 1])
                 h1.caption("Trattamento")
-                h2.caption("Qta")
-                h3.caption("Sconto")
-                h4.caption("Totale")
+                h2.caption("Prezzo")
+                h3.caption("Qta")
+                h4.caption("Sconto")
+                h5.caption("Totale")
 
                 for s in servizi_scelti:
-                    c1, c2, c3, c4 = st.columns([3, 1, 1.2, 1])
+                    c1, c2, c3, c4, c5 = st.columns([2.5, 0.7, 0.7, 1.1, 1])
                     
                     # Nome Trattamento
                     with c1: st.write(f"**{s}**")
                     
+                    # Prezzo Unitario (NUOVO)
+                    unit_price = listino_dict[s]
+                    with c2: st.write(f"{unit_price:.2f} €")
+                    
                     # Quantità
                     if f"qty_{s}" not in st.session_state: st.session_state[f"qty_{s}"] = 1
-                    qty = c2.number_input(f"Qta {s}", 1, 50, key=f"qty_{s}", label_visibility="collapsed")
+                    qty = c3.number_input(f"Qta {s}", 1, 50, key=f"qty_{s}", label_visibility="collapsed")
                     
                     # Sconto (Nuova funzionalità €/%)
-                    with c3:
+                    with c4:
                         cd_val, cd_type = st.columns([2, 1])
                         if f"d_val_{s}" not in st.session_state: st.session_state[f"d_val_{s}"] = 0.0
                         if f"d_type_{s}" not in st.session_state: st.session_state[f"d_type_{s}"] = "%"
@@ -693,7 +713,7 @@ elif menu == "💳 Preventivi":
                         d_type = cd_type.selectbox(f"T_{s}", ["%", "€"], key=f"d_type_{s}", label_visibility="collapsed")
                     
                     # Calcolo Prezzo
-                    base_price = listino_dict[s] * qty
+                    base_price = unit_price * qty
                     
                     if d_type == "%":
                         discount_amount = base_price * (d_val / 100)
@@ -706,7 +726,7 @@ elif menu == "💳 Preventivi":
                     tot += final_price
                     
                     # Display Totale Riga
-                    with c4: st.write(f"**{final_price:.2f} €**")
+                    with c5: st.write(f"**{final_price:.2f} €**")
                     
                     # Aggiunta alla lista per salvataggio/PDF
                     nome_display = s
@@ -1101,98 +1121,5 @@ elif menu == "📅 Scadenze":
                             
                             # Airtable accetta batch da 10, quindi facciamo un ciclo o chiamate singole
                             for item in batch_data:
-                                api.table(BASE_ID, "Scadenze").create(item, typecast=True)
-                        st.success("Piano mensile creato per 1 anno!")
-                    
-                    # ATTESA FONDAMENTALE per il ricaricamento
-                    time.sleep(1.5)
-                    get_data.clear()
-                    st.rerun()
-                else:
-                    st.warning("Inserisci almeno la descrizione.")
-
-    st.divider()
-
-    # --- VISUALIZZAZIONE MENSILE (CARD) ---
-    df_scad = get_data("Scadenze")
-    
-    if not df_scad.empty and 'Data_Scadenza' in df_scad.columns:
-        # Prepara i dati
-        df_scad['Data_Scadenza'] = pd.to_datetime(df_scad['Data_Scadenza'], errors='coerce')
-        if 'Pagato' not in df_scad.columns: df_scad['Pagato'] = False
-        
-        # Filtra per Anno Corrente (o seleziona anno)
-        anno_corrente = date.today().year
-        mesi = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", 
-                "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
-        
-        # Tabs per i mesi
-        tabs_mesi = st.tabs(mesi)
-        
-        # Calcolo Totale Annuale
-        tot_anno = df_scad[df_scad['Data_Scadenza'].dt.year == anno_corrente]['Importo'].sum()
-
-        for i, mese_nome in enumerate(mesi):
-            with tabs_mesi[i]:
-                # Filtra scadenze di questo mese e anno
-                mask_mese = (df_scad['Data_Scadenza'].dt.month == (i + 1)) & (df_scad['Data_Scadenza'].dt.year == anno_corrente)
-                items_mese = df_scad[mask_mese].sort_values("Data_Scadenza")
-                
-                # --- KPI DEL MESE ---
-                tot_mese = items_mese['Importo'].sum()
-                pagato_mese = items_mese[items_mese['Pagato'] == True]['Importo'].sum()
-                da_pagare_mese = tot_mese - pagato_mese
-                
-                col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
-                col_kpi1.metric("🔴 Da Pagare (Mese)", f"{da_pagare_mese:,.2f} €", delta_color="inverse")
-                col_kpi2.metric("✅ Saldato (Mese)", f"{pagato_mese:,.2f} €")
-                col_kpi3.metric("📅 Totale Anno", f"{tot_anno:,.2f} €", help="Totale spese previste nell'anno")
-                
-                st.divider()
-
-                if items_mese.empty:
-                    st.info(f"Nessuna scadenza a {mese_nome}.")
-                else:
-                    # Visualizzazione a CARD
-                    for _, row in items_mese.iterrows():
-                        is_paid = row.get('Pagato') is True
-                        
-                        # Definisci lo stile della Card
-                        border_color = "rgba(46, 204, 113, 0.4)" if is_paid else "rgba(229, 62, 62, 0.4)" 
-                        
-                        with st.container(border=True):
-                            c_info, c_action = st.columns([3, 1])
-                            
-                            with c_info:
-                                data_fmt = row['Data_Scadenza'].strftime('%d')
-                                
-                                if is_paid:
-                                    st.markdown(f"~~📅 {data_fmt} - {row['Descrizione']}~~")
-                                    st.caption(f"✅ PAGATO - {row['Importo']} €")
-                                else:
-                                    st.markdown(f"📅 **{data_fmt}** - **{row['Descrizione']}**")
-                                    st.markdown(f"💰 **{row['Importo']} €**")
-
-                            with c_action:
-                                if is_paid:
-                                    if st.button("↩️ Annulla", key=f"undo_{row['id']}", use_container_width=True):
-                                        with st.spinner("Annullamento..."):
-                                            update_generic("Scadenze", row['id'], {"Pagato": False})
-                                            time.sleep(1.0)
-                                            st.rerun()
-                                else:
-                                    if st.button("✅ Paga", key=f"pay_{row['id']}", type="primary", use_container_width=True):
-                                        with st.spinner("Salvataggio..."):
-                                            update_generic("Scadenze", row['id'], {"Pagato": True})
-                                            time.sleep(1.0)
-                                            st.rerun()
-                                
-                                # Tasto Elimina piccolo sotto
-                                if st.button("🗑️", key=f"del_{row['id']}", help="Elimina"):
-                                    with st.spinner("Eliminazione..."):
-                                        delete_generic("Scadenze", row['id'])
-                                        time.sleep(1.0)
-                                        st.rerun()
-    else:
-        st.info("Nessuna scadenza trovata nel database.")
-        
+                                api.table(BASE_ID
+                                          
