@@ -155,8 +155,8 @@ try:
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except:
     # ⚠️⚠️⚠️ ATTENZIONE: INSERISCI QUI LE TUE CHIAVI SE NON USI SECRETS ⚠️⚠️⚠️
-    API_KEY = "key" 
-    BASE_ID = "id" 
+    API_KEY = "key"
+    BASE_ID = "id"
 
 api = Api(API_KEY)
 
@@ -183,7 +183,7 @@ def update_generic(tbl, rid, data):
             elif hasattr(v, 'strftime'): clean_data[k] = v.strftime('%Y-%m-%d')
             else: clean_data[k] = v
         api.table(BASE_ID, tbl).update(rid, clean_data, typecast=True)
-        time.sleep(1.0) # Ritardo aumentato per sicurezza
+        time.sleep(1.0)
         get_data.clear()
         return True
     except: return False
@@ -307,9 +307,10 @@ if menu == "⚡ Dashboard":
     st.title("⚡ Dashboard")
     st.write("")
     
-    # --- ALERT PRESTITI SCADUTI ---
+    # --- PREPARAZIONE DATI ---
     df_pres_alert = get_data("Prestiti")
-    
+    # Calcolo Prestiti Scaduti (Solo logica, visualizzazione spostata)
+    scaduti = pd.DataFrame()
     if not df_pres_alert.empty:
         if 'Restituito' not in df_pres_alert.columns: df_pres_alert['Restituito'] = False
         if 'Data_Scadenza' not in df_pres_alert.columns: df_pres_alert['Data_Scadenza'] = None
@@ -324,9 +325,6 @@ if menu == "⚡ Dashboard":
             (df_pres_alert['Data_Scadenza'] < oggi_ts) &
             (df_pres_alert['Data_Scadenza'].notna())
         ]
-        
-        # SPOSTATO L'AVVISO NELLA LISTA SOTTO
-        # (Qui calcoliamo solo se ce ne sono per contatori, ma non visualizziamo box rosso in alto)
 
     if 'kpi_filter' not in st.session_state: st.session_state.kpi_filter = "None"
 
