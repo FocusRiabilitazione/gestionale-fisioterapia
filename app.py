@@ -589,22 +589,31 @@ elif menu == "💳 Preventivi":
             if not df_std.empty and 'Area' in df_std.columns and 'Nome' in df_std.columns:
                 c_filter, c_pack = st.columns(2)
                 with c_filter:
-                    # FIX TYPE ERROR: ensure all values are strings and filter None
-                    aree_unique = [str(x) for x in df_std['Area'].unique() if pd.notnull(x)]
-                    aree_std = sorted(aree_unique)
+                    # FIX TYPE ERROR: ensure all values are strings, filter None, and strip whitespace
+                    raw_areas = df_std['Area'].unique()
+                    clean_areas = [str(a) for a in raw_areas if pd.notnull(a) and str(a).strip() != ""]
+                    aree_std = sorted(list(set(clean_areas))) # set removes duplicates
+                    
                     area_sel = st.selectbox("Filtra per Area:", ["-- Tutte --"] + aree_std)
                 
                 with c_pack:
                     if area_sel != "-- Tutte --": df_std_filtered = df_std[df_std['Area'].astype(str) == area_sel]
                     else: df_std_filtered = df_std
-                    nomi_pacchetti = sorted(list(df_std_filtered['Nome'].unique()))
+                    
+                    # Ensure Names are clean too
+                    raw_names = df_std_filtered['Nome'].unique()
+                    clean_names = [str(n) for n in raw_names if pd.notnull(n)]
+                    nomi_pacchetti = sorted(clean_names)
+                    
                     scelta_std = st.selectbox("Carica Pacchetto:", ["-- Seleziona --"] + nomi_pacchetti)
 
                 if scelta_std != "-- Seleziona --":
                     if 'last_std_pkg' not in st.session_state or st.session_state.last_std_pkg != scelta_std:
                         row_std = df_std[df_std['Nome'] == scelta_std].iloc[0]
-                        # FIX TEXT_AREA TYPE ERROR: Ensure string
-                        st.session_state.prev_note = str(row_std.get('Descrizione') or '')
+                        
+                        # FIX TEXT_AREA TYPE ERROR: Ensure string, handle None
+                        desc_val = row_std.get('Descrizione')
+                        st.session_state.prev_note = str(desc_val) if pd.notnull(desc_val) else ""
                         
                         new_services = []
                         if row_std.get('Contenuto'):
