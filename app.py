@@ -307,9 +307,10 @@ if menu == "⚡ Dashboard":
     st.title("⚡ Dashboard")
     st.write("")
     
-    # --- ALERT PRESTITI SCADUTI ---
+    # --- PREPARAZIONE DATI ---
     df_pres_alert = get_data("Prestiti")
-    
+    # Calcolo Prestiti Scaduti (Solo logica, visualizzazione spostata)
+    scaduti = pd.DataFrame()
     if not df_pres_alert.empty:
         if 'Restituito' not in df_pres_alert.columns: df_pres_alert['Restituito'] = False
         if 'Data_Scadenza' not in df_pres_alert.columns: df_pres_alert['Data_Scadenza'] = None
@@ -324,13 +325,6 @@ if menu == "⚡ Dashboard":
             (df_pres_alert['Data_Scadenza'] < oggi_ts) &
             (df_pres_alert['Data_Scadenza'].notna())
         ]
-        
-        if not scaduti.empty:
-            st.error(f"⚠️ ATTENZIONE: Ci sono {len(scaduti)} strumenti NON restituiti in tempo!")
-            for i, row in scaduti.iterrows():
-                data_str = row['Data_Scadenza'].strftime('%d/%m') if pd.notnull(row['Data_Scadenza']) else "N.D."
-                st.markdown(f"🔴 **{row['Oggetto']}** - {row['Paziente']} (Scaduto il {data_str})")
-            st.divider()
 
     if 'kpi_filter' not in st.session_state: st.session_state.kpi_filter = "None"
 
@@ -381,6 +375,9 @@ if menu == "⚡ Dashboard":
             if 'Data_Scadenza' not in df_cons.columns: df_cons['Data_Scadenza'] = None
             if 'Paziente' not in df_cons.columns: df_cons['Paziente'] = None
             
+            # --- FIX PER EVITARE KEYERROR 'Area' SE LA COLONNA MANCA ---
+            if 'Area' not in df_cons.columns: df_cons['Area'] = "Altro"
+            
             df_cons = df_cons.dropna(subset=['Paziente'])
             df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza'], errors='coerce')
             consegne_pendenti = df_cons[df_cons['Completato'] != True]
@@ -419,41 +416,7 @@ if menu == "⚡ Dashboard":
         st.write("")
         st.subheader("🔔 Avvisi e Scadenze")
         
-        if not consegne_pendenti.empty:
-            st.caption(f"📨 Consegne in sospeso: {len(consegne_pendenti)}")
-            for i, row in consegne_pendenti.iterrows():
-                c_info, c_btn1, c_void = st.columns([3, 1, 1], gap="small")
-                scad_str = row['Data_Scadenza'].strftime('%d/%m') if pd.notnull(row['Data_Scadenza']) else "N.D."
-                with c_info: 
-                    st.markdown(f"""<div class="alert-row-name border-gray">{row['Paziente']}: {row['Indicazione']} (Entro: {scad_str})</div>""", unsafe_allow_html=True)
-                with c_btn1:
-                    if st.button("✅ Fatto", key=f"ok_dash_{row['id']}", type="secondary", use_container_width=True):
-                        update_generic("Consegne", row['id'], {"Completato": True})
-                        st.rerun()
-
-        if not low_stock.empty:
-            st.caption(f"⚠️ Prodotti in esaurimento: {len(low_stock)}")
-            for i, row in low_stock.iterrows():
-                c_info, c_btn, c_void = st.columns([3, 1, 1], gap="small")
-                with c_info:
-                    mat_name = row.get('Materiali', 'Sconosciuto')
-                    st.markdown(f"""<div class="alert-row-name border-yellow">{mat_name} (Qta: {row.get('Quantita',0)})</div>""", unsafe_allow_html=True)
-                with c_btn:
-                    if st.button("🔄 Riordinato", key=f"restock_{row['id']}", type="primary", use_container_width=True):
-                        target = int(row.get('Obiettivo', 5))
-                        update_generic("Inventario", row['id'], {"Quantità": target})
-                        st.rerun()
-
-        if not prev_scaduti.empty:
-            st.caption(f"⏳ Preventivi > 7gg: {len(prev_scaduti)}")
-            for i, row in prev_scaduti.iterrows():
-                c_info, c_btn1, c_btn2 = st.columns([3, 1, 1], gap="small")
-                with c_info: st.markdown(f"""<div class="alert-row-name border-purple">{row['Paziente']} ({row['Data_Creazione'].strftime('%d/%m')})</div>""", unsafe_allow_html=True)
-                with c_btn1:
-                    if st.button("📞 Rinnova", key=f"ren_{row['id']}", type="primary", use_container_width=True): update_generic("Preventivi_Salvati", row['id'], {"Data_Creazione": str(date.today())}); st.rerun()
-                with c_btn2:
-                    if st.button("🗑️ Elimina", key=f"del_prev_{row['id']}", type="secondary", use_container_width=True): delete_generic("Preventivi_Salvati", row['id']); st.rerun()
-
+        # 1. DISDETTE & RECALL (Arancio e Blu)
         if not da_richiamare.empty:
             st.caption(f"📞 Recall Necessari: {len(da_richiamare)}")
             for i, row in da_richiamare.iterrows():
@@ -471,13 +434,60 @@ if menu == "⚡ Dashboard":
                 with c_info: st.markdown(f"""<div class="alert-row-name border-blue">{row['Nome']} {row['Cognome']} (Visitato il {row['Data_Visita'].strftime('%d/%m')})</div>""", unsafe_allow_html=True)
                 with c_btn1:
                     if st.button("✅ Rientrato", key=f"vk_{row['id']}", type="primary", use_container_width=True): update_generic("Pazienti", row['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
+
+        # 2. CONSEGNE (Grigio)
+        if not consegne_pendenti.empty:
+            st.caption(f"📨 Consegne in sospeso: {len(consegne_pendenti)}")
+            for i, row in consegne_pendenti.iterrows():
+                c_info, c_btn1, c_void = st.columns([3, 1, 1], gap="small")
+                scad_str = row['Data_Scadenza'].strftime('%d/%m') if pd.notnull(row['Data_Scadenza']) else "N.D."
+                with c_info: 
+                    st.markdown(f"""<div class="alert-row-name border-gray">{row['Paziente']}: {row['Indicazione']} (Entro: {scad_str})</div>""", unsafe_allow_html=True)
+                with c_btn1:
+                    if st.button("✅ Fatto", key=f"ok_dash_{row['id']}", type="secondary", use_container_width=True):
+                        update_generic("Consegne", row['id'], {"Completato": True})
+                        st.rerun()
+
+        # 3. PRESTITI SCADUTI (Rosso)
+        if not scaduti.empty:
+            st.caption(f"⚠️ Strumenti in ritardo: {len(scaduti)}")
+            for i, row in scaduti.iterrows():
+                data_str = row['Data_Scadenza'].strftime('%d/%m') if pd.notnull(row['Data_Scadenza']) else "N.D."
+                # Qui usiamo un layout simile agli altri avvisi ma con il colore rosso per evidenziare il ritardo
+                st.markdown(f"""<div class="alert-row-name border-red">🔴 {row['Oggetto']} - {row['Paziente']} (Scaduto il {data_str})</div>""", unsafe_allow_html=True)
+
+        # 4. PAGAMENTI / PREVENTIVI (Viola)
+        if not prev_scaduti.empty:
+            st.caption(f"⏳ Preventivi > 7gg: {len(prev_scaduti)}")
+            for i, row in prev_scaduti.iterrows():
+                c_info, c_btn1, c_btn2 = st.columns([3, 1, 1], gap="small")
+                with c_info: st.markdown(f"""<div class="alert-row-name border-purple">{row['Paziente']} ({row['Data_Creazione'].strftime('%d/%m')})</div>""", unsafe_allow_html=True)
+                with c_btn1:
+                    if st.button("📞 Rinnova", key=f"ren_{row['id']}", type="primary", use_container_width=True): update_generic("Preventivi_Salvati", row['id'], {"Data_Creazione": str(date.today())}); st.rerun()
+                with c_btn2:
+                    if st.button("🗑️ Elimina", key=f"del_prev_{row['id']}", type="secondary", use_container_width=True): delete_generic("Preventivi_Salvati", row['id']); st.rerun()
+
+        # 5. INVENTARIO (Giallo)
+        if not low_stock.empty:
+            st.caption(f"⚠️ Prodotti in esaurimento: {len(low_stock)}")
+            for i, row in low_stock.iterrows():
+                c_info, c_btn, c_void = st.columns([3, 1, 1], gap="small")
+                with c_info:
+                    mat_name = row.get('Materiali', 'Sconosciuto')
+                    st.markdown(f"""<div class="alert-row-name border-yellow">{mat_name} (Qta: {row.get('Quantita',0)})</div>""", unsafe_allow_html=True)
+                with c_btn:
+                    if st.button("🔄 Riordinato", key=f"restock_{row['id']}", type="primary", use_container_width=True):
+                        target = int(row.get('Obiettivo', 5))
+                        update_generic("Inventario", row['id'], {"Quantità": target})
+                        st.rerun()
         
+        # VISITE SETTIMANA (Extra - in fondo)
         if not visite_settimana.empty:
             st.caption(f"📅 Visite questa settimana: {len(visite_settimana)}")
             for i, row in visite_settimana.iterrows():
                 st.markdown(f"""<div class="alert-row-name border-blue" style="justify-content: space-between;"><span>{row['Nome']} {row['Cognome']}</span><span style="color:#0bc5ea; font-size:13px;">{row['Data_Visita'].strftime('%A %d/%m')}</span></div>""", unsafe_allow_html=True)
         
-        if da_richiamare.empty and visite_da_reinserire.empty and visite_settimana.empty and prev_scaduti.empty and low_stock.empty and consegne_pendenti.empty: st.success("Tutto tranquillo! Nessun avviso.")
+        if da_richiamare.empty and visite_da_reinserire.empty and visite_settimana.empty and prev_scaduti.empty and low_stock.empty and consegne_pendenti.empty and scaduti.empty: st.success("Tutto tranquillo! Nessun avviso.")
         
         st.divider()
 
