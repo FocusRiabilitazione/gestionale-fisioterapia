@@ -155,8 +155,8 @@ try:
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
 except:
     # ⚠️⚠️⚠️ ATTENZIONE: INSERISCI QUI LE TUE CHIAVI SE NON USI SECRETS ⚠️⚠️⚠️
-    API_KEY = "key"
-    BASE_ID = "id"
+    API_KEY = "key" 
+    BASE_ID = "id" 
 
 api = Api(API_KEY)
 
@@ -183,7 +183,7 @@ def update_generic(tbl, rid, data):
             elif hasattr(v, 'strftime'): clean_data[k] = v.strftime('%Y-%m-%d')
             else: clean_data[k] = v
         api.table(BASE_ID, tbl).update(rid, clean_data, typecast=True)
-        time.sleep(1.0)
+        time.sleep(1.0) # Ritardo aumentato per sicurezza
         get_data.clear()
         return True
     except: return False
@@ -307,10 +307,9 @@ if menu == "⚡ Dashboard":
     st.title("⚡ Dashboard")
     st.write("")
     
-    # --- PREPARAZIONE DATI ---
+    # --- ALERT PRESTITI SCADUTI ---
     df_pres_alert = get_data("Prestiti")
-    # Calcolo Prestiti Scaduti (Solo logica, visualizzazione spostata)
-    scaduti = pd.DataFrame()
+    
     if not df_pres_alert.empty:
         if 'Restituito' not in df_pres_alert.columns: df_pres_alert['Restituito'] = False
         if 'Data_Scadenza' not in df_pres_alert.columns: df_pres_alert['Data_Scadenza'] = None
@@ -325,6 +324,9 @@ if menu == "⚡ Dashboard":
             (df_pres_alert['Data_Scadenza'] < oggi_ts) &
             (df_pres_alert['Data_Scadenza'].notna())
         ]
+        
+        # SPOSTATO L'AVVISO NELLA LISTA SOTTO
+        # (Qui calcoliamo solo se ce ne sono per contatori, ma non visualizziamo box rosso in alto)
 
     if 'kpi_filter' not in st.session_state: st.session_state.kpi_filter = "None"
 
@@ -375,7 +377,7 @@ if menu == "⚡ Dashboard":
             if 'Data_Scadenza' not in df_cons.columns: df_cons['Data_Scadenza'] = None
             if 'Paziente' not in df_cons.columns: df_cons['Paziente'] = None
             
-            # --- FIX PER EVITARE KEYERROR 'Area' SE LA COLONNA MANCA ---
+            # Fix sicurezza
             if 'Area' not in df_cons.columns: df_cons['Area'] = "Altro"
             
             df_cons = df_cons.dropna(subset=['Paziente'])
@@ -416,7 +418,7 @@ if menu == "⚡ Dashboard":
         st.write("")
         st.subheader("🔔 Avvisi e Scadenze")
         
-        # 1. DISDETTE & RECALL (Arancio e Blu)
+        # 1. DISDETTE / RECALL (Ordine Richiesto: 1)
         if not da_richiamare.empty:
             st.caption(f"📞 Recall Necessari: {len(da_richiamare)}")
             for i, row in da_richiamare.iterrows():
@@ -435,7 +437,7 @@ if menu == "⚡ Dashboard":
                 with c_btn1:
                     if st.button("✅ Rientrato", key=f"vk_{row['id']}", type="primary", use_container_width=True): update_generic("Pazienti", row['id'], {"Visita_Esterna": False, "Data_Visita": None}); st.rerun()
 
-        # 2. CONSEGNE (Grigio)
+        # 2. CONSEGNE (Ordine Richiesto: 2)
         if not consegne_pendenti.empty:
             st.caption(f"📨 Consegne in sospeso: {len(consegne_pendenti)}")
             for i, row in consegne_pendenti.iterrows():
@@ -448,14 +450,14 @@ if menu == "⚡ Dashboard":
                         update_generic("Consegne", row['id'], {"Completato": True})
                         st.rerun()
 
-        # 3. PRESTITI SCADUTI (Rosso)
+        # 3. PRESTITI (Ordine Richiesto: 3)
         if not scaduti.empty:
-            st.caption(f"⚠️ Strumenti in ritardo: {len(scaduti)}")
-            for i, row in scaduti.iterrows():
+             st.caption(f"⚠️ Prestiti Scaduti: {len(scaduti)}")
+             for i, row in scaduti.iterrows():
                 data_str = row['Data_Scadenza'].strftime('%d/%m') if pd.notnull(row['Data_Scadenza']) else "N.D."
                 st.markdown(f"""<div class="alert-row-name border-red">🔴 {row['Oggetto']} - {row['Paziente']} (Scaduto il {data_str})</div>""", unsafe_allow_html=True)
 
-        # 4. PAGAMENTI / PREVENTIVI (Viola)
+        # 4. PAGAMENTI / PREVENTIVI SCADUTI (Ordine Richiesto: 4)
         if not prev_scaduti.empty:
             st.caption(f"⏳ Preventivi > 7gg: {len(prev_scaduti)}")
             for i, row in prev_scaduti.iterrows():
@@ -466,7 +468,7 @@ if menu == "⚡ Dashboard":
                 with c_btn2:
                     if st.button("🗑️ Elimina", key=f"del_prev_{row['id']}", type="secondary", use_container_width=True): delete_generic("Preventivi_Salvati", row['id']); st.rerun()
 
-        # 5. INVENTARIO (Giallo)
+        # 5. INVENTARIO (Ordine Richiesto: 5)
         if not low_stock.empty:
             st.caption(f"⚠️ Prodotti in esaurimento: {len(low_stock)}")
             for i, row in low_stock.iterrows():
@@ -479,8 +481,8 @@ if menu == "⚡ Dashboard":
                         target = int(row.get('Obiettivo', 5))
                         update_generic("Inventario", row['id'], {"Quantità": target})
                         st.rerun()
-        
-        # VISITE SETTIMANA (Extra - in fondo)
+
+        # (Extra) Visite Settimana - in fondo
         if not visite_settimana.empty:
             st.caption(f"📅 Visite questa settimana: {len(visite_settimana)}")
             for i, row in visite_settimana.iterrows():
@@ -603,7 +605,8 @@ elif menu == "💳 Preventivi":
                 if scelta_std != "-- Seleziona --":
                     if 'last_std_pkg' not in st.session_state or st.session_state.last_std_pkg != scelta_std:
                         row_std = df_std[df_std['Nome'] == scelta_std].iloc[0]
-                        st.session_state.prev_note = row_std.get('Descrizione', '')
+                        # FIX TEXT_AREA TYPE ERROR: Ensure string
+                        st.session_state.prev_note = str(row_std.get('Descrizione') or '')
                         
                         new_services = []
                         if row_std.get('Contenuto'):
@@ -1147,5 +1150,42 @@ elif menu == "📅 Scadenze":
                     for _, row in items_mese.iterrows():
                         is_paid = row.get('Pagato') is True
                         
-                        # Definis
+                        # Definisci lo stile della Card
+                        border_color = "rgba(46, 204, 113, 0.4)" if is_paid else "rgba(229, 62, 62, 0.4)" 
                         
+                        with st.container(border=True):
+                            c_info, c_action = st.columns([3, 1])
+                            
+                            with c_info:
+                                data_fmt = row['Data_Scadenza'].strftime('%d')
+                                
+                                if is_paid:
+                                    st.markdown(f"~~📅 {data_fmt} - {row['Descrizione']}~~")
+                                    st.caption(f"✅ PAGATO - {row['Importo']} €")
+                                else:
+                                    st.markdown(f"📅 **{data_fmt}** - **{row['Descrizione']}**")
+                                    st.markdown(f"💰 **{row['Importo']} €**")
+
+                            with c_action:
+                                if is_paid:
+                                    if st.button("↩️ Annulla", key=f"undo_{row['id']}", use_container_width=True):
+                                        with st.spinner("Annullamento..."):
+                                            update_generic("Scadenze", row['id'], {"Pagato": False})
+                                            time.sleep(1.0)
+                                            st.rerun()
+                                else:
+                                    if st.button("✅ Paga", key=f"pay_{row['id']}", type="primary", use_container_width=True):
+                                        with st.spinner("Salvataggio..."):
+                                            update_generic("Scadenze", row['id'], {"Pagato": True})
+                                            time.sleep(1.0)
+                                            st.rerun()
+                                
+                                # Tasto Elimina piccolo sotto
+                                if st.button("🗑️", key=f"del_{row['id']}", help="Elimina"):
+                                    with st.spinner("Eliminazione..."):
+                                        delete_generic("Scadenze", row['id'])
+                                        time.sleep(1.0)
+                                        st.rerun()
+    else:
+        st.info("Nessuna scadenza trovata nel database.")
+        
