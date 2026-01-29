@@ -402,6 +402,8 @@ if menu == "⚡ Dashboard":
             if 'Completato' not in df_cons.columns: df_cons['Completato'] = False
             if 'Data_Scadenza' not in df_cons.columns: df_cons['Data_Scadenza'] = None
             if 'Paziente' not in df_cons.columns: df_cons['Paziente'] = None
+            
+            # Fix sicurezza
             if 'Area' not in df_cons.columns: df_cons['Area'] = "Altro"
             
             df_cons = df_cons.dropna(subset=['Paziente'])
@@ -786,58 +788,6 @@ elif menu == "💳 Preventivi":
                             delete_generic("Preventivi_Salvati", r['id']); st.rerun()
 
 # =========================================================
-# SEZIONE NUOVA: CONSEGNE (AGGIORNATA CON SEGRETERIA)
-# =========================================================
-elif menu == "📨 Consegne":
-    st.title("📨 Consegne Pazienti")
-    df_cons = get_data("Consegne")
-    df_paz = get_data("Pazienti")
-    nomi_paz = ["-- Seleziona --"] + sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows()]) if not df_paz.empty else []
-    
-    with st.expander("➕ Nuova Consegna", expanded=True):
-        with st.form("new_cons"):
-            c1, c2 = st.columns(2)
-            paz = c1.selectbox("Paziente", nomi_paz)
-            area = c2.selectbox("Area Competenza", ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Segreteria"])
-            ind = st.text_input("Cosa consegnare? (es. Referto, Scheda Esercizi)")
-            scad = st.date_input("Entro quando?", date.today() + timedelta(days=3))
-            if st.form_submit_button("Salva Promemoria"):
-                if paz != "-- Seleziona --" and ind:
-                    save_consegna(paz, area, ind, scad); st.success("Salvato!"); st.rerun()
-                else: st.error("Compila i campi.")
-
-    st.write("")
-    tabs = st.tabs(["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Segreteria"])
-    mapping = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Segreteria"]
-    
-    if not df_cons.empty:
-        if 'Area' not in df_cons.columns: df_cons['Area'] = "Altro"
-        if 'Data_Scadenza' not in df_cons.columns: df_cons['Data_Scadenza'] = None
-        if 'Completato' not in df_cons.columns: df_cons['Completato'] = False
-        df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza'], errors='coerce').dt.date
-        
-        for i, tab_name in enumerate(mapping):
-            with tabs[i]:
-                items = df_cons[ (df_cons['Area'] == tab_name) & (df_cons['Completato'] != True) ]
-                if items.empty: st.info(f"Nessuna consegna in attesa per {tab_name}.")
-                else:
-                    for _, row in items.iterrows():
-                        if row['Data_Scadenza']:
-                            delta = (row['Data_Scadenza'] - date.today()).days
-                            status_text = f"Scade tra {delta} gg" if delta >= 0 else f"SCADUTO da {abs(delta)} gg"
-                            color = "border-green" if delta > 3 else "border-yellow" if delta >= 0 else "border-red"
-                            date_display = row['Data_Scadenza'].strftime('%d/%m')
-                        else:
-                            status_text = "Data non definita"; color = "border-gray"; date_display = "N.D."
-                        
-                        c_chk, c_info, c_date = st.columns([1, 6, 2])
-                        with c_chk:
-                            if st.button("✅", key=f"ok_{row['id']}"):
-                                update_generic("Consegne", row['id'], {"Completato": True}); st.rerun()
-                        with c_info: st.markdown(f"""<div class="alert-row-name {color}"><b>{row.get('Paziente', 'Sconosciuto')}</b>: {row.get('Indicazione', '')}</div>""", unsafe_allow_html=True)
-                        with c_date: st.caption(f"{date_display}\n({status_text})")
-
-# =========================================================
 # SEZIONE 4: MAGAZZINO
 # =========================================================
 elif menu == "📦 Magazzino":
@@ -943,22 +893,20 @@ elif menu == "🔄 Prestiti":
     for k, v in INVENTARIO.items(): all_known_items.extend(v)
 
     # 2. Add Form
-    with st.expander("➕ Registra Prestito Nuovo Oggetto (Fuori Lista)", expanded=False):
-        with st.form("new_extra_loan"):
-            c_p, c_o, c_cat = st.columns(3)
-            paz_extra = c_p.selectbox("Paziente", nomi_paz)
-            obj_extra = c_o.text_input("Nome Oggetto")
-            cat_extra = c_cat.selectbox("Categoria", ["Strumenti Mano", "Elettrostimolatore", "Magnetoterapia", "Altro"])
-            
-            c_d, c_btn = st.columns([3, 1])
-            durata = c_d.number_input("Durata (Giorni)", 1, 365, 30)
-            
-            if st.form_submit_button("Salva"):
-                 if paz_extra != "-- Seleziona --" and obj_extra:
-                     delta = timedelta(days=durata)
-                     save_prestito_new(paz_extra, obj_extra, cat_extra, date.today(), date.today() + delta)
-                     st.success("Salvato!"); st.rerun()
-                 else: st.error("Compila tutti i campi")
+    with st.expander("➕ Aggiungi Nuovo Strumento in Elenco", expanded=False):
+        with st.form("add_tool"):
+            new_tool_name = st.text_input("Nome Strumento (es. Cuscino Cuneo)")
+            if st.form_submit_button("Aggiungi all'elenco"):
+                if new_tool_name:
+                    api.table(BASE_ID, "Inventario").create({
+                        "Materiali": new_tool_name,
+                        "Area": "Extra",
+                        "Quantità": 1,
+                        "Obiettivo": 1,
+                        "Soglia_Minima": 0
+                    }, typecast=True)
+                    st.success(f"{new_tool_name} aggiunto!"); time.sleep(1); st.rerun()
+                else: st.error("Inserisci il nome.")
 
     tabs = st.tabs(["✋ Strumenti Mano", "⚡ Elettrostimolatore", "🧲 Magnetoterapia", "📦 Extra/Fuori Lista"])
     mappa_tabs = {0: "Strumenti Mano", 1: "Elettrostimolatore", 2: "Magnetoterapia"}
@@ -1010,32 +958,60 @@ elif menu == "🔄 Prestiti":
     
     # Extra Tab Logic
     with tabs[3]:
-        st.subheader("📦 Oggetti Fuori Lista")
-        if not df_pres.empty:
-            # Filter active loans where object is NOT in standard inventory
-            extra_loans = df_pres[ (df_pres['Restituito'] != True) & (~df_pres['Oggetto'].isin(all_known_items)) ]
-            
-            if extra_loans.empty:
-                st.info("Nessun prestito extra attivo.")
-            else:
-                for _, row in extra_loans.iterrows():
-                    obj_name = row['Oggetto']
-                    with st.container(border=True):
-                        c_nome, c_stato = st.columns([1, 2])
-                        with c_nome:
-                            st.markdown(f"### {obj_name}")
-                            st.caption("🔴 IN PRESTITO (MANUALE)")
-                        
-                        with c_stato:
-                            scadenza = pd.to_datetime(row['Data_Scadenza']).date() if pd.notnull(row['Data_Scadenza']) else date.today()
+        st.subheader("📦 Oggetti Extra")
+        
+        # Recupero oggetti da Inventario che sono "Extra"
+        df_inv_all = get_data("Inventario")
+        extra_items_list = []
+        if not df_inv_all.empty:
+             extra_items_list = df_inv_all[df_inv_all['Area'] == "Extra"]
+
+        if extra_items_list.empty:
+            st.info("Nessun oggetto extra in elenco. Aggiungine uno dal menu in alto.")
+        else:
+            for _, row_inv in extra_items_list.iterrows():
+                strumento = row_inv['Materiali']
+                
+                # --- STESSA LOGICA DELLE ALTRE TAB ---
+                prestito_attivo = pd.DataFrame()
+                if not df_pres.empty:
+                    prestito_attivo = df_pres[ (df_pres['Oggetto'] == strumento) & (df_pres['Restituito'] != True) ]
+                
+                with st.container(border=True):
+                    c_nome, c_stato = st.columns([1, 2])
+                    with c_nome:
+                        st.markdown(f"### {strumento}")
+                        if prestito_attivo.empty: st.caption("🟢 DISPONIBILE")
+                        else: st.caption("🔴 IN PRESTITO")
+
+                    with c_stato:
+                        if not prestito_attivo.empty:
+                            record = prestito_attivo.iloc[0]
+                            scadenza = pd.to_datetime(record['Data_Scadenza']).date() if pd.notnull(record['Data_Scadenza']) else date.today()
                             days_left = (scadenza - date.today()).days
                             bg_color = "rgba(229, 62, 62, 0.2)" if days_left < 0 else "rgba(46, 204, 113, 0.2)"
                             
-                            st.markdown(f"""<div style="background-color: {bg_color}; padding: 10px; border-radius: 8px;"><strong>Paziente:</strong> {row.get('Paziente', 'Unknown')}<br><strong>Scadenza:</strong> {scadenza.strftime('%d/%m')} ({days_left} gg)</div>""", unsafe_allow_html=True)
+                            st.markdown(f"""<div style="background-color: {bg_color}; padding: 10px; border-radius: 8px;"><strong>Paziente:</strong> {record.get('Paziente', 'Unknown')}<br><strong>Scadenza:</strong> {scadenza.strftime('%d/%m')} ({days_left} gg)</div>""", unsafe_allow_html=True)
                             
-                            if st.button("🔄 Restituisci", key=f"ret_extra_{row['id']}", use_container_width=True):
-                                update_generic("Prestiti", row['id'], {"Restituito": True})
-                                st.toast("Restituito!"); time.sleep(1); st.rerun()
+                            if st.button("🔄 Restituisci", key=f"ret_{strumento}", use_container_width=True):
+                                with st.spinner("Restituzione in corso..."):
+                                    for _, row_to_close in prestito_attivo.iterrows():
+                                        update_generic("Prestiti", row_to_close['id'], {"Restituito": True})
+                                    st.toast(f"{strumento} restituito!"); time.sleep(1); st.rerun()
+                        else:
+                            c_paz, c_dur, c_btn = st.columns([2, 1, 1])
+                            with c_paz: paz_sel = st.selectbox("Paziente", nomi_paz, key=f"paz_{strumento}", label_visibility="collapsed")
+                            with c_dur:
+                                cols_d = st.columns(2)
+                                num = cols_d[0].number_input("Qta", 1, 52, 1, key=f"n_{strumento}", label_visibility="collapsed")
+                                unit = cols_d[1].selectbox("U", ["Sett", "Giorni"], key=f"u_{strumento}", label_visibility="collapsed")
+                            with c_btn:
+                                if st.button("➕ Presta", key=f"btn_{strumento}", type="primary", use_container_width=True):
+                                    if paz_sel != "-- Seleziona --":
+                                        delta = timedelta(weeks=num) if unit == "Sett" else timedelta(days=num)
+                                        if save_prestito_new(paz_sel, strumento, "Extra", date.today(), date.today() + delta):
+                                            st.toast("Prestito registrato!", icon="✅"); st.rerun()
+                                    else: st.toast("Seleziona prima un paziente!", icon="⚠️")
 
 # =========================================================
 # SEZIONE 6: SCADENZE (PLANNING FINANZIARIO - VERSIONE PULSANTI & CARD)
