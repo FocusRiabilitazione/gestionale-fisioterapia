@@ -164,7 +164,7 @@ except:
 
 api = Api(API_KEY)
 
-# --- 2. FUNZIONI DI UTILITÀ ---
+# --- 2. FUNZIONI ---
 def safe_str(val):
     if val is None: return ""
     if pd.isna(val): return ""
@@ -958,57 +958,14 @@ elif menu == "🔄 Prestiti":
         "Strumenti Mano": [
             "Flex-Bar Gialla1 5L", 
             "Flex-Bar Gialla2 5L",
-            "Flex-Bar Gialla3 5L",
-            "Flex-Bar Verde1 10L",
-            "Flex-Bar Verde2 10L", 
-            "Flex-Bar Verde3 10L",
-            "Flex-Bar Blu1 15L",
-            "Flex-Bar Blu2 15L",
-            "Flex-Bar Blu3 15L",
-            "Flex-Bar Rossa1 25L", 
-            "Flex-Bar Rossa2 25L",
-            "Flex-Bar Rossa3 25L", 
-            "Grip 1",
-            "Grip 2",
-            "Grip 3",
-            "Grip 4",
-            "Grip 5",
-            "Grip 6",
-            "Grip 7",
-            "Grip 8",
-            "Grip 9",
-            "Grip 10",
-            "Grip 11",
-            "Grip 12",
-            "Mini Tavola Verde Menta",
-            "Mini Tavola Gialla",
-            "Mini Tavola Viola",
-            "Mirror Box Blu-Azzurra",
-            "Mirror Box Gialla-Nera",
-            "Mirror Box Grigio-Menta",
-            "Palla 1",
-            "Palla 2",
-            "Palla 3",
-            "Palla 4",
-            "Palla 5",
-            "Palla 6",
-            "Palla 7",
-            "Palla 8",
-            "Palla 9",
-            "Palla 10",
-            "Palla 11",
-            "Palla 12",
-            "Palla 13",
-            "Kettlebell 1 4 Kg",
-            "Kettlebell 2 4 Kg",
-            "Kettlebell 3 4 Kg",
-            "Kettlebell 1 8 Kg",
-            "Kettlebell 2 8 Kg",
-            "Kettlebell 3 8 Kg",
-            "Peso 0,5 Kg",
-            "Peso 1 Kg",
-            "Peso 1,5 Kg",
-            "Peso 2 Kg",
+            "Flex-Bar Verde1 10L", 
+            "Flex-Bar Verde2 10L",
+            "Flex-Bar Rossa 10L", 
+            "Flex-Bar Blu 25L",
+            "Molla Esercizi (A)", "Molla Esercizi (B)", 
+            "Dinamometro",
+            "Kit Riabilitazione Mano",
+            "Tutore Polso A", "Tutore Polso B"
         ],
         "Elettrostimolatore": [
             "Compex Pro 1", "Compex Pro 2", "Compex Wireless", 
@@ -1049,10 +1006,25 @@ elif menu == "🔄 Prestiti":
     kp3.metric("⚠️ In Ritardo", in_ritardo, delta_color="inverse")
     st.divider()
 
+    # --- AGGIUNTA OGGETTO NUOVO ---
+    with st.expander("➕ Aggiungi Oggetto in Elenco", expanded=False):
+        with st.form("add_new_obj_list"):
+            new_obj_name = st.text_input("Nome Nuovo Oggetto")
+            if st.form_submit_button("Salva in Elenco"):
+                if new_obj_name:
+                    # Lo salviamo in Inventario con Area='Extra' per ritrovarlo
+                    save_materiale_avanzato(new_obj_name, "Extra", 1, 1, 0)
+                    st.success(f"Oggetto '{new_obj_name}' aggiunto alla lista!")
+                    time.sleep(1.0)
+                    st.rerun()
+                else:
+                    st.warning("Scrivi il nome dell'oggetto.")
+
     # Tabs
-    tabs = st.tabs(["✋ Strumenti Mano", "⚡ Elettrostimolatore", "🧲 Magnetoterapia"])
+    tabs = st.tabs(["✋ Strumenti Mano", "⚡ Elettrostimolatore", "🧲 Magnetoterapia", "📦 Extra / Fuori Lista"])
     mappa_tabs = {0: "Strumenti Mano", 1: "Elettrostimolatore", 2: "Magnetoterapia"}
     
+    # TAB STANDARD
     for i, tab_name in mappa_tabs.items():
         with tabs[i]:
             strumenti_categoria = INVENTARIO[tab_name]
@@ -1122,6 +1094,70 @@ elif menu == "🔄 Prestiti":
                                                 st.toast("Prestito registrato con successo!", icon="✅")
                                                 st.rerun()
                                     else: st.toast("Seleziona prima un paziente!", icon="⚠️")
+
+    # TAB EXTRA (LOGICA DINAMICA)
+    with tabs[3]:
+        st.caption("Oggetti aggiunti manualmente")
+        # Carica oggetti extra da Inventario
+        df_inv_extra = get_data("Inventario")
+        extra_items = []
+        if not df_inv_extra.empty:
+             # Filtra quelli con Area = "Extra"
+             extra_items = df_inv_extra[df_inv_extra['Area'] == "Extra"]['Materiali'].tolist()
+        
+        if not extra_items:
+            st.info("Nessun oggetto extra in elenco.")
+        
+        for strumento in extra_items:
+            # COPY-PASTE della logica standard per ogni oggetto extra
+            prestito_attivo = pd.DataFrame()
+            if not df_pres.empty:
+                prestito_attivo = df_pres[ (df_pres['Oggetto'] == strumento) & (df_pres['Restituito'] != True) ]
+            
+            with st.container(border=True):
+                c_nome, c_stato = st.columns([1, 2])
+                with c_nome:
+                    st.markdown(f"### {strumento}")
+                    if prestito_attivo.empty: st.caption("🟢 DISPONIBILE")
+                    else: st.caption("🔴 IN PRESTITO")
+
+                with c_stato:
+                    if not prestito_attivo.empty:
+                        record = prestito_attivo.iloc[0]
+                        scadenza = pd.to_datetime(record['Data_Scadenza']).date() if pd.notnull(record['Data_Scadenza']) else date.today()
+                        days_left = (scadenza - date.today()).days
+                        bg_color = "rgba(229, 62, 62, 0.2)" if days_left < 0 else "rgba(46, 204, 113, 0.2)"
+                        
+                        st.markdown(f"""
+                        <div style="background-color: {bg_color}; padding: 10px; border-radius: 8px;">
+                            <strong>Paziente:</strong> {record.get('Paziente', 'Unknown')}<br>
+                            <strong>Scadenza:</strong> {scadenza.strftime('%d/%m')} ({days_left} gg)
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        if st.button("🔄 Restituisci", key=f"ret_{strumento}", use_container_width=True):
+                            with st.spinner("Restituzione..."):
+                                for _, row_to_close in prestito_attivo.iterrows():
+                                    update_generic("Prestiti", row_to_close['id'], {"Restituito": True})
+                                st.toast(f"{strumento} restituito!")
+                                time.sleep(1)
+                                st.rerun()
+                    else:
+                        c_paz, c_dur, c_btn = st.columns([2, 1, 1])
+                        with c_paz:
+                            paz_sel = st.selectbox("Paziente", nomi_paz, key=f"paz_{strumento}", label_visibility="collapsed")
+                        with c_dur:
+                            cols_d = st.columns(2)
+                            num = cols_d[0].number_input("Qta", 1, 52, 1, key=f"n_{strumento}", label_visibility="collapsed")
+                            unit = cols_d[1].selectbox("U", ["Sett", "Giorni"], key=f"u_{strumento}", label_visibility="collapsed")
+                        with c_btn:
+                            if st.button("➕ Presta", key=f"btn_{strumento}", type="primary", use_container_width=True):
+                                if paz_sel != "-- Seleziona --":
+                                    delta = timedelta(weeks=num) if unit == "Sett" else timedelta(days=num)
+                                    if save_prestito_new(paz_sel, strumento, "Extra", date.today(), date.today() + delta):
+                                        st.toast("Prestito registrato!", icon="✅")
+                                        st.rerun()
+                                else: st.toast("Seleziona paziente!", icon="⚠️")
 
 # =========================================================
 # SEZIONE 6: SCADENZE (PLANNING FINANZIARIO - VERSIONE PULSANTI & CARD)
