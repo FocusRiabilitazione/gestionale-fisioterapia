@@ -999,6 +999,7 @@ elif menu == "🔄 Prestiti":
             "Palla 11",
             "Palla 12",
             "Palla 13",
+            "Palla 14",
             "Kettlebell 1 4 Kg",
             "Kettlebell 2 4 Kg",
             "Kettlebell 3 4 Kg",
