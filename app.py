@@ -1023,6 +1023,7 @@ elif menu == "🔄 Prestiti":
             "Compex 1",
             "Compex 2",
             "Compex 3",
+            "Chattanooga",
         ],
         "Magnetoterapia": [
             "Magnetoterapia 1",
