@@ -17,12 +17,109 @@ st.set_page_config(page_title="Gestionale Fisio Pro", page_icon="🏥", layout="
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
-    html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
-    .stApp { background: radial-gradient(circle at top left, #1a202c, #0d1117); color: #e2e8f0; }
-    section[data-testid="stSidebar"] { background-color: rgba(13, 17, 23, 0.95); border-right: 1px solid rgba(255, 255, 255, 0.08); }
-    h1 { background: linear-gradient(120deg, #ffffff, #a0aec0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .glass-kpi { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 20px; padding: 20px; text-align: center; height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .alert-row-name { background-color: rgba(255, 255, 255, 0.03); border-radius: 10px; padding: 0 15px; height: 42px; display: flex; align-items: center; border: 1px solid rgba(255, 255, 255, 0.05); font-weight: 600; color: #fff; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
+    html, body, [class*="css"] {
+        font-family: 'Outfit', sans-serif;
+    }
+
+    .stApp {
+        background: radial-gradient(circle at top left, #1a202c, #0d1117);
+        color: #e2e8f0;
+    }
+
+    section[data-testid="stSidebar"] {
+        background-color: rgba(13, 17, 23, 0.95);
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(20px);
+    }
+
+    h1 {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 800 !important;
+        background: linear-gradient(120deg, #ffffff, #a0aec0);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: -1px;
+        margin-bottom: 10px;
+    }
+    h2, h3, h4 {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600 !important;
+        color: #f7fafc !important;
+        letter-spacing: 0.5px;
+    }
+
+    /* KPI CARDS */
+    .glass-kpi {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px;
+        padding: 20px;
+        text-align: center;
+        height: 140px;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        margin-bottom: 10px;
+        transition: transform 0.3s ease, border-color 0.3s ease;
+    }
+    .glass-kpi:hover {
+        transform: translateY(-5px);
+        background: rgba(255, 255, 255, 0.06);
+    }
+    
+    .kpi-icon { 
+        font-size: 32px;
+        margin-bottom: 8px; 
+        transition: transform 0.3s ease;
+        filter: drop-shadow(0 0 5px rgba(255,255,255,0.3));
+    }
+    .glass-kpi:hover .kpi-icon { transform: scale(1.1); }
+
+    .kpi-value { font-size: 36px; font-weight: 800; color: white; line-height: 1; letter-spacing: -1px; }
+    .kpi-label { font-size: 11px; text-transform: uppercase; color: #a0aec0; margin-top: 8px; letter-spacing: 1.5px; font-weight: 600; }
+
+    /* PULSANTI */
+    div[data-testid="column"] .stButton > button {
+        background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
+        border: none !important;
+        color: white !important;
+        border-radius: 12px !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        padding: 6px 0 !important;
+        box-shadow: 0 4px 10px rgba(66, 153, 225, 0.3) !important;
+        transition: all 0.3s ease;
+        margin-top: 0px !important;
+    }
+    div[data-testid="column"] .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(66, 153, 225, 0.5) !important;
+    }
+    
+    /* MODIFICA: Colore Verde per il bottone di aumento */
+    button:has(div p:contains("🔺")) {
+        border-color: #2ecc71 !important;
+        color: #2ecc71 !important;
+        background: rgba(46, 204, 113, 0.1) !important;
+    }
+    button:has(div p:contains("🔺")):hover {
+        background: rgba(46, 204, 113, 0.2) !important;
+        border-color: #27ae60 !important;
+    }
+
+    /* RIGHE AVVISI */
+    .alert-row-name {
+        background-color: rgba(255, 255, 255, 0.03);
+        border-radius: 10px;
+        padding: 0 15px;
+        height: 42px;    
+        display: flex; align-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        font-weight: 600;
+        color: #fff; font-size: 14px;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
     .border-orange { border-left: 4px solid #ed8936 !important; }
     .border-red { border-left: 4px solid #e53e3e !important; }
     .border-blue { border-left: 4px solid #0bc5ea !important; }
@@ -30,35 +127,44 @@ st.markdown("""
     .border-yellow { border-left: 4px solid #ecc94b !important; }
     .border-green { border-left: 4px solid #2ecc71 !important; }
     .border-gray { border-left: 4px solid #a0aec0 !important; }
+
+    /* PULSANTI AZIONE */
+    div[data-testid="stHorizontalBlock"] button {
+        padding: 2px 12px !important;
+        font-size: 11px !important; min-height: 0px !important;
+        height: 32px !important; line-height: 1 !important; border-radius: 8px !important;
+        margin-top: 6px !important;
+        font-weight: 500 !important;
+    }
+    button[kind="primary"] { background: linear-gradient(135deg, #3182ce, #2b6cb0) !important; border: none !important; color: white !important; }
+    button[kind="secondary"] { background: rgba(255, 255, 255, 0.08) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: #cbd5e0 !important; }
+    button[kind="secondary"]:hover { border-color: #a0aec0 !important; color: white !important; }
+
     div[data-testid="stDataFrame"] { background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; }
     input, select, textarea { background-color: rgba(13, 17, 23, 0.8) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: white !important; border-radius: 8px; }
+
     div[data-testid="stVerticalBlockBorderWrapper"] { padding: 10px !important; margin-bottom: 5px !important; background-color: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); }
+    div[data-testid="stProgress"] > div > div { height: 6px !important; }
+    .compact-text { font-size: 13px; color: #cbd5e0; margin: 0; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 1. CONNESSIONE (MODALITÀ SICURA & MANUALE) ---
-API_KEY = None
-BASE_ID = None
-
-# Prova a prendere dai secrets
-if "AIRTABLE_TOKEN" in st.secrets:
+# --- 1. CONNESSIONE ---
+try:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
-
-# Se mancano, chiedi input laterale
-if not API_KEY or not BASE_ID:
+except:
     with st.sidebar:
-        st.divider()
-        st.warning("⚠️ Chiavi non trovate. Inseriscile qui:")
-        API_KEY = st.text_input("Token (pat...)", type="password", help="Il codice che inizia con pat...")
-        BASE_ID = st.text_input("Base ID (app...)", help="Il codice che inizia con app...")
-        if not API_KEY or not BASE_ID:
-            st.info("Inserisci entrambi i codici per avviare.")
-            st.stop()
+        with st.expander("⚙️ Configurazione API", expanded=True):
+            API_KEY = st.text_input("Airtable API Key", type="password", key="user_api_key")
+            BASE_ID = st.text_input("Base ID", key="user_base_id")
+            if not API_KEY or not BASE_ID:
+                st.warning("Inserisci le chiavi per continuare.")
+                st.stop()
 
 api = Api(API_KEY)
 
-# --- 2. FUNZIONI ---
+# --- 2. FUNZIONI DI UTILITÀ ---
 def safe_str(val):
     if val is None: return ""
     if pd.isna(val): return ""
@@ -67,13 +173,17 @@ def safe_str(val):
 @st.cache_data(ttl=60)
 def get_data(table_name):
     try:
+        # --- FIX 429: RALLENTAMENTO ---
+        time.sleep(0.35) # Pausa di 0.35 secondi per evitare il blocco Airtable
+        # -------------------------------
         table = api.table(BASE_ID, table_name)
         records = table.all()
         if not records: return pd.DataFrame()
         data = [{'id': r['id'], **r['fields']} for r in records]
         return pd.DataFrame(data)
     except Exception as e:
-        st.error(f"❌ Errore caricamento '{table_name}'. Controlla: 1) Nome tabella corretto su Airtable? 2) Permessi Token? Errore: {e}")
+        # Gestione errori visiva
+        st.error(f"⚠️ Errore caricamento '{table_name}': {e}")
         return pd.DataFrame()
 
 def save_paziente(n, c, a, d):
@@ -203,7 +313,7 @@ with st.sidebar:
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📨 Consegne", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v103 - Noleggi Smart")
+    st.divider(); st.caption("App v103 - Fix 429 & Extra")
 
 # =========================================================
 # DASHBOARD
@@ -682,58 +792,6 @@ elif menu == "💳 Preventivi":
                             delete_generic("Preventivi_Salvati", r['id']); st.rerun()
 
 # =========================================================
-# SEZIONE NUOVA: CONSEGNE (AGGIORNATA CON SEGRETERIA)
-# =========================================================
-elif menu == "📨 Consegne":
-    st.title("📨 Consegne Pazienti")
-    df_cons = get_data("Consegne")
-    df_paz = get_data("Pazienti")
-    nomi_paz = ["-- Seleziona --"] + sorted([f"{r['Cognome']} {r['Nome']}" for i, r in df_paz.iterrows()]) if not df_paz.empty else []
-    
-    with st.expander("➕ Nuova Consegna", expanded=True):
-        with st.form("new_cons"):
-            c1, c2 = st.columns(2)
-            paz = c1.selectbox("Paziente", nomi_paz)
-            area = c2.selectbox("Area Competenza", ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Segreteria"])
-            ind = st.text_input("Cosa consegnare? (es. Referto, Scheda Esercizi)")
-            scad = st.date_input("Entro quando?", date.today() + timedelta(days=3))
-            if st.form_submit_button("Salva Promemoria"):
-                if paz != "-- Seleziona --" and ind:
-                    save_consegna(paz, area, ind, scad); st.success("Salvato!"); st.rerun()
-                else: st.error("Compila i campi.")
-
-    st.write("")
-    tabs = st.tabs(["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Segreteria"])
-    mapping = ["Mano-Polso", "Colonna", "ATM", "Muscolo-Scheletrico", "Segreteria"]
-    
-    if not df_cons.empty:
-        if 'Area' not in df_cons.columns: df_cons['Area'] = "Altro"
-        if 'Data_Scadenza' not in df_cons.columns: df_cons['Data_Scadenza'] = None
-        if 'Completato' not in df_cons.columns: df_cons['Completato'] = False
-        df_cons['Data_Scadenza'] = pd.to_datetime(df_cons['Data_Scadenza'], errors='coerce').dt.date
-        
-        for i, tab_name in enumerate(mapping):
-            with tabs[i]:
-                items = df_cons[ (df_cons['Area'] == tab_name) & (df_cons['Completato'] != True) ]
-                if items.empty: st.info(f"Nessuna consegna in attesa per {tab_name}.")
-                else:
-                    for _, row in items.iterrows():
-                        if row['Data_Scadenza']:
-                            delta = (row['Data_Scadenza'] - date.today()).days
-                            status_text = f"Scade tra {delta} gg" if delta >= 0 else f"SCADUTO da {abs(delta)} gg"
-                            color = "border-green" if delta > 3 else "border-yellow" if delta >= 0 else "border-red"
-                            date_display = row['Data_Scadenza'].strftime('%d/%m')
-                        else:
-                            status_text = "Data non definita"; color = "border-gray"; date_display = "N.D."
-                        
-                        c_chk, c_info, c_date = st.columns([1, 6, 2])
-                        with c_chk:
-                            if st.button("✅", key=f"ok_{row['id']}"):
-                                update_generic("Consegne", row['id'], {"Completato": True}); st.rerun()
-                        with c_info: st.markdown(f"""<div class="alert-row-name {color}"><b>{row.get('Paziente', 'Sconosciuto')}</b>: {row.get('Indicazione', '')}</div>""", unsafe_allow_html=True)
-                        with c_date: st.caption(f"{date_display}\n({status_text})")
-
-# =========================================================
 # SEZIONE 4: MAGAZZINO
 # =========================================================
 elif menu == "📦 Magazzino":
@@ -839,10 +897,10 @@ elif menu == "🔄 Prestiti":
     for k, v in INVENTARIO.items(): all_known_items.extend(v)
 
     # 2. Add Form
-    with st.expander("➕ Aggiungi Nuovo Strumento in Elenco", expanded=False):
+    with st.expander("➕ Aggiungi Oggetto in Elenco", expanded=False):
         with st.form("add_new_obj_list"):
             new_obj_name = st.text_input("Nome Nuovo Oggetto")
-            if st.form_submit_button("Aggiungi all'elenco"):
+            if st.form_submit_button("Salva in Elenco"):
                 if new_obj_name:
                     # Lo salviamo in Inventario con Area='Extra' per ritrovarlo
                     save_materiale_avanzato(new_obj_name, "Extra", 1, 1, 0)
@@ -850,7 +908,7 @@ elif menu == "🔄 Prestiti":
                 else:
                     st.warning("Scrivi il nome dell'oggetto.")
 
-    tabs = st.tabs(["✋ Strumenti Mano", "⚡ Elettrostimolatore", "🧲 Magnetoterapia", "📦 Extra / Fuori Lista"])
+    tabs = st.tabs(["✋ Strumenti Mano", "⚡ Elettrostimolatore", "🧲 Magnetoterapia", "📦 Extra/Fuori Lista"])
     mappa_tabs = {0: "Strumenti Mano", 1: "Elettrostimolatore", 2: "Magnetoterapia"}
     
     # Standard Tabs
