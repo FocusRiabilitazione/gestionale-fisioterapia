@@ -39,18 +39,25 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 1. CONNESSIONE ---
-try:
+# Cerchiamo le chiavi nei secrets, altrimenti mostriamo i campi input
+API_KEY = None
+BASE_ID = None
+
+if "AIRTABLE_TOKEN" in st.secrets:
     API_KEY = st.secrets["AIRTABLE_TOKEN"]
     BASE_ID = st.secrets["AIRTABLE_BASE_ID"]
-except:
+
+# Se non ci sono (o sono errate/vuote), mostriamo il box laterale
+if not API_KEY or not BASE_ID:
     with st.sidebar:
-        with st.expander("⚙️ Configurazione API", expanded=True):
-            st.warning("⚠️ Chiavi non trovate nei Secrets.")
-            API_KEY = st.text_input("Airtable Token (pat...)", type="password", key="user_api_key")
-            BASE_ID = st.text_input("Base ID (app...)", key="user_base_id")
+        with st.expander("⚙️ IMPOSTAZIONI API", expanded=True):
+            st.warning("Chiavi non trovate. Incollale qui per avviare.")
+            API_KEY = st.text_input("1. Airtable Token (pat...)", type="password", help="Generato da airtable.com/create/tokens")
+            BASE_ID = st.text_input("2. Base ID (app...)", help="Lo trovi nell'URL della tua tabella")
+            
             if not API_KEY or not BASE_ID:
-                st.info("Inserisci le chiavi per continuare.")
-                st.stop()
+                st.info("In attesa delle chiavi...")
+                st.stop() # Ferma il codice finché non ci sono le chiavi
 
 api = Api(API_KEY)
 
@@ -63,17 +70,17 @@ def safe_str(val):
 @st.cache_data(ttl=60)
 def get_data(table_name):
     try:
-        # --- FIX FONDAMENTALE PER ERRORE 429 ---
-        time.sleep(0.35) # Rallenta le richieste per non bloccare Airtable
-        # ---------------------------------------
+        # --- RALLENTAMENTO STRATEGICO (Risolve errore 429) ---
+        time.sleep(0.35) 
+        # -----------------------------------------------------
         table = api.table(BASE_ID, table_name)
         records = table.all()
         if not records: return pd.DataFrame()
         data = [{'id': r['id'], **r['fields']} for r in records]
         return pd.DataFrame(data)
     except Exception as e:
-        # Mostra l'errore specifico a video
-        st.error(f"❌ Errore caricamento '{table_name}': {e}")
+        # Se fallisce, mostra l'errore ma restituisce un DataFrame vuoto per non crashare
+        st.error(f"❌ Errore caricamento '{table_name}'. Verifica le chiavi API. Dettaglio: {e}")
         return pd.DataFrame()
 
 def save_paziente(n, c, a, d):
@@ -203,7 +210,7 @@ with st.sidebar:
         st.title("Focus Rehab")
         
     menu = st.radio("Menu", ["⚡ Dashboard", "👥 Pazienti", "💳 Preventivi", "📨 Consegne", "📦 Magazzino", "🔄 Prestiti", "📅 Scadenze"], label_visibility="collapsed")
-    st.divider(); st.caption("App v104 - Fix 429 & Extras")
+    st.divider(); st.caption("App v105 - Fix 429 & Extras")
 
 # =========================================================
 # DASHBOARD
@@ -841,16 +848,14 @@ elif menu == "🔄 Prestiti":
                 if new_obj_name:
                     # Lo salviamo in Inventario con Area='Extra' per ritrovarlo
                     save_materiale_avanzato(new_obj_name, "Extra", 1, 1, 0)
-                    st.success(f"Oggetto '{new_obj_name}' aggiunto alla lista!")
-                    time.sleep(1.0)
-                    st.rerun()
+                    st.success(f"Oggetto '{new_obj_name}' aggiunto alla lista!"); time.sleep(1.0); st.rerun()
                 else:
                     st.warning("Scrivi il nome dell'oggetto.")
 
-    tabs = st.tabs(["✋ Strumenti Mano", "⚡ Elettrostimolatore", "🧲 Magnetoterapia", "📦 Extra / Fuori Lista"])
+    tabs = st.tabs(["✋ Strumenti Mano", "⚡ Elettrostimolatore", "🧲 Magnetoterapia", "📦 Extra/Fuori Lista"])
     mappa_tabs = {0: "Strumenti Mano", 1: "Elettrostimolatore", 2: "Magnetoterapia"}
     
-    # TAB STANDARD
+    # Standard Tabs
     for i, tab_name in mappa_tabs.items():
         with tabs[i]:
             strumenti_categoria = INVENTARIO[tab_name]
@@ -895,69 +900,57 @@ elif menu == "🔄 Prestiti":
                                             st.toast("Prestito registrato!", icon="✅"); st.rerun()
                                     else: st.toast("Seleziona prima un paziente!", icon="⚠️")
     
-    # TAB EXTRA (LOGICA DINAMICA)
+    # Extra Tab Logic
     with tabs[3]:
         st.subheader("📦 Oggetti Extra")
-        # Carica oggetti extra da Inventario
         df_inv_extra = get_data("Inventario")
         extra_items = []
         if not df_inv_extra.empty:
-             # Filtra quelli con Area = "Extra"
              extra_items = df_inv_extra[df_inv_extra['Area'] == "Extra"]['Materiali'].tolist()
         
         if not extra_items:
-            st.info("Nessun oggetto extra in elenco.")
-        
-        for strumento in extra_items:
-            # COPY-PASTE della logica standard per ogni oggetto extra
-            prestito_attivo = pd.DataFrame()
-            if not df_pres.empty:
-                prestito_attivo = df_pres[ (df_pres['Oggetto'] == strumento) & (df_pres['Restituito'] != True) ]
-            
-            with st.container(border=True):
-                c_nome, c_stato = st.columns([1, 2])
-                with c_nome:
-                    st.markdown(f"### {strumento}")
-                    if prestito_attivo.empty: st.caption("🟢 DISPONIBILE")
-                    else: st.caption("🔴 IN PRESTITO")
+            st.info("Nessun oggetto extra in elenco. Aggiungine uno dal menu in alto.")
+        else:
+            for strumento in extra_items:
+                prestito_attivo = pd.DataFrame()
+                if not df_pres.empty:
+                    prestito_attivo = df_pres[ (df_pres['Oggetto'] == strumento) & (df_pres['Restituito'] != True) ]
+                
+                with st.container(border=True):
+                    c_nome, c_stato = st.columns([1, 2])
+                    with c_nome:
+                        st.markdown(f"### {strumento}")
+                        if prestito_attivo.empty: st.caption("🟢 DISPONIBILE")
+                        else: st.caption("🔴 IN PRESTITO")
 
-                with c_stato:
-                    if not prestito_attivo.empty:
-                        record = prestito_attivo.iloc[0]
-                        scadenza = pd.to_datetime(record['Data_Scadenza']).date() if pd.notnull(record['Data_Scadenza']) else date.today()
-                        days_left = (scadenza - date.today()).days
-                        bg_color = "rgba(229, 62, 62, 0.2)" if days_left < 0 else "rgba(46, 204, 113, 0.2)"
-                        
-                        st.markdown(f"""
-                        <div style="background-color: {bg_color}; padding: 10px; border-radius: 8px;">
-                            <strong>Paziente:</strong> {record.get('Paziente', 'Unknown')}<br>
-                            <strong>Scadenza:</strong> {scadenza.strftime('%d/%m')} ({days_left} gg)
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        if st.button("🔄 Restituisci", key=f"ret_{strumento}", use_container_width=True):
-                            with st.spinner("Restituzione..."):
-                                for _, row_to_close in prestito_attivo.iterrows():
-                                    update_generic("Prestiti", row_to_close['id'], {"Restituito": True})
-                                st.toast(f"{strumento} restituito!")
-                                time.sleep(1)
-                                st.rerun()
-                    else:
-                        c_paz, c_dur, c_btn = st.columns([2, 1, 1])
-                        with c_paz:
-                            paz_sel = st.selectbox("Paziente", nomi_paz, key=f"paz_{strumento}", label_visibility="collapsed")
-                        with c_dur:
-                            cols_d = st.columns(2)
-                            num = cols_d[0].number_input("Qta", 1, 52, 1, key=f"n_{strumento}", label_visibility="collapsed")
-                            unit = cols_d[1].selectbox("U", ["Sett", "Giorni"], key=f"u_{strumento}", label_visibility="collapsed")
-                        with c_btn:
-                            if st.button("➕ Presta", key=f"btn_{strumento}", type="primary", use_container_width=True):
-                                if paz_sel != "-- Seleziona --":
-                                    delta = timedelta(weeks=num) if unit == "Sett" else timedelta(days=num)
-                                    if save_prestito_new(paz_sel, strumento, "Extra", date.today(), date.today() + delta):
-                                        st.toast("Prestito registrato!", icon="✅")
-                                        st.rerun()
-                                else: st.toast("Seleziona paziente!", icon="⚠️")
+                    with c_stato:
+                        if not prestito_attivo.empty:
+                            record = prestito_attivo.iloc[0]
+                            scadenza = pd.to_datetime(record['Data_Scadenza']).date() if pd.notnull(record['Data_Scadenza']) else date.today()
+                            days_left = (scadenza - date.today()).days
+                            bg_color = "rgba(229, 62, 62, 0.2)" if days_left < 0 else "rgba(46, 204, 113, 0.2)"
+                            
+                            st.markdown(f"""<div style="background-color: {bg_color}; padding: 10px; border-radius: 8px;"><strong>Paziente:</strong> {record.get('Paziente', 'Unknown')}<br><strong>Scadenza:</strong> {scadenza.strftime('%d/%m')} ({days_left} gg)</div>""", unsafe_allow_html=True)
+                            
+                            if st.button("🔄 Restituisci", key=f"ret_{strumento}", use_container_width=True):
+                                with st.spinner("Restituzione..."):
+                                    for _, row_to_close in prestito_attivo.iterrows():
+                                        update_generic("Prestiti", row_to_close['id'], {"Restituito": True})
+                                    st.toast(f"{strumento} restituito!"); time.sleep(1); st.rerun()
+                        else:
+                            c_paz, c_dur, c_btn = st.columns([2, 1, 1])
+                            with c_paz: paz_sel = st.selectbox("Paziente", nomi_paz, key=f"paz_{strumento}", label_visibility="collapsed")
+                            with c_dur:
+                                cols_d = st.columns(2)
+                                num = cols_d[0].number_input("Qta", 1, 52, 1, key=f"n_{strumento}", label_visibility="collapsed")
+                                unit = cols_d[1].selectbox("U", ["Sett", "Giorni"], key=f"u_{strumento}", label_visibility="collapsed")
+                            with c_btn:
+                                if st.button("➕ Presta", key=f"btn_{strumento}", type="primary", use_container_width=True):
+                                    if paz_sel != "-- Seleziona --":
+                                        delta = timedelta(weeks=num) if unit == "Sett" else timedelta(days=num)
+                                        if save_prestito_new(paz_sel, strumento, "Extra", date.today(), date.today() + delta):
+                                            st.toast("Prestito registrato!", icon="✅"); st.rerun()
+                                    else: st.toast("Seleziona paziente!", icon="⚠️")
 
 # =========================================================
 # SEZIONE 6: SCADENZE (PLANNING FINANZIARIO - VERSIONE PULSANTI & CARD)
